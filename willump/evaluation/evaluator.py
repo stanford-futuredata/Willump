@@ -35,7 +35,7 @@ def evaluate_weld(weld_program: str, input_vector):
     weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
     vec_name = weld_object.update(input_vector, tys=WeldVec(WeldDouble()))
     weld_object.weld_code = weld_program.format(vec_name)
-    return weld_object.evaluate(WeldVec(WeldDouble()))
+    return weld_object.evaluate(WeldVec(WeldDouble()), verbose=False)
 
 
 

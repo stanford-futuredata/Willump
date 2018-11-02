@@ -5,7 +5,7 @@ import numpy
 
 class BasicEvaluationTests(unittest.TestCase):
     def test_evaluate_weld(self):
-        print("\nTest evaluate weld")
+        print("\ntest_evaluate_weld")
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
         # Add 1 to every element in an array.
         weld_program = "(map({0}, |e| e + 1.0))"

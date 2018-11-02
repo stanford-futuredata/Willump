@@ -11,6 +11,8 @@ class MathOperation(object):
     op_type: str
     # Is operation binary or unary?
     op_is_binop: bool
+    # Should the value be appended to the transform node's output vector?
+    append_to_output: bool
     # If first input is a variable, its name.
     first_input_var: typing.Optional[str]
     # If first input is a literal, its value.
@@ -23,28 +25,29 @@ class MathOperation(object):
     second_input_literal: typing.Optional[float]
     # If second input is from input array, the index.
     second_input_index: typing.Optional[int]
-    # Should the value be appended to the transform node's output vector?
-    append_to_output: bool
+    # If the result should be stored for later, under what name?
+    store_result_var_name: typing.Optional[str]
 
     def __init__(self, op_type: str, append_to_output: bool, first_input_var: str = None,
                  first_input_index: int = None,
                  first_input_literal: float = None, second_input_var: str = None,
                  second_input_index: int = None,
-                 second_input_literal: float = None) -> None:
+                 second_input_literal: float = None, store_result_var_name: str = None) -> None:
         self.op_type = op_type
-        if op_type == "+":
+        if op_type == "+" or op_type == "-" or op_type == "*" or op_type == "/":
             self.op_is_binop = True
         elif op_type == "sqrt":
             self.op_is_binop = False
         else:
             panic("Op not recognized")
+        self.append_to_output = append_to_output
         self.first_input_var = first_input_var
         self.first_input_literal = first_input_literal
         self.first_input_index = first_input_index
         self.second_input_var = second_input_var
         self.second_input_literal = second_input_literal
         self.second_input_index = second_input_index
-        self.append_to_output = append_to_output
+        self.store_result_var_name = store_result_var_name
 
 
 class TransformMathNode(wgn.WillumpGraphNode):
@@ -74,35 +77,45 @@ class TransformMathNode(wgn.WillumpGraphNode):
 
     def get_node_weld(self) -> str:
         weld_str: str = "let __ret_array0 = appender[f64];"
+        ret_array_counter: int = 0
         for i, mathop in enumerate(self.input_mathops):
-            tmp_var_name: str = self._get_tmp_var_name()
+            if mathop.store_result_var_name is not None:
+                var_name: str = mathop.store_result_var_name
+            else:
+                var_name = self._get_tmp_var_name()
+            # Define the first argument to the operation.
             first_arg: str
             if mathop.first_input_literal is not None:
                 first_arg = str(mathop.first_input_literal)
             elif mathop.first_input_var is not None:
-                panic("Unsupported")
+                first_arg = mathop.first_input_var
             elif mathop.first_input_index is not None:
                 first_arg = "lookup({0}, {1}L)".format("{0}", mathop.first_input_index)
             else:
                 panic("Math node without first argument.")
-            if mathop.op_is_binop:
+            # Process unary operations.
+            if not mathop.op_is_binop:
+                # Build the unary operation.
+                weld_str += "let {0} = {1}({2});".format(var_name, mathop.op_type, first_arg)
+            # Process binary operations.
+            else:
+                # Binary operations have a second argument, define it.
                 second_arg: str
                 if mathop.second_input_literal is not None:
                     second_arg = str(mathop.second_input_literal)
-                elif mathop.first_input_var is not None:
-                    panic("Unsupported")
-                elif mathop.first_input_index is not None:
+                elif mathop.second_input_var is not None:
+                    second_arg = mathop.second_input_var
+                elif mathop.second_input_index is not None:
                     second_arg = "lookup({0}, {1}L)".format("{0}", mathop.second_input_index)
                 else:
                     panic("Math node binop without second argument.")
-                if mathop.op_type == "+":
-                    weld_str += "let {0} = {1} + {2};".format(tmp_var_name, first_arg, second_arg)
-                else:
-                    panic("Unsupported")
-            else:
-                panic("Unsupported")
+                # Build the binary operation.
+                weld_str += "let {0} = {1} {2} {3};".format(var_name, first_arg,
+                                                            mathop.op_type, second_arg)
+            # Append the output of the operation to the output array if desired.
             if mathop.append_to_output:
                 weld_str += "let __ret_array{0} = merge(__ret_array{1}, {2});" \
-                    .format(i+1, i, tmp_var_name)
-        weld_str += "result(__ret_array{0})".format(len(self.input_mathops))
+                    .format(ret_array_counter + 1, ret_array_counter, var_name)
+                ret_array_counter += 1
+        weld_str += "result(__ret_array{0})".format(ret_array_counter)
         return weld_str
