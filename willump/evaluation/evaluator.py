@@ -20,7 +20,7 @@ def graph_to_weld(graph: wg.WillumpGraph) -> str:
     while len(current_node.get_in_nodes()) > 0:
         assert(len(current_node.get_in_nodes()) == 1)
         node_type: str = current_node.get_node_type()
-        if node_type == "addition":
+        if node_type == "math":
             weld_str = weld_str.format(current_node.get_node_weld())
         else:
             pass
