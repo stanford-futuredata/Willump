@@ -47,6 +47,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
 
     @staticmethod
     def _pybinop_to_wbinop(binop: ast.operator) -> str:
+        """
+        Convert from AST binops to strings for TransformMathNode.
+        """
         if isinstance(binop, ast.Add):
             return "+"
         elif isinstance(binop, ast.Sub):
@@ -59,16 +62,23 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             return ""
 
     def _expr_to_math_operation_input(self, expr: ast.expr) -> MathOperationInput:
+        """
+        Convert an expression input to a binary or unary operation into a MathOperationInput.
+        """
         if isinstance(expr, ast.Num):
             return MathOperationInput(input_literal=expr.n)
         elif isinstance(expr, ast.Subscript):
-            return MathOperationInput(input_index=expr.slice.value.n)
+            return MathOperationInput(input_index=(expr.value.id, expr.slice.value.n))
         else:
             panic("Unrecognized expression in binop {0}".format(ast.dump(expr)))
             return MathOperationInput()
 
     def _analyze_binop(self, binop: ast.BinOp) -> \
             Tuple[MathOperationInput, str, MathOperationInput]:
+        """
+        Convert an AST binop into two MathOperationInputs and an operator-string for a Transform
+        Math Node.
+        """
         operator: str = self._pybinop_to_wbinop(binop.op)
         if operator == "":
             panic("Unsupported binop {0}".format(ast.dump(binop)))
@@ -79,8 +89,14 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         return left_input, operator, right_input
 
     def _build_math_transform_for_output(self, output_name: str) -> Optional[TransformMathNode]:
-        return TransformMathNode(input_mathops=self._mathops_list,
-                                 input_node=self._node_dict["input_numpy_array"])
+        """
+        Build a TransformMathNode that will output a particular variable.  Return None
+        if no such node can be built.
+
+        TODO:  Proper input handling.
+        """
+        return TransformMathNode(self._node_dict["input_numpy_array"],
+                                 self._mathops_list, output_name)
 
     def visit_Assign(self, node: ast.Assign):
         # Assume assignment to only one variable for now.

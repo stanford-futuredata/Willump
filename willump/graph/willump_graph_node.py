@@ -23,3 +23,9 @@ class WillumpGraphNode(object):
         Return the Weld IR code defining this node's transform.
         """
         ...
+
+    def get_output_name(self) -> str:
+        """
+        Return the name of the variable this node outputs.
+        """
+        ...

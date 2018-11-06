@@ -19,7 +19,8 @@ class BasicEvaluationTests(unittest.TestCase):
         add_literal = wtmn.MathOperation("+", "result",
                                          True, MathOperationInput(input_literal=1.),
                                          MathOperationInput(input_literal=2.))
-        add_node: wgn.WillumpGraphNode = wtmn.TransformMathNode(in_node, [add_literal, add_literal])
+        add_node: wgn.WillumpGraphNode = wtmn.TransformMathNode(in_node, [add_literal, add_literal],
+                                                                "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
         weld_str: str = weval.graph_to_weld(graph)
@@ -32,16 +33,16 @@ class BasicEvaluationTests(unittest.TestCase):
         print("\ntest_add_indexes")
         in_node: wgin.WillumpInputNode = wgin.WillumpInputNode("input")
         index_op_one = wtmn.MathOperation("+", "result",
-                                          True, MathOperationInput(input_index=0),
-                                          MathOperationInput(input_index=0))
+                                          True, MathOperationInput(input_index=("input", 0)),
+                                          MathOperationInput(input_index=("input", 0)))
         index_op_two = wtmn.MathOperation("+", "result",
-                                          True, MathOperationInput(input_index=1),
-                                          MathOperationInput(input_index=2))
+                                          True, MathOperationInput(input_index=("input", 1)),
+                                          MathOperationInput(input_index=("input", 2)))
         index_op_three = wtmn.MathOperation("+", "result",
-                                            True, MathOperationInput(input_index=1),
+                                            True, MathOperationInput(input_index=("input", 1)),
                                             MathOperationInput(input_literal=5.))
         add_node: wgn.WillumpGraphNode = \
-            wtmn.TransformMathNode(in_node, [index_op_one, index_op_two, index_op_three])
+            wtmn.TransformMathNode(in_node, [index_op_one, index_op_two, index_op_three], "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
         weld_str: str = weval.graph_to_weld(graph)
@@ -54,16 +55,17 @@ class BasicEvaluationTests(unittest.TestCase):
         print("\ntest_add_vars")
         in_node: wgin.WillumpInputNode = wgin.WillumpInputNode("input")
         index_op_one = wtmn.MathOperation("+", "two", False,
-                                          MathOperationInput(input_index=0),
-                                          MathOperationInput(input_index=0))
+                                          MathOperationInput(input_index=("input", 0)),
+                                          MathOperationInput(input_index=("input", 0)))
         index_op_two = wtmn.MathOperation("+", "result", True,
-                                          MathOperationInput(input_index=1),
-                                          MathOperationInput(input_index=2))
+                                          MathOperationInput(input_index=("input", 1)),
+                                          MathOperationInput(input_index=("input", 2)))
         index_op_three = wtmn.MathOperation("+", "result", True,
                                             MathOperationInput(input_var="two"),
                                             MathOperationInput(input_literal=5.))
         add_node: wgn.WillumpGraphNode = \
-            wtmn.TransformMathNode(in_node, [index_op_one, index_op_two, index_op_three])
+            wtmn.TransformMathNode(in_node, [index_op_one, index_op_two, index_op_three],
+                                   "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
         weld_str: str = weval.graph_to_weld(graph)
@@ -75,13 +77,16 @@ class BasicEvaluationTests(unittest.TestCase):
     def test_sqrt(self):
         print("\ntest_sqrt")
         in_node: wgin.WillumpInputNode = wgin.WillumpInputNode("input")
-        index_op_one = wtmn.MathOperation("sqrt", "two", False, MathOperationInput(input_literal=4.))
-        index_op_two = wtmn.MathOperation("sqrt", "result", True, MathOperationInput(input_index=0))
+        index_op_one = wtmn.MathOperation("sqrt", "two", False,
+                                          MathOperationInput(input_literal=4.))
+        index_op_two = wtmn.MathOperation("sqrt", "result", True,
+                                          MathOperationInput(input_index=("input", 0)))
         index_op_three = wtmn.MathOperation("+", "result", True,
                                             MathOperationInput(input_literal=5.),
                                             MathOperationInput(input_var="two"))
         add_node: wgn.WillumpGraphNode = \
-            wtmn.TransformMathNode(in_node, [index_op_one, index_op_two, index_op_three])
+            wtmn.TransformMathNode(in_node, [index_op_one, index_op_two, index_op_three],
+                                   "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
         weld_str: str = weval.graph_to_weld(graph)
@@ -94,16 +99,17 @@ class BasicEvaluationTests(unittest.TestCase):
         print("\ntest_mixed_binops")
         in_node: wgin.WillumpInputNode = wgin.WillumpInputNode("input")
         index_op_one = wtmn.MathOperation("-", "result", True,
-                                          MathOperationInput(input_index=0),
-                                          MathOperationInput(input_index=0))
+                                          MathOperationInput(input_index=("input", 0)),
+                                          MathOperationInput(input_index=("input", 0)))
         index_op_two = wtmn.MathOperation("*", "result", True,
-                                          MathOperationInput(input_index=1),
-                                          MathOperationInput(input_index=2))
+                                          MathOperationInput(input_index=("input", 1)),
+                                          MathOperationInput(input_index=("input", 2)))
         index_op_three = wtmn.MathOperation("/", "result", True,
-                                            MathOperationInput(input_index=1),
+                                            MathOperationInput(input_index=("input", 1)),
                                             MathOperationInput(input_literal=5.))
         add_node: wgn.WillumpGraphNode = \
-            wtmn.TransformMathNode(in_node, [index_op_one, index_op_two, index_op_three])
+            wtmn.TransformMathNode(in_node, [index_op_one, index_op_two, index_op_three],
+                                   "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
         weld_str: str = weval.graph_to_weld(graph)

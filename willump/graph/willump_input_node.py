@@ -18,9 +18,9 @@ class WillumpInputNode(wgn.WillumpGraphNode):
         return "input"
 
     def get_node_weld(self) -> str:
-        return ""
+        return "let {0} = {1};".format(self._arg_name, "{0}")
 
-    def get_arg_name(self) -> str:
+    def get_output_name(self) -> str:
         return self._arg_name
 
     def __repr__(self):

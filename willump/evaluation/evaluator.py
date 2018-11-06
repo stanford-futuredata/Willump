@@ -16,15 +16,12 @@ def graph_to_weld(graph: wg.WillumpGraph) -> str:
     For now assume graph is a linked list where each node has one input.
     """
     current_node: wgn.WillumpGraphNode = graph.get_output_node()
-    weld_str: str = "{0}"
+    weld_str: str = ""
     while len(current_node.get_in_nodes()) > 0:
         assert(len(current_node.get_in_nodes()) == 1)
-        node_type: str = current_node.get_node_type()
-        if node_type == "math":
-            weld_str = weld_str.format(current_node.get_node_weld())
-        else:
-            pass
+        weld_str = current_node.get_node_weld() + weld_str
         current_node = current_node.get_in_nodes()[0]
+    weld_str = current_node.get_node_weld() + weld_str
     return weld_str
 
 

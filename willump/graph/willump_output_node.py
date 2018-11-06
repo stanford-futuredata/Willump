@@ -8,18 +8,21 @@ class WillumpOutputNode(wgn.WillumpGraphNode):
     and it must be the graph's only source.  Represents the machine learning model the pipeline
     feeds into.
     """
-    input_nodes: typing.List[wgn.WillumpGraphNode]
+    input_node: wgn.WillumpGraphNode
 
     def __init__(self, input_node: wgn.WillumpGraphNode) -> None:
-        self.input_nodes = [input_node]
+        self.input_node = input_node
 
     def get_in_nodes(self) -> typing.List[wgn.WillumpGraphNode]:
-        return self.input_nodes
+        return [self.input_node]
 
     def get_node_type(self) -> str:
         return "output"
 
     def get_node_weld(self) -> str:
+        return "result({0})".format(self.input_node.get_output_name())
+
+    def get_output_name(self) -> str:
         return ""
 
     def __repr__(self):
