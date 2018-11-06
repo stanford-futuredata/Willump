@@ -24,7 +24,4 @@ def infer_graph(input_python: str) -> WillumpGraph:
     graph_builder = WillumpGraphBuilder()
     graph_builder.visit(python_fundef)
 
-    input_node: WillumpInputNode = WillumpInputNode()
-    output_node: WillumpOutputNode = WillumpOutputNode(input_node)
-    willump_graph = WillumpGraph([input_node], output_node)
-    return willump_graph
+    return graph_builder.get_willump_graph()

@@ -21,3 +21,6 @@ class WillumpOutputNode(wgn.WillumpGraphNode):
 
     def get_node_weld(self) -> str:
         return ""
+
+    def __repr__(self):
+        return "Output node\n"

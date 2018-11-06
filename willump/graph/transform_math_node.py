@@ -1,6 +1,18 @@
-import typing
+from typing import Optional, List
+
 import willump.graph.willump_graph_node as wgn
 from willump import panic
+
+
+class MathOperationInput(object):
+    input_var: Optional[str]
+    input_index: Optional[int]
+    input_literal: Optional[float]
+
+    def __init__(self, input_var: str = None, input_index: int = None, input_literal: float = None):
+        self.input_var = input_var
+        self.input_index = input_index
+        self.input_literal = input_literal
 
 
 class MathOperation(object):
@@ -11,28 +23,26 @@ class MathOperation(object):
     op_type: str
     # Is operation binary or unary?
     op_is_binop: bool
-    # Should the value be appended to the transform node's output vector?
-    append_to_output: bool
+    # What is the name of the variable the result goes into?
+    output_var_name: str
+    # Is the variable the result goes into a vector?
+    output_is_vector: bool
     # If first input is a variable, its name.
-    first_input_var: typing.Optional[str]
+    first_input_var: Optional[str]
     # If first input is a literal, its value.
-    first_input_literal: typing.Optional[float]
+    first_input_literal: Optional[float]
     # If first input is from input array, the index.
-    first_input_index: typing.Optional[int]
+    first_input_index: Optional[int]
     # If second input is a variable, its name (unneeded if unary op).
-    second_input_var: typing.Optional[str]
+    second_input_var: Optional[str]
     # If second input is a literal, its value (unneeded if unary op).
-    second_input_literal: typing.Optional[float]
+    second_input_literal: Optional[float]
     # If second input is from input array, the index.
-    second_input_index: typing.Optional[int]
-    # If the result should be stored for later, under what name?
-    store_result_var_name: typing.Optional[str]
+    second_input_index: Optional[int]
 
-    def __init__(self, op_type: str, append_to_output: bool, first_input_var: str = None,
-                 first_input_index: int = None,
-                 first_input_literal: float = None, second_input_var: str = None,
-                 second_input_index: int = None,
-                 second_input_literal: float = None, store_result_var_name: str = None) -> None:
+    def __init__(self, op_type: str, output_var_name: str, output_is_vector: bool,
+                 first_input: MathOperationInput,
+                 second_input: MathOperationInput = None) -> None:
         self.op_type = op_type
         if op_type == "+" or op_type == "-" or op_type == "*" or op_type == "/":
             self.op_is_binop = True
@@ -40,14 +50,22 @@ class MathOperation(object):
             self.op_is_binop = False
         else:
             panic("Op not recognized")
-        self.append_to_output = append_to_output
-        self.first_input_var = first_input_var
-        self.first_input_literal = first_input_literal
-        self.first_input_index = first_input_index
-        self.second_input_var = second_input_var
-        self.second_input_literal = second_input_literal
-        self.second_input_index = second_input_index
-        self.store_result_var_name = store_result_var_name
+        self.output_var_name = output_var_name
+        self.output_is_vector = output_is_vector
+        self.first_input_var = first_input.input_var
+        self.first_input_literal = first_input.input_literal
+        self.first_input_index = first_input.input_index
+        if second_input is not None:
+            self.second_input_var = second_input.input_var
+            self.second_input_literal = second_input.input_literal
+            self.second_input_index = second_input.input_index
+
+    def __repr__(self)-> str:
+        return "Op: {0} Output: {1} {2} First:({3} {4} {5}) Second:({6} {7} {8})".format(
+                self.op_type,
+                self.output_var_name, self.output_is_vector, self.first_input_var,
+                self.first_input_literal, self.first_input_index, self.second_input_var,
+                self.second_input_literal, self.second_input_index)
 
 
 class TransformMathNode(wgn.WillumpGraphNode):
@@ -55,16 +73,16 @@ class TransformMathNode(wgn.WillumpGraphNode):
     Willump math transform node.  Takes in a series of MathOperations and executes them,
     returning a vector of the results of all transformations that specified appending to output.
     """
-    input_nodes: typing.List[wgn.WillumpGraphNode]
-    input_mathops: typing.List[MathOperation]
+    input_nodes: List[wgn.WillumpGraphNode]
+    input_mathops: List[MathOperation]
     _temp_var_counter: int = 0
 
     def __init__(self, input_node: wgn.WillumpGraphNode,
-                 input_mathops: typing.List[MathOperation]) -> None:
+                 input_mathops: List[MathOperation]) -> None:
         self.input_nodes = [input_node]
         self.input_mathops = input_mathops
 
-    def get_in_nodes(self) -> typing.List[wgn.WillumpGraphNode]:
+    def get_in_nodes(self) -> List[wgn.WillumpGraphNode]:
         return self.input_nodes
 
     def get_node_type(self) -> str:
@@ -79,8 +97,8 @@ class TransformMathNode(wgn.WillumpGraphNode):
         weld_str: str = "let __ret_array0 = appender[f64];"
         ret_array_counter: int = 0
         for i, mathop in enumerate(self.input_mathops):
-            if mathop.store_result_var_name is not None:
-                var_name: str = mathop.store_result_var_name
+            if not mathop.output_is_vector:
+                var_name: str = mathop.output_var_name
             else:
                 var_name = self._get_tmp_var_name()
             # Define the first argument to the operation.
@@ -113,9 +131,13 @@ class TransformMathNode(wgn.WillumpGraphNode):
                 weld_str += "let {0} = {1} {2} {3};".format(var_name, first_arg,
                                                             mathop.op_type, second_arg)
             # Append the output of the operation to the output array if desired.
-            if mathop.append_to_output:
+            if mathop.output_is_vector:
                 weld_str += "let __ret_array{0} = merge(__ret_array{1}, {2});" \
                     .format(ret_array_counter + 1, ret_array_counter, var_name)
                 ret_array_counter += 1
         weld_str += "result(__ret_array{0})".format(ret_array_counter)
         return weld_str
+
+    def __repr__(self) -> str:
+        return "Transform math node\n Transform: {0}\n".format(self.input_mathops.__repr__())
+

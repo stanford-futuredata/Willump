@@ -3,7 +3,7 @@ import re
 
 
 def panic(error: str):
-    print("Error: {0}".format(str))
+    print("Error: {0}".format(error))
     sys.exit(1)
 
 
