@@ -20,7 +20,7 @@ class WillumpOutputNode(wgn.WillumpGraphNode):
         return "output"
 
     def get_node_weld(self) -> str:
-        return "result({0})".format(self.input_node.get_output_name())
+        return "{0}".format(self.input_node.get_output_name())
 
     def get_output_name(self) -> str:
         return ""

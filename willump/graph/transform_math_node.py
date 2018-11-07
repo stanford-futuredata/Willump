@@ -144,7 +144,7 @@ class TransformMathNode(wgn.WillumpGraphNode):
                 weld_str += "let __ret_array{0} = merge(__ret_array{1}, {2});" \
                     .format(ret_array_counter + 1, ret_array_counter, var_name)
                 ret_array_counter += 1
-        weld_str += "let {0} = __ret_array{1};".format(self.output_name, ret_array_counter)
+        weld_str += "let {0} = result(__ret_array{1});".format(self.output_name, ret_array_counter)
         return weld_str
 
     def __repr__(self) -> str:

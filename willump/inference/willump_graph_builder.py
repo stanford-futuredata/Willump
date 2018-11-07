@@ -7,7 +7,7 @@ from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
 from willump.graph.transform_math_node import TransformMathNode, MathOperation, MathOperationInput
 
-from typing import MutableMapping, List, Tuple, Optional
+from typing import MutableMapping, List, Tuple, Optional, Set
 
 
 class WillumpGraphBuilder(ast.NodeVisitor):
@@ -22,6 +22,10 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     # A map from the names of variables to the nodes that generate them.
     _node_dict: MutableMapping[str, WillumpGraphNode] = {}
     _mathops_list: List[MathOperation] = []
+
+    def __init__(self):
+        self._node_dict = {}
+        self._mathops_list = []
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
         for arg in node.args.args:
@@ -93,10 +97,46 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         Build a TransformMathNode that will output a particular variable.  Return None
         if no such node can be built.
 
-        TODO:  Proper input handling.
+        TODO:  Handle multiple inputs.
+        TODO:  Don't recalculate intermediate variables.
         """
-        return TransformMathNode(self._node_dict["input_numpy_array"],
-                                 self._mathops_list, output_name)
+        assert(output_name not in self._node_dict)
+        # All variables needed to compute the final output.
+        input_vars: Set[str] = set()
+        # All arrays needed to compute the final output.
+        input_nodes: Set[str] = set()
+        # All MathOperations in the node that computes the final output
+        node_mathop_list: List[MathOperation] = []
+        # Find all mathops that compute the output array as well as all their input dependencies.
+        for mathop in reversed(self._mathops_list):
+            mathop_output: str = mathop.output_var_name
+            if mathop_output == output_name or mathop_output in input_vars:
+                node_mathop_list.append(mathop)
+                if mathop.first_input_var is not None:
+                    input_vars.add(mathop.first_input_var)
+                if mathop.first_input_index is not None:
+                    input_nodes.add(mathop.first_input_index[0])
+                if mathop.second_input_var is not None:
+                    input_vars.add(mathop.second_input_var)
+                if mathop.second_input_index is not None:
+                    input_nodes.add(mathop.second_input_index[0])
+            elif mathop_output in input_nodes:
+                if mathop_output not in self._node_dict:
+                    node: Optional[TransformMathNode] =\
+                        self._build_math_transform_for_output(mathop_output)
+                    if node is None:
+                        panic("No way to build {0} is found".format(mathop_output))
+        # Return None if the final output is not buildable.
+        if len(node_mathop_list) == 0:
+            return None
+        # TransformMathNodes can currently only handle exactly one input node.
+        assert(len(input_nodes) == 1)
+        # The list was built backwards, reverse it.
+        node_mathop_list.reverse()
+        return_node: TransformMathNode = TransformMathNode(self._node_dict[list(input_nodes)[0]],
+                                                           node_mathop_list, output_name)
+        self._node_dict[output_name] = return_node
+        return return_node
 
     def visit_Assign(self, node: ast.Assign):
         # Assume assignment to only one variable for now.
