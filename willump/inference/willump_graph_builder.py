@@ -17,6 +17,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     1.  Input Python contains a single function, from which the graph shall be extracted.
 
     2.  This function takes in and returns a numpy.float64 array.
+
+    3.  The function does not reference anything outside of its own scope.
     """
     willump_graph: WillumpGraph
     # A map from the names of variables to the nodes that generate them.
@@ -28,17 +30,65 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         self._mathops_list = []
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
+        """
+        Begin processing of a function.  Create input nodes for function arguments.
+
+        Assumes all function arguments are numpy float64 arrays.
+        """
         for arg in node.args.args:
             arg_name: str = arg.arg
             input_node: WillumpInputNode = WillumpInputNode(arg_name)
             self._node_dict[arg_name] = input_node
         ast.NodeVisitor.generic_visit(self, node)
 
+    def visit_Assign(self, node: ast.Assign):
+        """
+        Process an assignment AST node into either a Willump node or MathOperation that
+        defines the variable being assigned.
+        """
+        # Assume assignment to only one variable.
+        assert(len(node.targets) == 1)
+        target: ast.expr = node.targets[0]
+        output_var_name, output_is_vector = self._analyze_assignment_target(target)
+        value: ast.expr = node.value
+        if isinstance(value, ast.BinOp):
+            left, op, right = self._analyze_binop(value)
+            binop_mathop: MathOperation = MathOperation(op, output_var_name, output_is_vector,
+                                                        left, second_input=right)
+            self._mathops_list.append(binop_mathop)
+
+    def visit_Return(self, node: ast.Return):
+        """
+        Process the function return and create a graph which outputs whatever the function
+        is returning.
+
+        Assumes function returns a single value, which must be a numpy float64 array.
+        """
+        output_node: WillumpOutputNode
+        if isinstance(node.value, ast.Name):
+            output_name: str = node.value.id
+            if output_name in self._node_dict:
+                output_node = WillumpOutputNode(self._node_dict[output_name])
+            else:
+                potential_in_node: Optional[TransformMathNode] = \
+                    self._build_math_transform_for_output(output_name)
+                if potential_in_node is not None:
+                    output_node = WillumpOutputNode(potential_in_node)
+                else:
+                    panic("No in-node found for return node {0}".format(ast.dump(node)))
+            self.willump_graph = WillumpGraph(output_node)
+        else:
+            panic("Unrecognized return: {0}".format(ast.dump(node)))
+
+    def generic_visit(self, node):
+        ast.NodeVisitor.generic_visit(self, node)
+
+    def get_willump_graph(self) -> WillumpGraph:
+        return self.willump_graph
+
     def _analyze_assignment_target(self, node: ast.expr) -> Tuple[str, bool]:
         """
         Return the name and type of the target of an assignment statement.
-        :param node: An assignment target.
-        :return: The name of the variable being assigned to and whether it is a vector.
         """
         if isinstance(node, ast.Name):
             return node.id, False
@@ -49,22 +99,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             panic("Unrecognized assignment to: {0}".format(ast.dump(node)))
             return "", False
 
-    @staticmethod
-    def _pybinop_to_wbinop(binop: ast.operator) -> str:
-        """
-        Convert from AST binops to strings for TransformMathNode.
-        """
-        if isinstance(binop, ast.Add):
-            return "+"
-        elif isinstance(binop, ast.Sub):
-            return "-"
-        elif isinstance(binop, ast.Mult):
-            return "*"
-        elif isinstance(binop, ast.Div):
-            return "/"
-        else:
-            return ""
-
     def _expr_to_math_operation_input(self, expr: ast.expr) -> MathOperationInput:
         """
         Convert an expression input to a binary or unary operation into a MathOperationInput.
@@ -73,6 +107,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             return MathOperationInput(input_literal=expr.n)
         elif isinstance(expr, ast.Subscript):
             return MathOperationInput(input_index=(expr.value.id, expr.slice.value.n))
+        elif isinstance(expr, ast.Name):
+            return MathOperationInput(input_var=expr.id)
         else:
             panic("Unrecognized expression in binop {0}".format(ast.dump(expr)))
             return MathOperationInput()
@@ -138,37 +174,18 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         self._node_dict[output_name] = return_node
         return return_node
 
-    def visit_Assign(self, node: ast.Assign):
-        # Assume assignment to only one variable for now.
-        assert(len(node.targets) == 1)
-        target: ast.expr = node.targets[0]
-        output_var_name, output_is_vector = self._analyze_assignment_target(target)
-        value: ast.expr = node.value
-        if isinstance(value, ast.BinOp):
-            left, op, right = self._analyze_binop(value)
-            binop_mathop: MathOperation = MathOperation(op, output_var_name, output_is_vector,
-                                                        left, second_input=right)
-            self._mathops_list.append(binop_mathop)
-
-    def visit_Return(self, node: ast.Return):
-        output_node: WillumpOutputNode
-        if isinstance(node.value, ast.Name):
-            output_name: str = node.value.id
-            if output_name in self._node_dict:
-                output_node = WillumpOutputNode(self._node_dict[output_name])
-            else:
-                potential_in_node: Optional[TransformMathNode] = \
-                    self._build_math_transform_for_output(output_name)
-                if potential_in_node is not None:
-                    output_node = WillumpOutputNode(potential_in_node)
-                else:
-                    panic("No in-node found for return node {0}".format(ast.dump(node)))
-            self.willump_graph = WillumpGraph(output_node)
+    @staticmethod
+    def _pybinop_to_wbinop(binop: ast.operator) -> str:
+        """
+        Convert from AST binops to strings for TransformMathNode.
+        """
+        if isinstance(binop, ast.Add):
+            return "+"
+        elif isinstance(binop, ast.Sub):
+            return "-"
+        elif isinstance(binop, ast.Mult):
+            return "*"
+        elif isinstance(binop, ast.Div):
+            return "/"
         else:
-            panic("Unrecognized return: {0}".format(ast.dump(node)))
-
-    def generic_visit(self, node):
-        ast.NodeVisitor.generic_visit(self, node)
-
-    def get_willump_graph(self) -> WillumpGraph:
-        return self.willump_graph
+            return ""
