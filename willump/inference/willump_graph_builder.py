@@ -97,14 +97,13 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         Build a TransformMathNode that will output a particular variable.  Return None
         if no such node can be built.
 
-        TODO:  Handle multiple inputs.
         TODO:  Don't recalculate intermediate variables.
         """
         assert(output_name not in self._node_dict)
         # All variables needed to compute the final output.
         input_vars: Set[str] = set()
         # All arrays needed to compute the final output.
-        input_nodes: Set[str] = set()
+        input_arrays: Set[str] = set()
         # All MathOperations in the node that computes the final output
         node_mathop_list: List[MathOperation] = []
         # Find all mathops that compute the output array as well as all their input dependencies.
@@ -115,12 +114,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 if mathop.first_input_var is not None:
                     input_vars.add(mathop.first_input_var)
                 if mathop.first_input_index is not None:
-                    input_nodes.add(mathop.first_input_index[0])
+                    input_arrays.add(mathop.first_input_index[0])
                 if mathop.second_input_var is not None:
                     input_vars.add(mathop.second_input_var)
                 if mathop.second_input_index is not None:
-                    input_nodes.add(mathop.second_input_index[0])
-            elif mathop_output in input_nodes:
+                    input_arrays.add(mathop.second_input_index[0])
+            elif mathop_output in input_arrays:
                 if mathop_output not in self._node_dict:
                     node: Optional[TransformMathNode] =\
                         self._build_math_transform_for_output(mathop_output)
@@ -129,11 +128,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         # Return None if the final output is not buildable.
         if len(node_mathop_list) == 0:
             return None
-        # TransformMathNodes can currently only handle exactly one input node.
-        assert(len(input_nodes) == 1)
         # The list was built backwards, reverse it.
         node_mathop_list.reverse()
-        return_node: TransformMathNode = TransformMathNode(self._node_dict[list(input_nodes)[0]],
+        # Build the final node to return.
+        input_nodes: List[WillumpGraphNode] =\
+            list(map(lambda array: self._node_dict[array], input_arrays))
+        return_node: TransformMathNode = TransformMathNode(input_nodes,
                                                            node_mathop_list, output_name)
         self._node_dict[output_name] = return_node
         return return_node

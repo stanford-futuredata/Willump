@@ -19,7 +19,8 @@ class BasicEvaluationTests(unittest.TestCase):
         add_literal = wtmn.MathOperation("+", "result",
                                          True, MathOperationInput(input_literal=1.),
                                          MathOperationInput(input_literal=2.))
-        add_node: wgn.WillumpGraphNode = wtmn.TransformMathNode(in_node, [add_literal, add_literal],
+        add_node: wgn.WillumpGraphNode = wtmn.TransformMathNode([in_node],
+                                                                [add_literal, add_literal],
                                                                 "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
@@ -42,7 +43,8 @@ class BasicEvaluationTests(unittest.TestCase):
                                             True, MathOperationInput(input_index=("input", 1)),
                                             MathOperationInput(input_literal=5.))
         add_node: wgn.WillumpGraphNode = \
-            wtmn.TransformMathNode(in_node, [index_op_one, index_op_two, index_op_three], "output")
+            wtmn.TransformMathNode([in_node],
+                                   [index_op_one, index_op_two, index_op_three], "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
         weld_str: str = weval.graph_to_weld(graph)
@@ -64,7 +66,7 @@ class BasicEvaluationTests(unittest.TestCase):
                                             MathOperationInput(input_var="two"),
                                             MathOperationInput(input_literal=5.))
         add_node: wgn.WillumpGraphNode = \
-            wtmn.TransformMathNode(in_node, [index_op_one, index_op_two, index_op_three],
+            wtmn.TransformMathNode([in_node], [index_op_one, index_op_two, index_op_three],
                                    "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
@@ -85,7 +87,7 @@ class BasicEvaluationTests(unittest.TestCase):
                                             MathOperationInput(input_literal=5.),
                                             MathOperationInput(input_var="two"))
         add_node: wgn.WillumpGraphNode = \
-            wtmn.TransformMathNode(in_node, [index_op_one, index_op_two, index_op_three],
+            wtmn.TransformMathNode([in_node], [index_op_one, index_op_two, index_op_three],
                                    "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
@@ -108,7 +110,7 @@ class BasicEvaluationTests(unittest.TestCase):
                                             MathOperationInput(input_index=("input", 1)),
                                             MathOperationInput(input_literal=5.))
         add_node: wgn.WillumpGraphNode = \
-            wtmn.TransformMathNode(in_node, [index_op_one, index_op_two, index_op_three],
+            wtmn.TransformMathNode([in_node], [index_op_one, index_op_two, index_op_three],
                                    "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)

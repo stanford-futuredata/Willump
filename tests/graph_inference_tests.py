@@ -28,7 +28,7 @@ class GraphInferenceTests(unittest.TestCase):
             weld_str: str = weval.graph_to_weld(willump_graph)
             basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
             weld_output = weval.evaluate_weld(weld_str, basic_vec)
-            numpy.testing.assert_almost_equal(weld_output, numpy.array([12., 1., 9.]))
+            numpy.testing.assert_almost_equal(weld_output, numpy.array([7., 1., 6.]))
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_output_node import WillumpOutputNode
-from typing import List
+from typing import List, Set
 
 
 class WillumpGraph(object):
@@ -27,10 +27,14 @@ class WillumpGraph(object):
         return self.output_node
 
     def __repr__(self) -> str:
-        node_queue: List[WillumpGraphNode] = [self.output_node]
         ret_string: str = ""
+        node_queue: List[WillumpGraphNode] = [self.get_output_node()]
+        nodes_seen: Set[WillumpGraphNode] = set()
         while len(node_queue) > 0:
-            curr_node: WillumpGraphNode = node_queue[0]
-            ret_string += curr_node.__repr__()
-            node_queue = node_queue[1:] + curr_node.get_in_nodes()
+            current_node = node_queue.pop(0)
+            ret_string += current_node.__repr__()
+            for node in current_node.get_in_nodes():
+                if node not in nodes_seen:
+                    nodes_seen.add(node)
+                    node_queue.append(node)
         return ret_string

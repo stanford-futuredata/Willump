@@ -1,6 +1,6 @@
 from typing import Optional, List, Tuple
 
-import willump.graph.willump_graph_node as wgn
+from willump.graph.willump_graph_node import WillumpGraphNode
 from willump import panic
 
 
@@ -69,24 +69,24 @@ class MathOperation(object):
                 self.second_input_literal, self.second_input_index)
 
 
-class TransformMathNode(wgn.WillumpGraphNode):
+class TransformMathNode(WillumpGraphNode):
     """
     Willump math transform node.  Takes in a series of MathOperations and executes them,
     returning a vector of the results of all transformations that specified appending to output.
     """
-    input_nodes: List[wgn.WillumpGraphNode]
+    input_nodes: List[WillumpGraphNode]
     input_mathops: List[MathOperation]
     output_name: str
     _temp_var_counter: int = 0
 
-    def __init__(self, input_node: wgn.WillumpGraphNode,
+    def __init__(self, input_nodes: List[WillumpGraphNode],
                  input_mathops: List[MathOperation],
                  output_name: str) -> None:
-        self.input_nodes = [input_node]
+        self.input_nodes = input_nodes
         self.input_mathops = input_mathops
         self.output_name = output_name
 
-    def get_in_nodes(self) -> List[wgn.WillumpGraphNode]:
+    def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self.input_nodes
 
     def get_node_type(self) -> str:
@@ -148,5 +148,8 @@ class TransformMathNode(wgn.WillumpGraphNode):
         return weld_str
 
     def __repr__(self) -> str:
-        return "Transform math node\n Transform: {0}\n".format(self.input_mathops.__repr__())
+        return "Transform math node with output {0}\n Inputs: {1}\n Transform: {2}\n"\
+            .format(self.output_name,
+                    str(list(map(lambda node: node.get_output_name(), self.input_nodes))),
+                    self.input_mathops.__repr__())
 

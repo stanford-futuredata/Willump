@@ -1,5 +1,5 @@
 import ast
-from willump.graph.willump_graph import  WillumpGraph
+from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
 from willump.inference.willump_graph_builder import WillumpGraphBuilder
