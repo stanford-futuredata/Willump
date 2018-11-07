@@ -110,8 +110,14 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         elif isinstance(expr, ast.Name):
             return MathOperationInput(input_var=expr.id)
         else:
-            panic("Unrecognized expression in binop {0}".format(ast.dump(expr)))
-            return MathOperationInput()
+            temp_target: ast.Name = ast.Name()
+            temp_target.id = self._get_tmp_var_name()
+            temp_target.ctx = ast.Store()
+            fake_assign: ast.Assign = ast.Assign()
+            fake_assign.targets = [temp_target]
+            fake_assign.value = expr
+            self.visit_Assign(fake_assign)
+            return MathOperationInput(input_var=temp_target.id)
 
     def _analyze_binop(self, binop: ast.BinOp) -> \
             Tuple[MathOperationInput, str, MathOperationInput]:
@@ -173,6 +179,13 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                            node_mathop_list, output_name)
         self._node_dict[output_name] = return_node
         return return_node
+
+    _temp_var_counter = 0
+
+    def _get_tmp_var_name(self):
+        _temp_var_name = "__graph_temp" + str(self._temp_var_counter)
+        self._temp_var_counter += 1
+        return _temp_var_name
 
     @staticmethod
     def _pybinop_to_wbinop(binop: ast.operator) -> str:
