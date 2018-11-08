@@ -29,17 +29,17 @@ class MathOperation(object):
     # Is the variable the result goes into a vector?
     output_is_vector: bool
     # If first input is a variable, its name.
-    first_input_var: Optional[str]
+    first_input_var: Optional[str] = None
     # If first input is a literal, its value.
-    first_input_literal: Optional[float]
+    first_input_literal: Optional[float] = None
     # If first input is from input array, the index.
-    first_input_index: Optional[Tuple[str, int]]
+    first_input_index: Optional[Tuple[str, int]] = None
     # If second input is a variable, its name (unneeded if unary op).
-    second_input_var: Optional[str]
+    second_input_var: Optional[str] = None
     # If second input is a literal, its value (unneeded if unary op).
-    second_input_literal: Optional[float]
+    second_input_literal: Optional[float] = None
     # If second input is from input array, the index.
-    second_input_index: Optional[Tuple[str, int]]
+    second_input_index: Optional[Tuple[str, int]] = None
 
     def __init__(self, op_type: str, output_var_name: str, output_is_vector: bool,
                  first_input: MathOperationInput,
@@ -47,7 +47,7 @@ class MathOperation(object):
         self.op_type = op_type
         if op_type == "+" or op_type == "-" or op_type == "*" or op_type == "/":
             self.op_is_binop = True
-        elif op_type == "sqrt":
+        elif op_type == "sqrt" or op_type == "log":
             self.op_is_binop = False
         else:
             panic("Op not recognized")

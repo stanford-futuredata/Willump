@@ -25,11 +25,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     _node_dict: MutableMapping[str, WillumpGraphNode] = {}
     _mathops_list: List[MathOperation] = []
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._node_dict = {}
         self._mathops_list = []
 
-    def visit_FunctionDef(self, node: ast.FunctionDef):
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """
         Begin processing of a function.  Create input nodes for function arguments.
 
@@ -41,13 +41,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             self._node_dict[arg_name] = input_node
         ast.NodeVisitor.generic_visit(self, node)
 
-    def visit_Assign(self, node: ast.Assign):
+    def visit_Assign(self, node: ast.Assign) -> None:
         """
         Process an assignment AST node into either a Willump node or MathOperation that
         defines the variable being assigned.
         """
-        # Assume assignment to only one variable.
-        assert(len(node.targets) == 1)
+        assert(len(node.targets) == 1)  # Assume assignment to only one variable.
         target: ast.expr = node.targets[0]
         output_var_name, output_is_vector = self._analyze_assignment_target(target)
         value: ast.expr = node.value
@@ -56,8 +55,26 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             binop_mathop: MathOperation = MathOperation(op, output_var_name, output_is_vector,
                                                         left, second_input=right)
             self._mathops_list.append(binop_mathop)
+        elif isinstance(value, ast.Call):
+            called_function: str = self._get_function_name(value)
+            # Process unary math operations into MathOperations
+            if self._pyunop_to_wunop(called_function) != "":
+                assert(len(value.args) == 1)  # Assume unary operation.
+                operator: str = self._pyunop_to_wunop(called_function)
+                unary_input: MathOperationInput = self._expr_to_math_operation_input(value.args[0])
+                unary_mathop: MathOperation = MathOperation(operator, output_var_name,
+                                                            output_is_vector, unary_input)
+                self._mathops_list.append(unary_mathop)
+            # TODO:  Handle array typing here?
+            elif called_function == "numpy.zeros":
+                pass
+            else:
+                panic("Unrecognized function call {0} node {1}".format(called_function,
+                                                                       ast.dump(value)))
+        else:
+            panic("Unrecognized expression {0}".format(ast.dump(value)))
 
-    def visit_Return(self, node: ast.Return):
+    def visit_Return(self, node: ast.Return) -> None:
         """
         Process the function return and create a graph which outputs whatever the function
         is returning.
@@ -80,7 +97,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         else:
             panic("Unrecognized return: {0}".format(ast.dump(node)))
 
-    def generic_visit(self, node):
+    def generic_visit(self, node) -> None:
         ast.NodeVisitor.generic_visit(self, node)
 
     def get_willump_graph(self) -> WillumpGraph:
@@ -102,6 +119,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     def _expr_to_math_operation_input(self, expr: ast.expr) -> MathOperationInput:
         """
         Convert an expression input to a binary or unary operation into a MathOperationInput.
+
+        TODO:  Proper Subscript handling.
         """
         if isinstance(expr, ast.Num):
             return MathOperationInput(input_literal=expr.n)
@@ -182,10 +201,27 @@ class WillumpGraphBuilder(ast.NodeVisitor):
 
     _temp_var_counter = 0
 
-    def _get_tmp_var_name(self):
+    def _get_tmp_var_name(self) -> str:
         _temp_var_name = "__graph_temp" + str(self._temp_var_counter)
         self._temp_var_counter += 1
         return _temp_var_name
+
+    @staticmethod
+    def _get_function_name(call: ast.Call) -> str:
+        """
+        Get the name of a function being called from a Call node.
+
+        TODO:  Handle the ways different import statements can affect names. (e.g. numpy vs np).
+        """
+        def _get_layer_name(func) -> str:
+            if isinstance(func, ast.Name):
+                return func.id
+            elif isinstance(func, ast.Attribute):
+                return _get_layer_name(func.value) + "." + func.attr
+            else:
+                panic("Unrecognized node in function call {0}".format(ast.dump(func)))
+                return ""
+        return _get_layer_name(call.func)
 
     @staticmethod
     def _pybinop_to_wbinop(binop: ast.operator) -> str:
@@ -200,5 +236,17 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             return "*"
         elif isinstance(binop, ast.Div):
             return "/"
+        else:
+            return ""
+
+    @staticmethod
+    def _pyunop_to_wunop(unop: str) -> str:
+        """
+        Convert from Python function unops to strings for TransformMathModule.
+        """
+        if unop == "math.sqrt":
+            return "sqrt"
+        elif unop == "math.log":
+            return "log"
         else:
             return ""
