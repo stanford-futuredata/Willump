@@ -40,9 +40,9 @@ def willump_execute_python(input_python: str) -> None:
     python_ast: ast.AST = ast.parse(input_python)
     python_graph: WillumpGraph = infer_graph(input_python)
     python_weld: str = weval.graph_to_weld(python_graph)
-    graph_transformer: WillumpProgramTransformer = WillumpProgramTransformer(python_weld, "process_row")
+    graph_transformer: WillumpProgramTransformer = WillumpProgramTransformer(python_weld,
+                                                                             "process_row")
     python_ast = graph_transformer.visit(python_ast)
     ast.fix_missing_locations(python_ast)
-    print(ast.dump(python_ast))
     exec(compile(python_ast, filename="<ast>", mode="exec"), globals(), globals())
 

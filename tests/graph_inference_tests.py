@@ -9,6 +9,9 @@ import willump.evaluation.evaluator as weval
 
 
 class GraphInferenceTests(unittest.TestCase):
+    def tearDown(self):
+        weval._weld_object = None
+
     def test_basic_math_inference(self):
         print("\ntest_basic_math_inference")
         with open("tests/test_resources/sample_math.py", "r") as sample_file:

@@ -13,6 +13,9 @@ from willump import pprint_weld
 
 
 class BasicEvaluationTests(unittest.TestCase):
+    def tearDown(self):
+        weval._weld_object = None
+
     def test_add_literals(self):
         print("\ntest_add_literals")
         in_node: wgin.WillumpInputNode = wgin.WillumpInputNode("input")

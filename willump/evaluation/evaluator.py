@@ -10,6 +10,8 @@ from typing import List, Set, MutableMapping
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
 
+_weld_object = None
+
 
 def graph_to_weld(graph: WillumpGraph) -> str:
     """
@@ -68,10 +70,12 @@ def evaluate_weld(weld_program: str, input_vector):
 
     TODO:  Support inputs which are not numpy arrays of type float64.
     """
-    weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
-    vec_name = weld_object.update(input_vector, tys=WeldVec(WeldDouble()))
-    weld_object.weld_code = weld_program.format(vec_name)
-    return weld_object.evaluate(WeldVec(WeldDouble()), verbose=False)
+    global _weld_object
+    if _weld_object is None:
+        _weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
+        _weld_object.weld_code = weld_program.format("_inp0")
+    return _weld_object.willump_evaluate([input_vector], [WeldVec(WeldDouble())],
+                                         WeldVec(WeldDouble()), verbose=False)
 
 
 

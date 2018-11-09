@@ -4,6 +4,9 @@ import numpy
 
 
 class BasicEvaluationTests(unittest.TestCase):
+    def tearDown(self):
+        weval._weld_object = None
+
     def test_evaluate_weld(self):
         print("\ntest_evaluate_weld")
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
