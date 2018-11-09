@@ -43,7 +43,7 @@ class WillumpProgramTransformer(ast.NodeTransformer):
             new_node.func = weld_eval_func
             return ast.copy_location(new_node, node)
         else:
-            transformed_arg_list: List[ast.AST] = []
+            transformed_arg_list: List[ast.expr] = []
             for arg in node.args:
                 transformed_arg_list.append(self.visit(arg))
             new_node.args = transformed_arg_list
