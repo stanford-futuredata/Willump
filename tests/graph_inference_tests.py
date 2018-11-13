@@ -1,6 +1,5 @@
 import unittest
 import numpy
-import os
 
 from willump import pprint_weld
 from willump.inference.willump_executor import infer_graph

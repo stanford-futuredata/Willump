@@ -1,8 +1,6 @@
 import unittest
 import willump.evaluation.evaluator as weval
 import numpy
-import os
-
 
 class BasicEvaluationTests(unittest.TestCase):
     def tearDown(self):

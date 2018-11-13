@@ -1,4 +1,7 @@
+#define NPY_NO_DEPRECATED_API NPY_API_VERSION
+
 #include <Python.h>
+#include <numpy/arrayobject.h>
 #include <stdint.h> // For explicitly sized integer types.
 #include <stdlib.h> // For malloc
 #include <stdio.h>
@@ -70,8 +73,18 @@ typedef vec<f64> return_type;
 static PyObject *
 weld_llvm_caller(PyObject *self, PyObject* args)
 {
-    printf("Hello world\n");
-    return PyUnicode_FromString("hello world");
+    PyObject *input = NULL;
+    PyArrayObject *input_array = NULL;
+    if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &input)) {
+        return NULL;
+    }
+    if((input_array = (PyArrayObject*) PyArray_FROM_OTF(input, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY)) == NULL) {
+        return NULL;
+    }
+    double* data = (double *) PyArray_DATA(input_array);
+    int len = PyArray_DIMS(input_array)[0];
+    printf("%d %p %f %f %f\n", len, data, data[0], data[1], data[2]);
+    return PyUnicode_FromString("hello world\n");
 }
 
 static PyMethodDef CallerMethods[] = {
@@ -91,5 +104,6 @@ static struct PyModuleDef weld_llvm_caller_module = {
 PyMODINIT_FUNC
 PyInit_weld_llvm_caller(void)
 {
+    import_array();
     return PyModule_Create(&weld_llvm_caller_module);
 }

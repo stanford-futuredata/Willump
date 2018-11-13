@@ -1,5 +1,5 @@
 import ast
-import distutils.core
+import numpy
 import os
 import subprocess
 
@@ -61,10 +61,11 @@ def willump_execute_python(input_python: str) -> None:
         os.mkdir("build")
     # TODO:  Make this call more portable.
     subprocess.run(["clang++", "-fPIC", "--shared", "-lweld", "-g", "-std=c++11", "-O3",
-                    "-I/usr/include/python3.6", "-o", "build/weld_llvm_caller.so",
+                    "-I/usr/include/python3.6", "-I{0}".format(numpy.get_include()),
+                    "-o", "build/weld_llvm_caller.so",
                     "cppextensions/weld_llvm_caller.cpp", "code-llvm-opt.ll"])
     import weld_llvm_caller
-    weld_llvm_caller.weld_llvm_caller()
+    weld_llvm_caller.weld_llvm_caller(numpy.array([1, 2, 3], dtype=numpy.float64))
 
     graph_transformer: WillumpProgramTransformer = WillumpProgramTransformer(python_weld,
                                                                              "process_row")

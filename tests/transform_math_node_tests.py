@@ -1,6 +1,5 @@
 import unittest
 import numpy
-import os
 
 import willump.evaluation.evaluator as weval
 import willump.graph.willump_graph_node as wgn
