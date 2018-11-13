@@ -2,7 +2,6 @@ import ast
 import copy
 from typing import List
 
-import willump.evaluation.evaluator as weval
 from willump.inference.willump_executor import WillumpGraphBuilder
 
 
@@ -12,11 +11,9 @@ class WillumpProgramTransformer(ast.NodeTransformer):
     with calls to equivalent Weld.
     """
 
-    weld_program: str
     target_function: str
 
-    def __init__(self, weld_program: str, target_function: str) -> None:
-        self.weld_program = weld_program
+    def __init__(self, target_function: str) -> None:
         self.target_function = target_function
 
     def visit_Call(self, node: ast.Call) -> ast.AST:
@@ -28,9 +25,13 @@ class WillumpProgramTransformer(ast.NodeTransformer):
         new_node = copy.deepcopy(node)
         if called_function_name == self.target_function:
             # Define a func for a call into weval.evaluate_weld
-            weld_eval_func: ast.Name = ast.Name()
-            weld_eval_func.id = "weld_llvm_caller"
+            weld_eval_func: ast.Attribute = ast.Attribute()
+            weld_eval_func.attr = "caller_func"
             weld_eval_func.ctx = ast.Load()
+            weld_eval_func_value: ast.Name = ast.Name()
+            weld_eval_func_value.id = "weld_llvm_caller"
+            weld_eval_func_value.ctx = ast.Load()
+            weld_eval_func.value = weld_eval_func_value
 
             new_node.func = weld_eval_func
             return ast.copy_location(new_node, node)

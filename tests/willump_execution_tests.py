@@ -3,13 +3,9 @@ import os
 import numpy
 
 from willump.inference.willump_executor import willump_execute_python
-import willump.evaluation.evaluator as weval
 
 
 class WillumpExecutionTests(unittest.TestCase):
-    def tearDown(self):
-        weval._weld_object = None
-
     def test_execution_speed(self):
         print("\ntest_execution_speed")
         with open("tests/test_resources/execution_example.py", "r") as sample_file:
@@ -22,8 +18,8 @@ class WillumpExecutionTests(unittest.TestCase):
             sample_python: str = sample_file.read()
             willump_execute_python(sample_python)
 
-    def test_execution_correctness(self):
-        print("\ntest_execution_correctness")
+    def test_execution_veracity(self):
+        print("\ntest_execution_veracity")
         with open("tests/test_resources/execution_correctness.py", "r") as sample_file:
             sample_python: str = sample_file.read()
             willump_execute_python(sample_python)

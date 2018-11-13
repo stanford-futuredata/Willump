@@ -71,7 +71,7 @@ typedef struct0 input_type;
 typedef vec<f64> return_type;
 
 static PyObject *
-weld_llvm_caller(PyObject *self, PyObject* args)
+caller_func(PyObject *self, PyObject* args)
 {
     PyObject *input = NULL;
     PyArrayObject *input_array = NULL;
@@ -107,7 +107,7 @@ weld_llvm_caller(PyObject *self, PyObject* args)
 }
 
 static PyMethodDef CallerMethods[] = {
- { "weld_llvm_caller", weld_llvm_caller, METH_VARARGS, "Call Weld LLVM." },
+ { "caller_func", caller_func, METH_VARARGS, "Call Weld LLVM." },
  { NULL, NULL, 0, NULL }
 };
 

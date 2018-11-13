@@ -6,7 +6,7 @@ def process_row(input_numpy_array):
     return_numpy_array = numpy.zeros(2)
     return_numpy_array[0] = input_numpy_array[0] + input_numpy_array[1]
     return_numpy_array[1] = input_numpy_array[1] * input_numpy_array[2]
-    return input_numpy_array
+    return return_numpy_array
 
 
 sample_row = numpy.ones(100, dtype=numpy.float64)
