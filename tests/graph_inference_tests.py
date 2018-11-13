@@ -12,7 +12,6 @@ import willump.evaluation.evaluator as weval
 class GraphInferenceTests(unittest.TestCase):
     def tearDown(self):
         weval._weld_object = None
-        os.remove("code-llvm-opt.ll")
 
     def test_basic_math_inference(self):
         print("\ntest_basic_math_inference")

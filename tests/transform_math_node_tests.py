@@ -16,7 +16,6 @@ from willump import pprint_weld
 class BasicEvaluationTests(unittest.TestCase):
     def tearDown(self):
         weval._weld_object = None
-        os.remove("code-llvm-opt.ll")
 
     def test_add_literals(self):
         print("\ntest_add_literals")

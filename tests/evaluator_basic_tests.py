@@ -7,7 +7,6 @@ import os
 class BasicEvaluationTests(unittest.TestCase):
     def tearDown(self):
         weval._weld_object = None
-        os.remove("code-llvm-opt.ll")
 
     def test_evaluate_weld(self):
         print("\ntest_evaluate_weld")
