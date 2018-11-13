@@ -28,18 +28,10 @@ class WillumpProgramTransformer(ast.NodeTransformer):
         new_node = copy.deepcopy(node)
         if called_function_name == self.target_function:
             # Define a func for a call into weval.evaluate_weld
-            weld_eval_func: ast.Attribute = ast.Attribute()
-            weld_eval_func.attr = "evaluate_weld"
+            weld_eval_func: ast.Name = ast.Name()
+            weld_eval_func.id = "weld_llvm_caller"
             weld_eval_func.ctx = ast.Load()
-            weld_eval_func_value: ast.Name = ast.Name()
-            weld_eval_func_value.id = "weval"
-            weld_eval_func_value.ctx = ast.Load()
-            weld_eval_func.value = weld_eval_func_value
 
-            weld_program_node = ast.Str()
-            weld_program_node.s = "{0}".format(self.weld_program)
-
-            new_node.args.insert(0, weld_program_node)
             new_node.func = weld_eval_func
             return ast.copy_location(new_node, node)
         else:

@@ -2,6 +2,7 @@ import ast
 import numpy
 import os
 import subprocess
+import time
 
 import weld.weldobject
 from weld.types import *
@@ -76,6 +77,7 @@ def willump_execute_python(input_python: str) -> None:
 
     compile_weld_program(python_weld)
     from weld_llvm_caller import weld_llvm_caller
+    global weld_llvm_caller
 
     graph_transformer: WillumpProgramTransformer = WillumpProgramTransformer(python_weld,
                                                                              "process_row")

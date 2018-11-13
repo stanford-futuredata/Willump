@@ -16,6 +16,12 @@ class WillumpExecutionTests(unittest.TestCase):
             sample_python: str = sample_file.read()
             willump_execute_python(sample_python)
 
+    def test_execution_speed_simple(self):
+        print("\ntest_execution_speed_simple")
+        with open("tests/test_resources/execution_example_simple.py", "r") as sample_file:
+            sample_python: str = sample_file.read()
+            willump_execute_python(sample_python)
+
     def test_execution_correctness(self):
         print("\ntest_execution_correctness")
         with open("tests/test_resources/execution_correctness.py", "r") as sample_file:
