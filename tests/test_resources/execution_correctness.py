@@ -9,7 +9,8 @@ def process_row(input_numpy_array):
     return return_numpy_array
 
 
-sample_row = numpy.array([1., 2., 3.], dtype=numpy.float64)
-print(process_row(sample_row))
-sample_row2 = numpy.array([4., 5., 6.], dtype=numpy.float64)
-print(process_row(sample_row2))
+with open("temp_execution_correctness_file.tmp", "w") as outfile:
+    sample_row = numpy.array([1., 2., 3.], dtype=numpy.float64)
+    print(process_row(sample_row), file=outfile)
+    sample_row2 = numpy.array([4., 5., 6.], dtype=numpy.float64)
+    print(process_row(sample_row2), file=outfile)

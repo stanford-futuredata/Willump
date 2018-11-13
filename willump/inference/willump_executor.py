@@ -1,4 +1,6 @@
 import ast
+import distutils.core
+import os
 
 from willump.graph.willump_graph import WillumpGraph
 from willump.inference.willump_graph_builder import WillumpGraphBuilder
@@ -44,5 +46,11 @@ def willump_execute_python(input_python: str) -> None:
                                                                              "process_row")
     python_ast = graph_transformer.visit(python_ast)
     ast.fix_missing_locations(python_ast)
+    distutils.core.run_setup("willump/inference/weld_llvm_caller.py",
+                             script_args=["build"])
+    import weld_llvm_caller
+    weld_llvm_caller.weld_llvm_caller()
     exec(compile(python_ast, filename="<ast>", mode="exec"), globals(), globals())
+    os.remove("code-llvm-opt.ll")
+
 

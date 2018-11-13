@@ -1,5 +1,6 @@
 import unittest
 import numpy
+import os
 
 import willump.evaluation.evaluator as weval
 import willump.graph.willump_graph_node as wgn
@@ -15,6 +16,7 @@ from willump import pprint_weld
 class BasicEvaluationTests(unittest.TestCase):
     def tearDown(self):
         weval._weld_object = None
+        os.remove("code-llvm-opt.ll")
 
     def test_add_literals(self):
         print("\ntest_add_literals")

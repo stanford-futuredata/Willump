@@ -3,7 +3,7 @@ import copy
 from typing import List
 
 import willump.evaluation.evaluator as weval
-from willump.inference.python_to_graph import WillumpGraphBuilder
+from willump.inference.willump_executor import WillumpGraphBuilder
 
 
 class WillumpProgramTransformer(ast.NodeTransformer):

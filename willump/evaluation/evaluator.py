@@ -12,6 +12,10 @@ _decoder = weld.encoders.NumpyArrayDecoder()
 
 _weld_object = None
 
+_weld_passes = ["inline-apply", "inline-let", "inline-zip", "loop-fusion", "unroll-static-loop",
+                "infer-size", "algebraic", "inline-literals", "cse", "unroll-structs",
+                "short-circuit-booleans", "predicate", "vectorize"]
+
 
 def graph_to_weld(graph: WillumpGraph) -> str:
     """
@@ -75,7 +79,7 @@ def evaluate_weld(weld_program: str, input_vector):
         _weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
         _weld_object.weld_code = weld_program.format("_inp0")
     return _weld_object.willump_evaluate([input_vector], [WeldVec(WeldDouble())],
-                                         WeldVec(WeldDouble()), verbose=False)
+                                         WeldVec(WeldDouble()), passes=None, verbose=False)
 
 
 

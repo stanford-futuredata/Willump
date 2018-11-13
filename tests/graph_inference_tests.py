@@ -1,8 +1,9 @@
 import unittest
 import numpy
+import os
 
 from willump import pprint_weld
-from willump.inference.python_to_graph import infer_graph
+from willump.inference.willump_executor import infer_graph
 from willump.graph.willump_graph import WillumpGraph
 
 import willump.evaluation.evaluator as weval
@@ -11,6 +12,7 @@ import willump.evaluation.evaluator as weval
 class GraphInferenceTests(unittest.TestCase):
     def tearDown(self):
         weval._weld_object = None
+        os.remove("code-llvm-opt.ll")
 
     def test_basic_math_inference(self):
         print("\ntest_basic_math_inference")
