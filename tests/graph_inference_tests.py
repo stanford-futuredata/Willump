@@ -2,15 +2,20 @@ import unittest
 import numpy
 import importlib
 import os
+import sys
 
-import willump.inference.willump_weld_generator
+import willump.evaluation.willump_weld_generator
 from willump import pprint_weld
 from willump.graph.willump_graph import WillumpGraph
 
-import willump.inference.willump_executor as wexec
+import willump.evaluation.willump_executor as wexec
 
 
 class GraphInferenceTests(unittest.TestCase):
+    def setUp(self):
+        if "build" not in sys.path:
+            sys.path.append("build")
+
     def tearDown(self):
         os.remove("code-llvm-opt.ll")
 
@@ -19,7 +24,7 @@ class GraphInferenceTests(unittest.TestCase):
         with open("tests/test_resources/sample_math.py", "r") as sample_file:
             sample_python: str = sample_file.read()
             willump_graph: WillumpGraph = wexec.infer_graph(sample_python)
-            weld_program: str = willump.inference.willump_weld_generator.graph_to_weld(willump_graph)
+            weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
 
             basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
             module_name = wexec.compile_weld_program(weld_program)
@@ -32,7 +37,7 @@ class GraphInferenceTests(unittest.TestCase):
         with open("tests/test_resources/sample_math_manyvars.py", "r") as sample_file:
             sample_python: str = sample_file.read()
             willump_graph: WillumpGraph = wexec.infer_graph(sample_python)
-            weld_program: str = willump.inference.willump_weld_generator.graph_to_weld(willump_graph)
+            weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
 
             basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
             module_name = wexec.compile_weld_program(weld_program)

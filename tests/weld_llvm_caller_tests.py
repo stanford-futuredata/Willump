@@ -2,11 +2,16 @@ import unittest
 import numpy
 import os
 import importlib
+import sys
 
-import willump.inference.willump_executor as wexec
+import willump.evaluation.willump_executor as wexec
 
 
 class WeldLLVMCallerTests(unittest.TestCase):
+    def setUp(self):
+        if "build" not in sys.path:
+            sys.path.append("build")
+
     def tearDown(self):
         os.remove("code-llvm-opt.ll")
 

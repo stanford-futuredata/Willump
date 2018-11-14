@@ -2,7 +2,7 @@ import unittest
 import os
 import numpy
 
-from willump.inference.willump_executor import willump_execute_python
+from willump.evaluation.willump_executor import willump_execute_python
 
 
 class WillumpExecutionTests(unittest.TestCase):

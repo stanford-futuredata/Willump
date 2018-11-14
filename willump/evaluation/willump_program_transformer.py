@@ -2,7 +2,7 @@ import ast
 import copy
 from typing import List
 
-from willump.inference.willump_executor import WillumpGraphBuilder
+from willump.evaluation.willump_executor import WillumpGraphBuilder
 
 
 class WillumpProgramTransformer(ast.NodeTransformer):

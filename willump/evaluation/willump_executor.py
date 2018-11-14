@@ -3,15 +3,17 @@ import numpy
 import os
 import subprocess
 import importlib
+import sysconfig
+import sys
 
 import weld.weldobject
 from weld.types import *
 import weld.encoders
 
-import willump.inference.willump_weld_generator
+import willump.evaluation.willump_weld_generator
 from willump.graph.willump_graph import WillumpGraph
-from willump.inference.willump_graph_builder import WillumpGraphBuilder
-from willump.inference.willump_program_transformer import WillumpProgramTransformer
+from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
+from willump.evaluation.willump_program_transformer import WillumpProgramTransformer
 
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
@@ -30,6 +32,13 @@ class FirstFunctionDefFinder(ast.NodeVisitor):
 
 
 def infer_graph(input_python: str) -> WillumpGraph:
+    """
+    Infer the Willump graph of a Python program.
+
+    Makes assumptions about the input Python outlined in WillumpGraphBuilder.
+
+    TODO:  Make those assumptions weaker.
+    """
     python_ast = ast.parse(input_python, "exec")
     first_fundef_finder = FirstFunctionDefFinder()
     first_fundef_finder.visit(python_ast)
@@ -44,6 +53,8 @@ def infer_graph(input_python: str) -> WillumpGraph:
 def generate_cpp_file(file_version: int) -> str:
     """
     Generate versioned CPP files for each run of Willump.
+
+    TODO:  Do C++ code generation to allow multiple inputs and different input types.
     """
     with open("cppextensions/weld_llvm_caller.cpp", "r") as infile:
         buffer = infile.read()
@@ -78,7 +89,8 @@ def compile_weld_program(weld_program: str) -> str:
     caller_file = generate_cpp_file(version_number)
     # TODO:  Make this call more portable.
     subprocess.run(["clang++", "-fPIC", "--shared", "-lweld", "-g", "-std=c++11", "-O3",
-                    "-I/usr/include/python3.6", "-I{0}".format(numpy.get_include()),
+                    "-I{0}".format(sysconfig.get_path("include")),
+                    "-I{0}".format(numpy.get_include()),
                     "-o", "build/weld_llvm_caller{0}.so".format(version_number),
                     caller_file, "code-llvm-opt.ll"])
     version_number += 1
@@ -96,9 +108,12 @@ def willump_execute_python(input_python: str) -> None:
     """
     python_ast: ast.AST = ast.parse(input_python)
     python_graph: WillumpGraph = infer_graph(input_python)
-    python_weld: str = willump.inference.willump_weld_generator.graph_to_weld(python_graph)
+    python_weld: str = willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
 
     module_name = compile_weld_program(python_weld)
+    # TODO:  Make more portable--WILLUMP_HOME environment variable maybe?
+    if "build" not in sys.path:
+        sys.path.append("build")
     weld_llvm_caller = importlib.import_module(module_name)
 
     graph_transformer: WillumpProgramTransformer = WillumpProgramTransformer("process_row")
