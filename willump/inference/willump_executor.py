@@ -2,23 +2,22 @@ import ast
 import numpy
 import os
 import subprocess
-import ctypes
 import importlib
 
 import weld.weldobject
 from weld.types import *
 import weld.encoders
 
+import willump.inference.willump_weld_generator
 from willump.graph.willump_graph import WillumpGraph
 from willump.inference.willump_graph_builder import WillumpGraphBuilder
 from willump.inference.willump_program_transformer import WillumpProgramTransformer
-
-import willump.evaluation.evaluator as weval
 
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
 
 version_number = 0
+
 
 class FirstFunctionDefFinder(ast.NodeVisitor):
     """
@@ -83,6 +82,7 @@ def compile_weld_program(weld_program: str) -> str:
                     "-o", "build/weld_llvm_caller{0}.so".format(version_number),
                     caller_file, "code-llvm-opt.ll"])
     version_number += 1
+    importlib.invalidate_caches()
     return "weld_llvm_caller{0}".format(version_number - 1)
 
 
@@ -96,7 +96,7 @@ def willump_execute_python(input_python: str) -> None:
     """
     python_ast: ast.AST = ast.parse(input_python)
     python_graph: WillumpGraph = infer_graph(input_python)
-    python_weld: str = weval.graph_to_weld(python_graph)
+    python_weld: str = willump.inference.willump_weld_generator.graph_to_weld(python_graph)
 
     module_name = compile_weld_program(python_weld)
     weld_llvm_caller = importlib.import_module(module_name)

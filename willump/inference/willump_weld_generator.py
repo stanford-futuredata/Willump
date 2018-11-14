@@ -1,20 +1,7 @@
+from typing import MutableMapping, List, Set
+
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
-
-import weld.weldobject
-from weld.types import *
-import weld.encoders
-
-from typing import List, Set, MutableMapping
-
-_encoder = weld.encoders.NumpyArrayEncoder()
-_decoder = weld.encoders.NumpyArrayDecoder()
-
-_weld_object = None
-
-_weld_passes = ["inline-apply", "inline-let", "inline-zip", "loop-fusion", "unroll-static-loop",
-                "infer-size", "algebraic", "inline-literals", "cse", "unroll-structs",
-                "short-circuit-booleans", "predicate", "vectorize"]
 
 
 def graph_to_weld(graph: WillumpGraph) -> str:
@@ -64,22 +51,3 @@ def graph_to_weld(graph: WillumpGraph) -> str:
     for node in sorted_nodes:
         weld_str += node.get_node_weld()
     return weld_str
-
-
-def evaluate_weld(weld_program: str, input_vector):
-    """
-    Evaluate a Weld program string on a Numpy input vector.
-
-    TODO:  Support multiple input vectors.
-
-    TODO:  Support inputs which are not numpy arrays of type float64.
-    """
-    global _weld_object
-    if _weld_object is None:
-        _weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
-        _weld_object.weld_code = weld_program.format("_inp0")
-    return _weld_object.willump_evaluate([input_vector], [WeldVec(WeldDouble())],
-                                         WeldVec(WeldDouble()), passes=None, verbose=False)
-
-
-

@@ -1,12 +1,15 @@
 import unittest
 import numpy
+import importlib
+import os
 
-import willump.evaluation.evaluator as weval
+import willump.inference.willump_executor as wexec
 import willump.graph.willump_graph_node as wgn
 import willump.graph.willump_graph as wg
 import willump.graph.willump_output_node as wgon
 import willump.graph.willump_input_node as wgin
 import willump.graph.transform_math_node as wtmn
+import willump.inference.willump_weld_generator
 from willump.graph.transform_math_node import MathOperationInput
 
 from willump import pprint_weld
@@ -14,7 +17,7 @@ from willump import pprint_weld
 
 class BasicEvaluationTests(unittest.TestCase):
     def tearDown(self):
-        weval._weld_object = None
+        os.remove("code-llvm-opt.ll")
 
     def test_add_literals(self):
         print("\ntest_add_literals")
@@ -27,10 +30,12 @@ class BasicEvaluationTests(unittest.TestCase):
                                                                 "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
-        weld_str: str = weval.graph_to_weld(graph)
+        weld_program: str = willump.inference.willump_weld_generator.graph_to_weld(graph)
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
-        weld_output = weval.evaluate_weld(weld_str, basic_vec)
+        module_name = wexec.compile_weld_program(weld_program)
+        weld_llvm_caller = importlib.import_module(module_name)
+        weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([3., 3.]))
 
     def test_add_indexes(self):
@@ -50,10 +55,12 @@ class BasicEvaluationTests(unittest.TestCase):
                                    [index_op_one, index_op_two, index_op_three], "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
-        weld_str: str = weval.graph_to_weld(graph)
+        weld_program: str = willump.inference.willump_weld_generator.graph_to_weld(graph)
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
-        weld_output = weval.evaluate_weld(weld_str, basic_vec)
+        module_name = wexec.compile_weld_program(weld_program)
+        weld_llvm_caller = importlib.import_module(module_name)
+        weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([2., 5., 7.]))
 
     def test_add_vars(self):
@@ -73,10 +80,12 @@ class BasicEvaluationTests(unittest.TestCase):
                                    "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
-        weld_str: str = weval.graph_to_weld(graph)
+        weld_program: str = willump.inference.willump_weld_generator.graph_to_weld(graph)
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
-        weld_output = weval.evaluate_weld(weld_str, basic_vec)
+        module_name = wexec.compile_weld_program(weld_program)
+        weld_llvm_caller = importlib.import_module(module_name)
+        weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([5., 7.]))
 
     def test_sqrt(self):
@@ -94,10 +103,12 @@ class BasicEvaluationTests(unittest.TestCase):
                                    "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
-        weld_str: str = weval.graph_to_weld(graph)
+        weld_program: str = willump.inference.willump_weld_generator.graph_to_weld(graph)
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
-        weld_output = weval.evaluate_weld(weld_str, basic_vec)
+        module_name = wexec.compile_weld_program(weld_program)
+        weld_llvm_caller = importlib.import_module(module_name)
+        weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([1., 7.]))
 
     def test_mixed_binops(self):
@@ -117,10 +128,12 @@ class BasicEvaluationTests(unittest.TestCase):
                                    "output")
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
-        weld_str: str = weval.graph_to_weld(graph)
+        weld_program: str = willump.inference.willump_weld_generator.graph_to_weld(graph)
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
-        weld_output = weval.evaluate_weld(weld_str, basic_vec)
+        module_name = wexec.compile_weld_program(weld_program)
+        weld_llvm_caller = importlib.import_module(module_name)
+        weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([0., 6., 2./5.]))
 
 
