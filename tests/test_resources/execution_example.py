@@ -530,14 +530,10 @@ timesum = 0
 sample_row[10] = 5
 sample_row[100] = 6
 sample_row[11] = 8
+# Force a Numba precompile (when comparing against Numba).
+process_row(sample_row)
 start = timer()
-for i in range(NUMITER):
-    little_start = timer()
+for _ in range(NUMITER):
     process_row(sample_row)
-    little_end = timer()
-    diff = little_end - little_start
-    # print(diff)
-    if i > 1000:
-        timesum += diff
 end = timer()
-print(timesum / (NUMITER - 1000))
+print((end - start) / NUMITER)
