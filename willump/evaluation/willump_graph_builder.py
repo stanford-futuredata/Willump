@@ -107,11 +107,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         """
         Return the name and type of the target of an assignment statement.
         """
+        target_name: str = self.get_assignment_target_name(node)
         if isinstance(node, ast.Name):
-            return node.id, False
+            return target_name, False
         elif isinstance(node, ast.Subscript):
-            node_name, _ = self._analyze_assignment_target(node.value)
-            return node_name, True
+            return target_name, True
         else:
             panic("Unrecognized assignment to: {0}".format(ast.dump(node)))
             return "", False
@@ -205,6 +205,19 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         _temp_var_name = "__graph_temp" + str(self._temp_var_counter)
         self._temp_var_counter += 1
         return _temp_var_name
+
+    @staticmethod
+    def get_assignment_target_name(node: ast.expr) -> str:
+        """
+        Return the name of the target of an assignment statement.
+        """
+        if isinstance(node, ast.Name):
+            return node.id
+        elif isinstance(node, ast.Subscript):
+            return WillumpGraphBuilder.get_assignment_target_name(node.value)
+        else:
+            panic("Unrecognized assignment to: {0}".format(ast.dump(node)))
+            return ""
 
     @staticmethod
     def _get_function_name(call: ast.Call) -> str:

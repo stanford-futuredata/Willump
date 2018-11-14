@@ -1,8 +1,10 @@
 import numpy
 import math
 from timeit import default_timer as timer
+import willump.evaluation.willump_executor
 
 
+@willump.evaluation.willump_executor.willump_execute
 def process_row(input_numpy_array):
     return_numpy_array = numpy.zeros(516)
     return_numpy_array[0] = input_numpy_array[68] / math.sqrt(input_numpy_array[68])
@@ -524,16 +526,20 @@ def process_row(input_numpy_array):
     return return_numpy_array
 
 
-sample_row = numpy.ones(101, dtype=numpy.float64)
-NUMITER = 10000
-timesum = 0
-sample_row[10] = 5
-sample_row[100] = 6
-sample_row[11] = 8
-# Force a Numba precompile (when comparing against Numba).
-process_row(sample_row)
-start = timer()
-for _ in range(NUMITER):
+def main():
+    sample_row = numpy.ones(101, dtype=numpy.float64)
+    NUMITER = 10000
+    sample_row[10] = 5
+    sample_row[100] = 6
+    sample_row[11] = 8
+    # Force compilation.
     process_row(sample_row)
-end = timer()
-print((end - start) / NUMITER)
+    start = timer()
+    for _ in range(NUMITER):
+        process_row(sample_row)
+    end = timer()
+    print((end - start) / NUMITER)
+
+
+if __name__ == '__main__':
+    main()

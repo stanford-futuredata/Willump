@@ -5,6 +5,7 @@ import subprocess
 import importlib
 import sysconfig
 import sys
+import inspect
 
 import weld.weldobject
 from weld.types import *
@@ -14,6 +15,8 @@ import willump.evaluation.willump_weld_generator
 from willump.graph.willump_graph import WillumpGraph
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 from willump.evaluation.willump_program_transformer import WillumpProgramTransformer
+
+from typing import Callable
 
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
@@ -122,4 +125,21 @@ def willump_execute_python(input_python: str) -> None:
     exec(compile(python_ast, filename="<ast>", mode="exec"), globals(), locals())
     os.remove("code-llvm-opt.ll")
 
+
+def willump_execute(func: Callable) -> Callable:
+    python_source = inspect.getsource(func)
+    python_ast: ast.AST = ast.parse(python_source)
+    graph_builder = WillumpGraphBuilder()
+    graph_builder.visit(python_ast)
+    python_graph: WillumpGraph = graph_builder.get_willump_graph()
+    python_weld: str = willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
+
+    module_name = compile_weld_program(python_weld)
+    # TODO:  Make more portable--WILLUMP_HOME environment variable maybe?
+    if "build" not in sys.path:
+        sys.path.append("build")
+    weld_llvm_caller = importlib.import_module(module_name)
+    new_func: Callable = weld_llvm_caller.caller_func
+    os.remove("code-llvm-opt.ll")
+    return new_func
 

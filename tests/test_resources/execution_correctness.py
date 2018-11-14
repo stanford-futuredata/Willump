@@ -1,6 +1,8 @@
 import numpy
+import willump.evaluation.willump_executor
 
 
+@willump.evaluation.willump_executor.willump_execute
 def process_row(input_numpy_array):
     return_numpy_array = numpy.zeros(3)
     return_numpy_array[0] = 1. + 1.
@@ -9,8 +11,13 @@ def process_row(input_numpy_array):
     return return_numpy_array
 
 
-with open("temp_execution_correctness_file.tmp", "w") as outfile:
-    sample_row = numpy.array([1., 2., 3.], dtype=numpy.float64)
-    print(process_row(sample_row), file=outfile)
-    sample_row2 = numpy.array([4., 5., 6.], dtype=numpy.float64)
-    print(process_row(sample_row2), file=outfile)
+def main():
+    with open("temp_execution_correctness_file.tmp", "w") as outfile:
+        sample_row = numpy.array([1., 2., 3.], dtype=numpy.float64)
+        print(process_row(sample_row), file=outfile)
+        sample_row2 = numpy.array([4., 5., 6.], dtype=numpy.float64)
+        print(process_row(sample_row2), file=outfile)
+
+
+if __name__ == '__main__':
+    main()
