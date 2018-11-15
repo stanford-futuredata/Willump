@@ -53,22 +53,27 @@ def compile_weld_program(weld_program: str) -> str:
     """
     global version_number
     # Compile the Weld program to LLVM and dump the LLVM.
+    willump_home: str = os.environ["WILLUMP_HOME"]
+    willump_build_dir: str = os.path.join(willump_home, "build")
+    llvm_dump_name: str = "weld_llvm_caller{0}.ll".format(version_number)
+    llvm_dump_location = os.path.join(willump_build_dir, llvm_dump_name)
+    if os.path.isfile(llvm_dump_location):
+        os.remove(llvm_dump_location)
     weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
     weld_object.weld_code = weld_program.format("_inp0")
-    weld_object.willump_dump_llvm([WeldVec(WeldDouble())])
+    weld_object.willump_dump_llvm([WeldVec(WeldDouble())], input_directory=willump_build_dir,
+                                  input_filename=llvm_dump_name)
 
     # Compile the LLVM to assembly and build the C++ glue code with it.
-    willump_home: str = os.environ["WILLUMP_HOME"]
     caller_file: str = generate_cpp_file(version_number)
-    output_filename: str = os.path.join(willump_home, "build",
+    output_filename: str = os.path.join(willump_build_dir,
                                         "weld_llvm_caller{0}.so".format(version_number))
     # TODO:  Make this call more portable.
     subprocess.run(["clang++", "-fPIC", "--shared", "-lweld", "-g", "-std=c++11", "-O3",
                     "-I{0}".format(sysconfig.get_path("include")),
                     "-I{0}".format(numpy.get_include()),
                     "-o", output_filename,
-                    caller_file, "code-llvm-opt.ll"])
-    os.remove("code-llvm-opt.ll")
+                    caller_file, llvm_dump_location])
     version_number += 1
     importlib.invalidate_caches()
     return "weld_llvm_caller{0}".format(version_number - 1)
@@ -81,7 +86,6 @@ def willump_execute(func: Callable) -> Callable:
     Makes assumptions about the input Python outlined in WillumpGraphBuilder.
 
     TODO:  Make those assumptions weaker.
-
     """
     llvm_runner_func = "llvm_runner_func{0}".format(version_number)
     globals()[llvm_runner_func] = None
