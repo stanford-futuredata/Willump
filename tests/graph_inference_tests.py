@@ -1,8 +1,6 @@
 import unittest
 import numpy
 import importlib
-import os
-import sys
 
 import willump.evaluation.willump_weld_generator
 from willump import pprint_weld
@@ -12,13 +10,6 @@ import willump.evaluation.willump_executor as wexec
 
 
 class GraphInferenceTests(unittest.TestCase):
-    def setUp(self):
-        if "build" not in sys.path:
-            sys.path.append("build")
-
-    def tearDown(self):
-        os.remove("code-llvm-opt.ll")
-
     def test_basic_math_inference(self):
         print("\ntest_basic_math_inference")
         with open("tests/test_resources/sample_math.py", "r") as sample_file:

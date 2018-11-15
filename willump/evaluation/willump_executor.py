@@ -4,7 +4,6 @@ import os
 import subprocess
 import importlib
 import sysconfig
-import sys
 import inspect
 
 import weld.weldobject
@@ -29,11 +28,13 @@ def generate_cpp_file(file_version: int) -> str:
 
     TODO:  Do C++ code generation to allow multiple inputs and different input types.
     """
-    with open("cppextensions/weld_llvm_caller.cpp", "r") as infile:
+    willump_home: str = os.environ["WILLUMP_HOME"]
+    with open(os.path.join(willump_home, "cppextensions", "weld_llvm_caller.cpp"), "r") as infile:
         buffer = infile.read()
         new_function_name = "weld_llvm_caller{0}".format(file_version)
         buffer = buffer.replace("weld_llvm_caller", new_function_name)
-        new_file_name = "build/weld_llvm_caller{0}.cpp".format(file_version)
+        new_file_name = os.path.join(willump_home, "build",
+                                     "weld_llvm_caller{0}.cpp".format(file_version))
         with open(new_file_name, "w") as outfile:
             outfile.write(buffer)
     return new_file_name
@@ -57,15 +58,17 @@ def compile_weld_program(weld_program: str) -> str:
     weld_object.willump_dump_llvm([WeldVec(WeldDouble())])
 
     # Compile the LLVM to assembly and build the C++ glue code with it.
-    if not os.path.exists("build"):
-        os.mkdir("build")
-    caller_file = generate_cpp_file(version_number)
+    willump_home: str = os.environ["WILLUMP_HOME"]
+    caller_file: str = generate_cpp_file(version_number)
+    output_filename: str = os.path.join(willump_home, "build",
+                                        "weld_llvm_caller{0}.so".format(version_number))
     # TODO:  Make this call more portable.
     subprocess.run(["clang++", "-fPIC", "--shared", "-lweld", "-g", "-std=c++11", "-O3",
                     "-I{0}".format(sysconfig.get_path("include")),
                     "-I{0}".format(numpy.get_include()),
-                    "-o", "build/weld_llvm_caller{0}.so".format(version_number),
+                    "-o", output_filename,
                     caller_file, "code-llvm-opt.ll"])
+    os.remove("code-llvm-opt.ll")
     version_number += 1
     importlib.invalidate_caches()
     return "weld_llvm_caller{0}".format(version_number - 1)
@@ -87,12 +90,8 @@ def willump_execute(func: Callable) -> Callable:
     python_weld: str = willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
 
     module_name = compile_weld_program(python_weld)
-    # TODO:  Make more portable--WILLUMP_HOME environment variable maybe?
-    if "build" not in sys.path:
-        sys.path.append("build")
     weld_llvm_caller = importlib.import_module(module_name)
     new_func: Callable = weld_llvm_caller.caller_func
-    os.remove("code-llvm-opt.ll")
     return new_func
 
 

@@ -1,8 +1,6 @@
 import unittest
 import numpy
 import importlib
-import os
-import sys
 
 import willump.evaluation.willump_executor as wexec
 import willump.graph.willump_graph_node as wgn
@@ -17,13 +15,6 @@ from willump import pprint_weld
 
 
 class BasicEvaluationTests(unittest.TestCase):
-    def setUp(self):
-        if "build" not in sys.path:
-            sys.path.append("build")
-
-    def tearDown(self):
-        os.remove("code-llvm-opt.ll")
-
     def test_add_literals(self):
         print("\ntest_add_literals")
         in_node: wgin.WillumpInputNode = wgin.WillumpInputNode("input")

@@ -1,20 +1,11 @@
 import unittest
 import numpy
-import os
 import importlib
-import sys
 
 import willump.evaluation.willump_executor as wexec
 
 
 class WeldLLVMCallerTests(unittest.TestCase):
-    def setUp(self):
-        if "build" not in sys.path:
-            sys.path.append("build")
-
-    def tearDown(self):
-        os.remove("code-llvm-opt.ll")
-
     def test_basic_weld_llvm_caller(self):
         print("\ntest_basic_weld_llvm_caller")
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
