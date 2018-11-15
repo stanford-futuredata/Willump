@@ -3,8 +3,6 @@ import os
 import numpy
 import sys
 
-from willump.evaluation.willump_executor import willump_execute_python
-
 
 class WillumpExecutionTests(unittest.TestCase):
     def setUp(self):

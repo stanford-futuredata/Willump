@@ -12,13 +12,17 @@ from typing import MutableMapping, List, Tuple, Optional, Set
 
 class WillumpGraphBuilder(ast.NodeVisitor):
     """
-    Builds a Willump graph from raw Python.  Assumptions we currently make:
+    Builds a Willump graph from the Python AST for a FunctionDef.  Typically called from a
+    decorator around that function.  Makes the following assumptions:
 
-    1.  Input Python contains a single function, from which the graph shall be extracted.
+    1.  Input Python is the definition of a single function,
+        from which the graph shall be extracted.
 
     2.  This function takes in and returns a numpy.float64 array.
 
     3.  The function does not reference anything outside of its own scope.
+
+    TODO:  Weaken these assumptions (especially 2 and 3).
     """
     willump_graph: WillumpGraph
     # A map from the names of variables to the nodes that generate them.

@@ -23,8 +23,9 @@ class GraphInferenceTests(unittest.TestCase):
         print("\ntest_basic_math_inference")
         with open("tests/test_resources/sample_math.py", "r") as sample_file:
             sample_python: str = sample_file.read()
-            willump_graph: WillumpGraph = wexec.infer_graph(sample_python)
-            weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+            willump_graph: WillumpGraph = wexec._infer_graph(sample_python)
+            weld_program: str = \
+                willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
 
             basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
             module_name = wexec.compile_weld_program(weld_program)
@@ -36,8 +37,9 @@ class GraphInferenceTests(unittest.TestCase):
         print("\ntest_manyvars_math_inference")
         with open("tests/test_resources/sample_math_manyvars.py", "r") as sample_file:
             sample_python: str = sample_file.read()
-            willump_graph: WillumpGraph = wexec.infer_graph(sample_python)
-            weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+            willump_graph: WillumpGraph = wexec._infer_graph(sample_python)
+            weld_program: str = \
+                willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
 
             basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
             module_name = wexec.compile_weld_program(weld_program)
