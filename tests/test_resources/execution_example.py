@@ -534,6 +534,7 @@ def main():
     sample_row[11] = 8
     # Force compilation.
     process_row(sample_row)
+    process_row(sample_row)
     start = timer()
     for _ in range(NUMITER):
         process_row(sample_row)

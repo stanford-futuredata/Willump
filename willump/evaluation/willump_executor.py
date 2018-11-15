@@ -5,6 +5,7 @@ import subprocess
 import importlib
 import sysconfig
 import inspect
+import copy
 
 import weld.weldobject
 from weld.types import *
@@ -13,6 +14,7 @@ import weld.encoders
 import willump.evaluation.willump_weld_generator
 from willump.graph.willump_graph import WillumpGraph
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
+from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
 
 from typing import Callable
 
@@ -79,6 +81,9 @@ def compile_weld_program(weld_program: str) -> str:
     return "weld_llvm_caller{0}".format(version_number - 1)
 
 
+willump_typing_map_set = {}
+
+
 def willump_execute(func: Callable) -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
@@ -87,24 +92,47 @@ def willump_execute(func: Callable) -> Callable:
 
     TODO:  Make those assumptions weaker.
     """
-    llvm_runner_func = "llvm_runner_func{0}".format(version_number)
+    llvm_runner_func: str = "llvm_runner_func{0}".format(version_number)
     globals()[llvm_runner_func] = None
 
     def wrapper(*args):
         if globals()[llvm_runner_func] is None:
-            python_source = inspect.getsource(func)
-            python_ast: ast.AST = ast.parse(python_source)
-            graph_builder = WillumpGraphBuilder()
-            graph_builder.visit(python_ast)
-            python_graph: WillumpGraph = graph_builder.get_willump_graph()
-            python_weld: str = willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
-
-            module_name = compile_weld_program(python_weld)
-            weld_llvm_caller = importlib.import_module(module_name)
-            new_func: Callable = weld_llvm_caller.caller_func
-            globals()[llvm_runner_func] = new_func
-            return globals()[llvm_runner_func](args[0])
+            if llvm_runner_func not in willump_typing_map_set:
+                # On the first run of the function, instrument it to construct a map from variables
+                # in the function to their types at runtime.
+                willump_typing_map_set[llvm_runner_func] = {}
+                python_source = inspect.getsource(func)
+                python_ast: ast.AST = ast.parse(python_source)
+                function_name: str = python_ast.body[0].name
+                type_discover: WillumpRuntimeTypeDiscovery = WillumpRuntimeTypeDiscovery()
+                new_ast: ast.AST = type_discover.visit(python_ast)
+                new_ast = ast.fix_missing_locations(new_ast)
+                local_namespace = {}
+                augmented_globals = copy.copy(func.__globals__)
+                augmented_globals["willump_typing_map"] = willump_typing_map_set[llvm_runner_func]
+                exec(compile(new_ast, filename="<ast>", mode="exec"), augmented_globals,
+                     local_namespace)
+                return local_namespace[function_name](args[0])
+            else:
+                # With the types of variables all known, we can compile the function.  First,
+                # infer the Willump graph from the function's AST.
+                # print(willump_typing_map_set[llvm_runner_func])
+                python_source = inspect.getsource(func)
+                python_ast: ast.AST = ast.parse(python_source)
+                graph_builder = WillumpGraphBuilder()
+                graph_builder.visit(python_ast)
+                python_graph: WillumpGraph = graph_builder.get_willump_graph()
+                # Convert the Willump graph to a Weld program.
+                python_weld: str =\
+                    willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
+                # Compile the Weld to a Python C extension, then call into the extension.
+                module_name = compile_weld_program(python_weld)
+                weld_llvm_caller = importlib.import_module(module_name)
+                new_func: Callable = weld_llvm_caller.caller_func
+                globals()[llvm_runner_func] = new_func
+                return globals()[llvm_runner_func](args[0])
         else:
+            # Run the compiled function.
             return globals()[llvm_runner_func](args[0])
     return wrapper
 
