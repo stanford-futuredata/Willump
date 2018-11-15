@@ -81,18 +81,28 @@ def willump_execute(func: Callable) -> Callable:
     Makes assumptions about the input Python outlined in WillumpGraphBuilder.
 
     TODO:  Make those assumptions weaker.
-    """
-    python_source = inspect.getsource(func)
-    python_ast: ast.AST = ast.parse(python_source)
-    graph_builder = WillumpGraphBuilder()
-    graph_builder.visit(python_ast)
-    python_graph: WillumpGraph = graph_builder.get_willump_graph()
-    python_weld: str = willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
 
-    module_name = compile_weld_program(python_weld)
-    weld_llvm_caller = importlib.import_module(module_name)
-    new_func: Callable = weld_llvm_caller.caller_func
-    return new_func
+    """
+    llvm_runner_func = "llvm_runner_func{0}".format(version_number)
+    globals()[llvm_runner_func] = None
+
+    def wrapper(*args):
+        if globals()[llvm_runner_func] is None:
+            python_source = inspect.getsource(func)
+            python_ast: ast.AST = ast.parse(python_source)
+            graph_builder = WillumpGraphBuilder()
+            graph_builder.visit(python_ast)
+            python_graph: WillumpGraph = graph_builder.get_willump_graph()
+            python_weld: str = willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
+
+            module_name = compile_weld_program(python_weld)
+            weld_llvm_caller = importlib.import_module(module_name)
+            new_func: Callable = weld_llvm_caller.caller_func
+            globals()[llvm_runner_func] = new_func
+            return globals()[llvm_runner_func](args[0])
+        else:
+            return globals()[llvm_runner_func](args[0])
+    return wrapper
 
 
 def _infer_graph(input_python: str) -> WillumpGraph:
