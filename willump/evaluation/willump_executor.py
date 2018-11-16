@@ -15,8 +15,9 @@ import willump.evaluation.willump_weld_generator
 from willump.graph.willump_graph import WillumpGraph
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
+from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
 
-from typing import Callable
+from typing import Callable, MutableMapping
 
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
@@ -81,7 +82,7 @@ def compile_weld_program(weld_program: str) -> str:
     return "weld_llvm_caller{0}".format(version_number - 1)
 
 
-willump_typing_map_set = {}
+willump_typing_map_set: MutableMapping[str, MutableMapping[str, WeldType]] = {}
 
 
 def willump_execute(func: Callable) -> Callable:
@@ -110,13 +111,16 @@ def willump_execute(func: Callable) -> Callable:
                 local_namespace = {}
                 augmented_globals = copy.copy(func.__globals__)
                 augmented_globals["willump_typing_map"] = willump_typing_map_set[llvm_runner_func]
+                augmented_globals["py_var_to_weld_type"] = py_var_to_weld_type
                 exec(compile(new_ast, filename="<ast>", mode="exec"), augmented_globals,
                      local_namespace)
                 return local_namespace[function_name](args[0])
             else:
                 # With the types of variables all known, we can compile the function.  First,
                 # infer the Willump graph from the function's AST.
-                # print(willump_typing_map_set[llvm_runner_func])
+                willump_typing_map: MutableMapping[str, WeldType] = \
+                    willump_typing_map_set[llvm_runner_func]
+                print(willump_typing_map)
                 python_source = inspect.getsource(func)
                 python_ast: ast.AST = ast.parse(python_source)
                 graph_builder = WillumpGraphBuilder()
