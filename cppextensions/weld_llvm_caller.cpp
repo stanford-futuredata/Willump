@@ -31,23 +31,8 @@ struct vec {
   i64 size;
 };
 
-template<typename T>
-vec<T> new_vec(i64 size) {
-  vec<T> t;
-  t.ptr = (T *)malloc(size * sizeof(T));
-  t.size = size;
-  return t;
-}
-
-vec<f64> new_vecf(i64 size) {
-  vec<f64> t;
-  t.ptr = (f64 *)malloc(size * sizeof(f64));
-  t.size = size;
-  return t;
-}
-
 struct struct0 {
-  vec<f64> _0;
+  vec<WELD_INPUT_TYPE_0> _0;
 };
 
 struct WeldInputArgs {
@@ -68,7 +53,7 @@ extern "C" void* weld_runst_init(i32, i64);
 
 // Aliases for argument and return types.
 typedef struct0 input_type;
-typedef vec<f64> return_type;
+typedef vec<WELD_OUTPUT_TYPE> return_type;
 
 static PyObject *
 caller_func(PyObject *self, PyObject* args)
@@ -78,13 +63,13 @@ caller_func(PyObject *self, PyObject* args)
     if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &input)) {
         return NULL;
     }
-    if((input_array = (PyArrayObject*) PyArray_FROM_OTF(input, NPY_DOUBLE, NPY_ARRAY_IN_ARRAY)) == NULL) {
+    if((input_array = (PyArrayObject*) PyArray_FROM_OTF(input, NUMPY_INPUT_TYPE_0, NPY_ARRAY_IN_ARRAY)) == NULL) {
         return NULL;
     }
-    f64* data = (f64 *) PyArray_DATA(input_array);
+    WELD_INPUT_TYPE_0* data = (WELD_INPUT_TYPE_0 *) PyArray_DATA(input_array);
     int input_len = PyArray_DIMS(input_array)[0];
 
-    vec<f64> weld_input_vec;
+    vec<WELD_INPUT_TYPE_0> weld_input_vec;
     weld_input_vec.size = input_len;
     weld_input_vec.ptr = data;
     input_type weld_input;
@@ -100,7 +85,7 @@ caller_func(PyObject *self, PyObject* args)
 
     return_type* weld_output = (return_type*) weld_output_args->output;
 
-    PyArrayObject* return_array = (PyArrayObject*) PyArray_SimpleNewFromData(1, &weld_output->size, NPY_DOUBLE, weld_output->ptr);
+    PyArrayObject* return_array = (PyArrayObject*) PyArray_SimpleNewFromData(1, &weld_output->size, NUMPY_OUTPUT_TYPE, weld_output->ptr);
     PyArray_ENABLEFLAGS(return_array, NPY_ARRAY_OWNDATA);
 
     return (PyObject*) return_array;

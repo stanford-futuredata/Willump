@@ -10,8 +10,13 @@ import willump.graph.willump_input_node as wgin
 import willump.graph.transform_math_node as wtmn
 import willump.evaluation.willump_weld_generator
 from willump.graph.transform_math_node import MathOperationInput
+from weld.types import *
 
 from willump import pprint_weld
+
+all_floats_type_map = {"__willump_arg0": WeldVec(WeldDouble()), "input": WeldVec(WeldDouble()),
+            "result": WeldVec(WeldDouble()), "output": WeldVec(WeldDouble()),
+            "__willump_retval": WeldVec(WeldDouble())}
 
 
 class BasicEvaluationTests(unittest.TestCase):
@@ -29,7 +34,7 @@ class BasicEvaluationTests(unittest.TestCase):
         weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
-        module_name = wexec.compile_weld_program(weld_program)
+        module_name = wexec.compile_weld_program(weld_program, all_floats_type_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([3., 3.]))
@@ -54,7 +59,7 @@ class BasicEvaluationTests(unittest.TestCase):
         weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
-        module_name = wexec.compile_weld_program(weld_program)
+        module_name = wexec.compile_weld_program(weld_program, all_floats_type_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([2., 5., 7.]))
@@ -79,7 +84,7 @@ class BasicEvaluationTests(unittest.TestCase):
         weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
-        module_name = wexec.compile_weld_program(weld_program)
+        module_name = wexec.compile_weld_program(weld_program, all_floats_type_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([5., 7.]))
@@ -102,7 +107,7 @@ class BasicEvaluationTests(unittest.TestCase):
         weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
-        module_name = wexec.compile_weld_program(weld_program)
+        module_name = wexec.compile_weld_program(weld_program, all_floats_type_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([1., 7.]))
@@ -127,7 +132,7 @@ class BasicEvaluationTests(unittest.TestCase):
         weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
-        module_name = wexec.compile_weld_program(weld_program)
+        module_name = wexec.compile_weld_program(weld_program, all_floats_type_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([0., 6., 2./5.]))

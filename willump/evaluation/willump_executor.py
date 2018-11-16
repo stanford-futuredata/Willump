@@ -12,12 +12,13 @@ from weld.types import *
 import weld.encoders
 
 import willump.evaluation.willump_weld_generator
+from willump.evaluation.willump_driver_generator import generate_cpp_driver
 from willump.graph.willump_graph import WillumpGraph
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
 from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
 
-from typing import Callable, MutableMapping
+from typing import Callable, MutableMapping, Mapping
 
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
@@ -25,25 +26,7 @@ _decoder = weld.encoders.NumpyArrayDecoder()
 version_number = 0
 
 
-def generate_cpp_file(file_version: int) -> str:
-    """
-    Generate versioned CPP files for each run of Willump.
-
-    TODO:  Do C++ code generation to allow multiple inputs and different input types.
-    """
-    willump_home: str = os.environ["WILLUMP_HOME"]
-    with open(os.path.join(willump_home, "cppextensions", "weld_llvm_caller.cpp"), "r") as infile:
-        buffer = infile.read()
-        new_function_name = "weld_llvm_caller{0}".format(file_version)
-        buffer = buffer.replace("weld_llvm_caller", new_function_name)
-        new_file_name = os.path.join(willump_home, "build",
-                                     "weld_llvm_caller{0}.cpp".format(file_version))
-        with open(new_file_name, "w") as outfile:
-            outfile.write(buffer)
-    return new_file_name
-
-
-def compile_weld_program(weld_program: str) -> str:
+def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType]) -> str:
     """
     Compile a Weld program to LLVM, then compile this into a Python C extension in a shared object
     file which can run the Weld program from Python.
@@ -64,11 +47,11 @@ def compile_weld_program(weld_program: str) -> str:
         os.remove(llvm_dump_location)
     weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
     weld_object.weld_code = weld_program.format("_inp0")
-    weld_object.willump_dump_llvm([WeldVec(WeldDouble())], input_directory=willump_build_dir,
+    weld_object.willump_dump_llvm([type_map["__willump_arg0"]], input_directory=willump_build_dir,
                                   input_filename=llvm_dump_name)
 
     # Compile the LLVM to assembly and build the C++ glue code with it.
-    caller_file: str = generate_cpp_file(version_number)
+    caller_file: str = generate_cpp_driver(version_number, type_map)
     output_filename: str = os.path.join(willump_build_dir,
                                         "weld_llvm_caller{0}.so".format(version_number))
     # TODO:  Make this call more portable.
@@ -123,9 +106,8 @@ def willump_execute(func: Callable) -> Callable:
             else:
                 # With the types of variables all known, we can compile the function.  First,
                 # infer the Willump graph from the function's AST.
-                willump_typing_map: MutableMapping[str, WeldType] = \
+                willump_typing_map: Mapping[str, WeldType] = \
                     willump_typing_map_set[llvm_runner_func]
-                print(willump_typing_map)
                 python_source = inspect.getsource(func)
                 python_ast: ast.AST = ast.parse(python_source)
                 graph_builder = WillumpGraphBuilder()
@@ -135,7 +117,7 @@ def willump_execute(func: Callable) -> Callable:
                 python_weld: str =\
                     willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
                 # Compile the Weld to a Python C extension, then call into the extension.
-                module_name = compile_weld_program(python_weld)
+                module_name = compile_weld_program(python_weld, willump_typing_map)
                 weld_llvm_caller = importlib.import_module(module_name)
                 new_func: Callable = weld_llvm_caller.caller_func
                 globals()[llvm_runner_func] = new_func
