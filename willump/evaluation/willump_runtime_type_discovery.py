@@ -21,6 +21,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
         new_node = copy.deepcopy(node)
         new_body: List[ast.stmt] = []
         for i, arg in enumerate(node.args.args):
+            # First, type the arguments.
             argument_name: str = arg.arg
             argument_internal_name = "__willump_arg{0}".format(i)
             argument_instrumentation_code: str = \
@@ -32,12 +33,14 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             new_body = new_body + instrumentation_statements
         for body_entry in node.body:
             if isinstance(body_entry, ast.Assign):
+                # Type all variables as they are assigned.
                 new_body.append(body_entry)
                 assert(len(body_entry.targets) == 1)  # Assume assignment to only one variable.
                 target: ast.expr = body_entry.targets[0]
                 target_type_statement: List[ast.stmt] = self._analyze_target_type(target)
                 new_body = new_body + target_type_statement
             elif isinstance(body_entry, ast.Return):
+                # Type the function's return value.
                 new_assignment: ast.Assign = ast.Assign()
                 new_assignment_target: ast.Name = ast.Name()
                 new_assignment_target.id = "__willump_retval"
@@ -56,6 +59,10 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
 
     @staticmethod
     def _analyze_target_type(target: ast.expr) -> List[ast.stmt]:
+        """
+        Create a statement from the target of an assignment that will insert into a global
+        dict the type of the target.
+        """
         target_name: str = WillumpGraphBuilder.get_assignment_target_name(target)
         target_analysis_instrumentation_code: str = \
         """willump_typing_map["{0}"] = py_var_to_weld_type({0})""".format(target_name)
@@ -77,17 +84,17 @@ def py_var_to_weld_type(py_var: object) -> WeldType:
     # TODO:  Handle multidimensional arrays
     elif isinstance(py_var, numpy.ndarray):
         if py_var.dtype == numpy.int8:
-            return WeldVec(WeldChar)
+            return WeldVec(WeldChar())
         elif py_var.dtype == numpy.int16:
-            return WeldVec(WeldInt16)
+            return WeldVec(WeldInt16())
         elif py_var.dtype == numpy.int32:
-            return WeldVec(WeldInt)
+            return WeldVec(WeldInt())
         elif py_var.dtype == numpy.int64:
-            return WeldVec(WeldLong)
+            return WeldVec(WeldLong())
         elif py_var.dtype == numpy.float32:
-            return WeldVec(WeldFloat)
+            return WeldVec(WeldFloat())
         elif py_var.dtype == numpy.float64:
-            return WeldVec(WeldDouble)
+            return WeldVec(WeldDouble())
     else:
         panic("Unrecognized type of object {0} with type {1}"
               .format(py_var.__str__(), type(py_var)))

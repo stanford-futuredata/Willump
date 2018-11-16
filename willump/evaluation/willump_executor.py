@@ -106,12 +106,17 @@ def willump_execute(func: Callable) -> Callable:
                 python_ast: ast.AST = ast.parse(python_source)
                 function_name: str = python_ast.body[0].name
                 type_discover: WillumpRuntimeTypeDiscovery = WillumpRuntimeTypeDiscovery()
+                # Create an instrumented AST that will fill willump_typing_map with the Weld types
+                # of all variables in the function.
                 new_ast: ast.AST = type_discover.visit(python_ast)
                 new_ast = ast.fix_missing_locations(new_ast)
                 local_namespace = {}
+                # Create namespaces the instrumented function can run in containing both its
+                # original globals and the ones the instrumentation needs.
                 augmented_globals = copy.copy(func.__globals__)
                 augmented_globals["willump_typing_map"] = willump_typing_map_set[llvm_runner_func]
                 augmented_globals["py_var_to_weld_type"] = py_var_to_weld_type
+                # Run the instrumented function.
                 exec(compile(new_ast, filename="<ast>", mode="exec"), augmented_globals,
                      local_namespace)
                 return local_namespace[function_name](args[0])
