@@ -110,7 +110,7 @@ def willump_execute(func: Callable) -> Callable:
                     willump_typing_map_set[llvm_runner_func]
                 python_source = inspect.getsource(func)
                 python_ast: ast.AST = ast.parse(python_source)
-                graph_builder = WillumpGraphBuilder()
+                graph_builder = WillumpGraphBuilder(willump_typing_map)
                 graph_builder.visit(python_ast)
                 python_graph: WillumpGraph = graph_builder.get_willump_graph()
                 # Convert the Willump graph to a Weld program.
@@ -126,30 +126,3 @@ def willump_execute(func: Callable) -> Callable:
             # Run the compiled function.
             return globals()[llvm_runner_func](args[0])
     return wrapper
-
-
-def _infer_graph(input_python: str) -> WillumpGraph:
-    """
-    Infer the Willump graph of a Python program.
-
-    For unit tests only!  Real Willump uses a decorator.
-    """
-    class FirstFunctionDefFinder(ast.NodeVisitor):
-        """
-        Get the AST node for the first function in a Python AST.
-        """
-        function_def: ast.FunctionDef
-
-        def visit_FunctionDef(self, node):
-            self.function_def = node
-
-    python_ast = ast.parse(input_python, "exec")
-    first_fundef_finder = FirstFunctionDefFinder()
-    first_fundef_finder.visit(python_ast)
-    python_fundef: ast.FunctionDef = first_fundef_finder.function_def
-
-    graph_builder = WillumpGraphBuilder()
-    graph_builder.visit(python_fundef)
-
-    return graph_builder.get_willump_graph()
-

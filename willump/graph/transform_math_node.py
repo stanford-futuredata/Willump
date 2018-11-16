@@ -2,15 +2,19 @@ from typing import Optional, List, Tuple
 
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump import panic
+from weld.types import *
+import willump.willump_utilities as wutil
 
 
 class MathOperationInput(object):
+    input_type: str
     input_var: Optional[str]
     input_index: Optional[Tuple[str, int]]
     input_literal: Optional[float]
 
-    def __init__(self, input_var: str = None, input_index: Tuple[str, int] = None,
-                 input_literal: float = None):
+    def __init__(self, input_type: WeldType, input_var: str = None,
+                 input_index: Tuple[str, int] = None, input_literal: float = None):
+        self.input_type = wutil.weld_scalar_type_to_str(input_type)
         self.input_var = input_var
         self.input_index = input_index
         self.input_literal = input_literal
@@ -28,12 +32,20 @@ class MathOperation(object):
     output_var_name: str
     # Is the variable the result goes into a vector?
     output_is_vector: bool
+    # Weld type of output of operation.
+    output_type: str
+    # What type (if any) the result of the operation must be casted to (either "" or output_type)
+    output_cast: str
+    # What type (if any) the first input needs be cast to.
+    first_input_cast: str
     # If first input is a variable, its name.
     first_input_var: Optional[str] = None
     # If first input is a literal, its value.
     first_input_literal: Optional[float] = None
     # If first input is from input array, the index.
     first_input_index: Optional[Tuple[str, int]] = None
+    # What type (if any) the second input needs be cast to (unneeded if unary op).
+    second_input_cast: Optional[str] = None
     # If second input is a variable, its name (unneeded if unary op).
     second_input_var: Optional[str] = None
     # If second input is a literal, its value (unneeded if unary op).
@@ -41,7 +53,30 @@ class MathOperation(object):
     # If second input is from input array, the index.
     second_input_index: Optional[Tuple[str, int]] = None
 
-    def __init__(self, op_type: str, output_var_name: str, output_is_vector: bool,
+    @staticmethod
+    def _casting_determination(first_input_type: str,
+                               second_input_type: str, output_type: str) -> Tuple[str, str, str]:
+        """
+        Determine type casting in a binary operation.  If the two inputs have different types,
+        cast the less precise type to the more precise one.  If the output has a different
+        type than the more precise input, cast the output to that type.  This is meant to force
+        Willump/Weld to comply with Python/Numpy semantics for mixed scalar types.
+        """
+        type_precision = {"i8": 0, "i16": 1, "i32": 2, "i64": 3, "f32": 4, "f64": 5}
+        first_input_cast = second_input_cast = output_cast = ""
+        if type_precision[first_input_type] < type_precision[second_input_type]:
+            first_input_cast = second_input_type
+        elif type_precision[first_input_type] > type_precision[second_input_type]:
+            second_input_cast = first_input_type
+        else:  # Equality
+            pass
+        if type_precision[output_type] !=\
+                max(type_precision[first_input_type], type_precision[second_input_type]):
+            output_cast = output_type
+        return first_input_cast, second_input_cast, output_cast
+
+    def __init__(self, op_type: str, output_var_name: str,
+                 output_type: WeldType,
                  first_input: MathOperationInput,
                  second_input: MathOperationInput = None) -> None:
         self.op_type = op_type
@@ -52,7 +87,8 @@ class MathOperation(object):
         else:
             panic("Op not recognized")
         self.output_var_name = output_var_name
-        self.output_is_vector = output_is_vector
+        self.output_is_vector = isinstance(output_type, WeldVec)
+        self.output_type = wutil.weld_scalar_type_to_str(output_type)
         self.first_input_var = first_input.input_var
         self.first_input_literal = first_input.input_literal
         self.first_input_index = first_input.input_index
@@ -60,6 +96,9 @@ class MathOperation(object):
             self.second_input_var = second_input.input_var
             self.second_input_literal = second_input.input_literal
             self.second_input_index = second_input.input_index
+            self.first_input_cast, self.second_input_cast, self.output_cast = \
+                self._casting_determination(first_input.input_type,
+                second_input.input_type, self.output_type)
 
     def __repr__(self)-> str:
         return "Op: {0} Output: {1} {2} First:({3} {4} {5}) Second:({6} {7} {8})".format(
@@ -77,14 +116,17 @@ class TransformMathNode(WillumpGraphNode):
     input_nodes: List[WillumpGraphNode]
     input_mathops: List[MathOperation]
     output_name: str
+    output_type: WeldType
     _temp_var_counter: int = 0
 
     def __init__(self, input_nodes: List[WillumpGraphNode],
                  input_mathops: List[MathOperation],
-                 output_name: str) -> None:
+                 output_name: str,
+                 output_type: WeldType) -> None:
         self.input_nodes = input_nodes
         self.input_mathops = input_mathops
         self.output_name = output_name
+        self.output_type = output_type
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self.input_nodes
@@ -101,7 +143,8 @@ class TransformMathNode(WillumpGraphNode):
         return _temp_var_name
 
     def get_node_weld(self) -> str:
-        weld_str: str = "let __ret_array0 = appender[f64];"
+        weld_str: str = "let __ret_array0 = appender[{0}];"\
+            .format(wutil.weld_scalar_type_to_str(self.output_type))
         ret_array_counter: int = 0
         for i, mathop in enumerate(self.input_mathops):
             if not mathop.output_is_vector:
@@ -137,8 +180,9 @@ class TransformMathNode(WillumpGraphNode):
                 else:
                     panic("Math node binop without second argument.")
                 # Build the binary operation.
-                weld_str += "let {0} = {1} {2} {3};".format(var_name, first_arg,
-                                                            mathop.op_type, second_arg)
+                weld_str += "let {0} = {6}({4}({1}) {2} {5}({3}));".format(var_name,
+                                                                           first_arg, mathop.op_type, second_arg, mathop.first_input_cast,
+                                                                           mathop.second_input_cast, mathop.output_cast)
             # Append the output of the operation to the output array if desired.
             if mathop.output_is_vector:
                 weld_str += "let __ret_array{0} = merge(__ret_array{1}, {2});" \

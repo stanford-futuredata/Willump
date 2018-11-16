@@ -10,7 +10,7 @@ from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeType
 from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
 from willump import pprint_weld
 from willump.graph.willump_graph import WillumpGraph
-
+from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 import willump.evaluation.willump_executor as wexec
 
 from typing import Mapping
@@ -71,7 +71,9 @@ class GraphInferenceTests(unittest.TestCase):
         sample_python: str = inspect.getsource(sample_math_basic)
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
         self.set_typing_map(sample_python, "sample_math_basic", basic_vec)
-        willump_graph: WillumpGraph = wexec._infer_graph(sample_python)
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
         weld_program: str = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
         module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
@@ -84,7 +86,9 @@ class GraphInferenceTests(unittest.TestCase):
         sample_python: str = inspect.getsource(sample_math_manyvars)
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
         self.set_typing_map(sample_python, "sample_math_manyvars", basic_vec)
-        willump_graph: WillumpGraph = wexec._infer_graph(sample_python)
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
         weld_program: str = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
         module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
@@ -97,7 +101,9 @@ class GraphInferenceTests(unittest.TestCase):
         sample_python: str = inspect.getsource(sample_math_ints)
         basic_vec = numpy.array([1, 2, 3], dtype=numpy.int32)
         self.set_typing_map(sample_python, "sample_math_ints", basic_vec)
-        willump_graph: WillumpGraph = wexec._infer_graph(sample_python)
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
         weld_program: str = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
         module_name = wexec.compile_weld_program(weld_program, willump_typing_map)

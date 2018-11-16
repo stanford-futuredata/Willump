@@ -7,7 +7,8 @@ from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
 from willump.graph.transform_math_node import TransformMathNode, MathOperation, MathOperationInput
 
-from typing import MutableMapping, List, Tuple, Optional, Set
+from typing import MutableMapping, List, Tuple, Optional, Set, Mapping
+from weld.types import *
 
 
 class WillumpGraphBuilder(ast.NodeVisitor):
@@ -28,10 +29,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     # A map from the names of variables to the nodes that generate them.
     _node_dict: MutableMapping[str, WillumpGraphNode] = {}
     _mathops_list: List[MathOperation] = []
+    _type_map: MutableMapping[str, WeldType]
 
-    def __init__(self) -> None:
+    def __init__(self, type_map: MutableMapping[str, WeldType]) -> None:
         self._node_dict = {}
         self._mathops_list = []
+        self._type_map = type_map
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """
@@ -52,11 +55,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         """
         assert(len(node.targets) == 1)  # Assume assignment to only one variable.
         target: ast.expr = node.targets[0]
-        output_var_name, output_is_vector = self._analyze_assignment_target(target)
+        output_var_name = self.get_assignment_target_name(target)
+        output_type = self._type_map[output_var_name]
         value: ast.expr = node.value
         if isinstance(value, ast.BinOp):
             left, op, right = self._analyze_binop(value)
-            binop_mathop: MathOperation = MathOperation(op, output_var_name, output_is_vector,
+            binop_mathop: MathOperation = MathOperation(op, output_var_name, output_type,
                                                         left, second_input=right)
             self._mathops_list.append(binop_mathop)
         elif isinstance(value, ast.Call):
@@ -67,9 +71,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 operator: str = self._pyunop_to_wunop(called_function)
                 unary_input: MathOperationInput = self._expr_to_math_operation_input(value.args[0])
                 unary_mathop: MathOperation = MathOperation(operator, output_var_name,
-                                                            output_is_vector, unary_input)
+                                                            output_type, unary_input)
                 self._mathops_list.append(unary_mathop)
-            # TODO:  Handle array typing here?
+            # TODO:  What to do here?
             elif called_function == "numpy.zeros":
                 pass
             else:
@@ -107,40 +111,35 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     def get_willump_graph(self) -> WillumpGraph:
         return self.willump_graph
 
-    def _analyze_assignment_target(self, node: ast.expr) -> Tuple[str, bool]:
-        """
-        Return the name and type of the target of an assignment statement.
-        """
-        target_name: str = self.get_assignment_target_name(node)
-        if isinstance(node, ast.Name):
-            return target_name, False
-        elif isinstance(node, ast.Subscript):
-            return target_name, True
-        else:
-            panic("Unrecognized assignment to: {0}".format(ast.dump(node)))
-            return "", False
-
     def _expr_to_math_operation_input(self, expr: ast.expr) -> MathOperationInput:
         """
         Convert an expression input to a binary or unary operation into a MathOperationInput.
 
         TODO:  Proper Subscript handling.
+
+        TODO:  Stop turning all unknown types (say, subexpressions) into doubles.
         """
         if isinstance(expr, ast.Num):
-            return MathOperationInput(input_literal=expr.n)
+            if isinstance(expr.n, float):
+                return MathOperationInput(WeldDouble(), input_literal=expr.n)
+            else:
+                return MathOperationInput(WeldInt(), input_literal=expr.n)
         elif isinstance(expr, ast.Subscript):
-            return MathOperationInput(input_index=(expr.value.id, expr.slice.value.n))
+            var_name: str = self.get_assignment_target_name(expr)
+            return MathOperationInput(self._type_map[var_name],
+                                      input_index=(var_name, expr.slice.value.n))
         elif isinstance(expr, ast.Name):
-            return MathOperationInput(input_var=expr.id)
+            return MathOperationInput(self._type_map[expr.id], input_var=expr.id)
         else:
             temp_target: ast.Name = ast.Name()
             temp_target.id = self._get_tmp_var_name()
+            self._type_map[temp_target.id] = WeldDouble()
             temp_target.ctx = ast.Store()
             fake_assign: ast.Assign = ast.Assign()
             fake_assign.targets = [temp_target]
             fake_assign.value = expr
             self.visit_Assign(fake_assign)
-            return MathOperationInput(input_var=temp_target.id)
+            return MathOperationInput(WeldDouble(), input_var=temp_target.id)
 
     def _analyze_binop(self, binop: ast.BinOp) -> \
             Tuple[MathOperationInput, str, MathOperationInput]:
@@ -199,7 +198,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         input_nodes: List[WillumpGraphNode] =\
             list(map(lambda array: self._node_dict[array], input_arrays))
         return_node: TransformMathNode = TransformMathNode(input_nodes,
-                                                           node_mathop_list, output_name)
+                                     node_mathop_list, output_name, self._type_map[output_name])
         self._node_dict[output_name] = return_node
         return return_node
 
