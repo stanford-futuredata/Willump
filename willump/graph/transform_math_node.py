@@ -35,9 +35,9 @@ class MathOperation(object):
     # Weld type of output of operation.
     output_type: str
     # What type (if any) the result of the operation must be casted to (either "" or output_type)
-    output_cast: str
+    output_cast: str = ""
     # What type (if any) the first input needs be cast to.
-    first_input_cast: str
+    first_input_cast: str = ""
     # If first input is a variable, its name.
     first_input_var: Optional[str] = None
     # If first input is a literal, its value.
@@ -99,6 +99,13 @@ class MathOperation(object):
             self.first_input_cast, self.second_input_cast, self.output_cast = \
                 self._casting_determination(first_input.input_type,
                 second_input.input_type, self.output_type)
+        else:
+            if op_type == "sqrt" or op_type == "log"\
+                    and not wutil.weld_scalar_type_fp(weld_type_str=first_input.input_type):
+                # Weld requires these operations have float inputs.
+                self.first_input_cast = "f64"
+            if self.output_type != first_input.input_type:
+                self.output_cast = self.output_type
 
     def __repr__(self)-> str:
         return "Op: {0} Output: {1} {2} First:({3} {4} {5}) Second:({6} {7} {8})".format(
@@ -165,7 +172,8 @@ class TransformMathNode(WillumpGraphNode):
             # Process unary operations.
             if not mathop.op_is_binop:
                 # Build the unary operation.
-                weld_str += "let {0} = {1}({2});".format(var_name, mathop.op_type, first_arg)
+                weld_str += "let {0} = {4}({1}({3}({2})));".format(var_name, mathop.op_type,
+                            first_arg, mathop.first_input_cast, mathop.output_cast)
             # Process binary operations.
             else:
                 # Binary operations have a second argument, define it.

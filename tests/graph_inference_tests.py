@@ -48,6 +48,17 @@ def sample_math_ints(input_numpy_array):
     return return_numpy_array
 
 
+def sample_math_mixed(input_numpy_array):
+    intermediate_numpy_array = numpy.zeros(1, dtype=numpy.float64)
+    intermediate_numpy_array[0] = 5 + 5
+    three_float = 2 + 1.0
+    return_numpy_array = numpy.zeros(3, dtype=numpy.float64)
+    return_numpy_array[0] = input_numpy_array[0] + 3.1
+    return_numpy_array[1] = input_numpy_array[2] - three_float + math.sqrt(4)
+    return_numpy_array[2] = input_numpy_array[1] * intermediate_numpy_array[0]
+    return return_numpy_array
+
+
 class GraphInferenceTests(unittest.TestCase):
     def setUp(self):
         global willump_typing_map
@@ -112,6 +123,23 @@ class GraphInferenceTests(unittest.TestCase):
         numpy.testing.assert_equal(weld_output,
                                           numpy.array([2, 1, 6], dtype=numpy.int32))
         numpy.testing.assert_equal(weld_output.dtype, numpy.int32)
+
+    def test_mixed_types_inference(self):
+        print("\ntest_mixed_types")
+        sample_python: str = inspect.getsource(sample_math_mixed)
+        basic_vec = numpy.array([1, 2, 3], dtype=numpy.int32)
+        self.set_typing_map(sample_python, "sample_math_mixed", basic_vec)
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        weld_program: str = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
+        weld_llvm_caller = importlib.import_module(module_name)
+        weld_output = weld_llvm_caller.caller_func(basic_vec)
+        numpy.testing.assert_equal(weld_output,
+                                          numpy.array([4.1, 2, 20], dtype=numpy.float64))
+        numpy.testing.assert_equal(weld_output.dtype, numpy.float64)
 
 
 if __name__ == '__main__':

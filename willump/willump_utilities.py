@@ -24,3 +24,16 @@ def weld_scalar_type_to_str(weld_type: WeldType) -> str:
     else:
         panic("Invalid Weld type {0}".format(weld_type.__str__))
         return ""
+
+
+def weld_scalar_type_fp(weld_type_str: str = None, weld_type: WeldType = None) -> bool:
+    """
+    Is a Weld scalar type a floating-point type?
+    """
+    if weld_type_str is not None:
+        if weld_type_str == "f32" or weld_type_str == "f64":
+            return True
+    else:
+        if isinstance(weld_type, WeldFloat) or isinstance(weld_type, WeldDouble):
+            return True
+    return False
