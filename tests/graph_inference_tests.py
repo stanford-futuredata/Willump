@@ -59,6 +59,11 @@ def sample_math_mixed(input_numpy_array):
     return return_numpy_array
 
 
+def sample_string_split(input_string):
+    output_string = input_string.split()
+    return output_string
+
+
 class GraphInferenceTests(unittest.TestCase):
     def setUp(self):
         global willump_typing_map
@@ -141,6 +146,20 @@ class GraphInferenceTests(unittest.TestCase):
                                           numpy.array([4.1, 2, 20], dtype=numpy.float64))
         numpy.testing.assert_equal(weld_output.dtype, numpy.float64)
 
+    def test_string_split(self):
+        print("\ntest_string_split")
+        sample_python: str = inspect.getsource(sample_string_split)
+        sample_string: str = "cat dog \n house "
+        self.set_typing_map(sample_python, "sample_string_split", sample_string)
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        weld_program: str = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
+        weld_llvm_caller = importlib.import_module(module_name)
+        weld_output = weld_llvm_caller.caller_func(sample_string)
+        numpy.testing.assert_equal(weld_output, ["cat", "dog", "house"])
 
 if __name__ == '__main__':
     unittest.main()

@@ -81,6 +81,12 @@ def py_var_to_weld_type(py_var: object) -> WeldType:
         return WeldInt()
     elif isinstance(py_var, float):
         return WeldDouble()
+    elif isinstance(py_var, str):
+        return WeldStr()
+    # TODO:  Find a way around this ridiculous special-casing for lists.
+    # TODO:  This fails badly if a list (of strings) shows up empty (degenerate input).
+    elif isinstance(py_var, list) and len(py_var) > 0 and isinstance(py_var[0], str):
+        return WeldVec(WeldStr())
     # TODO:  Handle multidimensional arrays
     elif isinstance(py_var, numpy.ndarray):
         if py_var.dtype == numpy.int8:

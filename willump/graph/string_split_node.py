@@ -30,7 +30,7 @@ class StringSplitNode(WillumpGraphNode):
             """
             let struct_all = for(
                 INPUT_NAME,
-                {appender[vec[i8]], appender[i8], merger[i8, +]},
+                {appender[vec[i8]], appender[i8], merge(merger[i8, +], 32c)},
                 | bs: {appender[vec[i8]], appender[i8], merger[i8, +]}, i: i64, n: i8|
                     if ( n == 9c || n == 10c || n == 11c || n == 12c || n == 13c || n == 32c,
                         let nprev = result(bs.$2);

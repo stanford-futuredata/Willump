@@ -6,6 +6,7 @@ from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
 from willump.graph.transform_math_node import TransformMathNode, MathOperation, MathOperationInput
+from willump.graph.string_split_node import StringSplitNode
 
 from typing import MutableMapping, List, Tuple, Optional, Set, Mapping
 from weld.types import *
@@ -73,6 +74,13 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 unary_mathop: MathOperation = MathOperation(operator, output_var_name,
                                                             output_type, unary_input)
                 self._mathops_list.append(unary_mathop)
+            # TODO:  Recognize functions in attributes properly.
+            elif "split" in called_function:
+                input_var: str = value.func.value.id
+                input_node: WillumpGraphNode = self._node_dict[input_var]
+                string_split_node: StringSplitNode = StringSplitNode(input_node=input_node,
+                                                                     output_name=output_var_name)
+                self._node_dict[output_var_name] = string_split_node
             # TODO:  What to do here?
             elif called_function == "numpy.zeros":
                 pass
