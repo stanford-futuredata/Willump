@@ -46,7 +46,7 @@ def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType]) ->
     if os.path.isfile(llvm_dump_location):
         os.remove(llvm_dump_location)
     weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
-    weld_object.weld_code = weld_program.format("_inp0")
+    weld_object.weld_code = weld_program.replace("WELD_INPUT_1", "_inp0")
     weld_object.willump_dump_llvm([type_map["__willump_arg0"]], input_directory=willump_build_dir,
                                   input_filename=llvm_dump_name)
 

@@ -1,8 +1,9 @@
-import typing
-import willump.graph.willump_graph_node as wgn
+from willump.graph.willump_graph_node import WillumpGraphNode
+
+from typing import List
 
 
-class WillumpInputNode(wgn.WillumpGraphNode):
+class WillumpInputNode(WillumpGraphNode):
     """
     Willump graph input node.  Must be a sink of the graph.  Represents an input source.
     """
@@ -11,14 +12,14 @@ class WillumpInputNode(wgn.WillumpGraphNode):
     def __init__(self, arg_name: str) -> None:
         self._arg_name = arg_name
 
-    def get_in_nodes(self) -> typing.List[wgn.WillumpGraphNode]:
+    def get_in_nodes(self) -> List[WillumpGraphNode]:
         return []
 
     def get_node_type(self) -> str:
         return "input"
 
     def get_node_weld(self) -> str:
-        return "let {0} = {1};".format(self._arg_name, "{0}")
+        return "let {0} = WELD_INPUT_1;".format(self._arg_name)
 
     def get_output_name(self) -> str:
         return self._arg_name
