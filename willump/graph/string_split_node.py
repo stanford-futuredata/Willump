@@ -28,23 +28,28 @@ class StringSplitNode(WillumpGraphNode):
     def get_node_weld(self) -> str:
         weld_program = \
             """
-            let struct_all = for(
-                INPUT_NAME,
-                {appender[vec[i8]], appender[i8], merge(merger[i8, +], 32c)},
-                | bs: {appender[vec[i8]], appender[i8], merger[i8, +]}, i: i64, n: i8|
-                    if ( n == 9c || n == 10c || n == 11c || n == 12c || n == 13c || n == 32c,
-                        let nprev = result(bs.$2);
-                        if ( nprev == 9c || nprev == 10c || nprev == 11c || nprev == 12c || nprev == 13c || nprev == 32c,
-                            {bs.$0, appender[i8], merge(merger[i8, +], n)},
-                            {merge(bs.$0, result(merge(bs.$1, 0c))), appender[i8], merge(merger[i8, +], n)}),
-                        {bs.$0, merge(bs.$1, n), merge(merger[i8, +], n)}
+            let input_len = len(INPUT_NAME);
+            let struct_combined = iterate(
+                {appender[vec[i8]], 0L, 0L}, # Appender, index, length of current word
+                | iteration: {appender[vec[i8]], i64, i64} |
+                    if ( iteration.$1 == input_len,
+                        if (iteration.$2 > 0L,
+                            { {merge(iteration.$0, slice(INPUT_NAME, iteration.$1 - iteration.$2, 
+                                iteration.$2)), iteration.$1 + 1L, 0L}, false},
+                            { iteration, false }
+                        ),
+                        let curr_char = lookup(INPUT_NAME, iteration.$1);
+                        if ( (curr_char >= 9c && curr_char <= 13c) || curr_char == 32c, # Whitespace
+                            if (iteration.$2 > 0L,
+                                { {merge(iteration.$0, slice(INPUT_NAME, iteration.$1 - 
+                                    iteration.$2, iteration.$2)), iteration.$1 + 1L, 0L}, true},
+                                { {iteration.$0, iteration.$1 + 1L, 0L}, true}
+                            ),
+                            { {iteration.$0, iteration.$1 + 1L, iteration.$2 + 1L}, true}
+                        )
                     )
             );
-            let nlast = result(struct_all.$2);
-            let final_struct = if (nlast == 9c || nlast == 10c || nlast == 11c || nlast == 12c || nlast == 13c || nlast == 32c,
-                                    struct_all.$0,
-                                    merge(struct_all.$0, result(merge(struct_all.$1, 0c))));
-            let OUTPUT_NAME = result(final_struct);
+            let OUTPUT_NAME = result(struct_combined.$0);
             """
         weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)

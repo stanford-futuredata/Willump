@@ -6,8 +6,10 @@ import willump.evaluation.willump_executor
 
 @willump.evaluation.willump_executor.willump_execute
 def split_string(input_string):
-    output_string = input_string.split()
-    return output_string
+    output_strings = input_string.split()
+    # for i in range(len(output_strings)):
+    #     output_strings[i] = output_strings[i].lower()
+    return output_strings
 
 
 def main():
@@ -28,4 +30,5 @@ def main():
 
 
 if __name__ == '__main__':
+    random.seed(0)
     main()
