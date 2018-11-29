@@ -22,13 +22,13 @@ class StringSplitNodeTests(unittest.TestCase):
             VocabularyFrequencyCountNode(string_split_node, output_name='lowered_output_words',
                                          input_vocabulary_filename=
                                          "tests/test_resources/vocabulary.txt")
-        vocab_count_node.get_aux_data()
+        aux_data = [vocab_count_node.get_aux_data()]
         output_node: WillumpOutputNode = WillumpOutputNode(vocab_count_node)
         graph: WillumpGraph = WillumpGraph(output_node)
         weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
         type_map = {"__willump_arg0": WeldStr(),
                     "__willump_retval": WeldVec(WeldStr())}
-        module_name = wexec.compile_weld_program(weld_program, type_map)
+        module_name = wexec.compile_weld_program(weld_program, type_map, aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(input_str)
         print(weld_output)

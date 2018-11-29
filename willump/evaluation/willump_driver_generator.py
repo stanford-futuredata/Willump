@@ -3,19 +3,19 @@ import os
 from weld.types import *
 from willump import panic
 
-from typing import Mapping
+from typing import Mapping, List, Tuple
 import willump.willump_utilities
 
 
 def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
-                        base_filename: str) -> str:
+                        base_filename: str, aux_data: List[Tuple[int, str]]) -> str:
     """
     Generate a versioned CPP driver for a Weld program. If base_filename is not
     weld_llvm_caller, assume the driver already exists at
     WILLUMP_HOME/cppextensions/base_filename.cpp.  Otherwise, generate a driver using the
     Weld inputs and outputs in type_map.
 
-    TODO:  Allow multiple inputs and more types of input and output.
+    TODO:  Do C++ generation properly for arbitrary combinations of inputs and auxiliary data.
     """
     willump_home: str = os.environ["WILLUMP_HOME"]
     if base_filename is not "weld_llvm_caller":
@@ -27,7 +27,10 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
         output_type: WeldType = type_map["__willump_retval"]
         caller_header = open(os.path.join(willump_home, "cppextensions",
                                           "weld_llvm_caller_header.cpp"), "r")
-        if isinstance(input_type, WeldStr):
+        if len(aux_data) > 0:
+            caller_input_handler = open(os.path.join(willump_home, "cppextensions",
+                                                 "weld_llvm_input_handler_string_dict.cpp"), "r")
+        elif isinstance(input_type, WeldStr):
             caller_input_handler = open(os.path.join(willump_home, "cppextensions",
                                                  "weld_llvm_input_handler_string.cpp"), "r")
         else:
@@ -48,6 +51,8 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
         buffer = buffer.replace("NUMPY_INPUT_TYPE_0", weld_type_to_numpy_macro(input_type))
         if "NUMPY_OUTPUT_TYPE" in buffer:
             buffer = buffer.replace("NUMPY_OUTPUT_TYPE", weld_type_to_numpy_macro(output_type))
+        if len(aux_data) > 0:
+            buffer = buffer.replace("POINTER", hex(aux_data[0][0]))
         new_function_name = "weld_llvm_caller{0}".format(file_version)
         buffer = buffer.replace("weld_llvm_caller", new_function_name)
         caller_header.close()
@@ -93,6 +98,8 @@ def weld_type_to_numpy_macro(wtype: WeldType) -> str:
             return "NPY_FLOAT64"
         elif isinstance(wtype.elemType, WeldInt):
             return "NPY_INT32"
+        elif isinstance(wtype.elemType, WeldLong):
+            return "NPY_INT64"
         else:
             panic("Unrecognized IO type {0}".format(wtype.__str__))
             return ""

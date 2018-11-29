@@ -56,8 +56,8 @@ caller_func(PyObject *self, PyObject* args)
     weld_input_args.run_id = weld_runst_init(weld_input_args.nworkers, weld_input_args.memlimit);
 
     WeldOutputArgs* weld_output_args = run(&weld_input_args);
-
-    return PyLong_FromVoidPtr(weld_output_args->output);
+    // Weld returns a pointer to a pointer to the dict.
+    return PyLong_FromVoidPtr(* (void**) weld_output_args->output);
 }
 static PyMethodDef CallerMethods[] = {
  { "caller_func", caller_func, METH_VARARGS, "Call Weld LLVM." },

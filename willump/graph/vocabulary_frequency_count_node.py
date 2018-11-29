@@ -47,17 +47,20 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
             word_str = word_str.replace("WORD_INDEX", str(word_index) + "L")
             weld_program += word_str
         weld_program += "result(vocab_dict)"
-        print(weld_program)
-        module_name = wexec.compile_weld_program(weld_program, {}, "vocabulary_to_dict_driver")
+        module_name = wexec.compile_weld_program(weld_program, {},
+                                                 base_filename="vocabulary_to_dict_driver")
         vocab_to_dict = importlib.import_module(module_name)
         weld_output = vocab_to_dict.caller_func()
-        print(weld_output)
-        return 0, "dict[[vec[i8], i64]"
+        return weld_output, "dict[vec[i8], i64]"
 
     def get_node_weld(self) -> str:
         weld_program = \
             """
-            let OUTPUT_NAME = INPUT_NAME;
+            let OUTPUT_NAME = filter(
+                INPUT_NAME,
+                | word: vec[i8]|
+                    keyexists(_inp1, word)
+                );
             """
         weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)

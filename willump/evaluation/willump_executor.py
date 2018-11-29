@@ -18,7 +18,7 @@ from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
 from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
 
-from typing import Callable, MutableMapping, Mapping, List
+from typing import Callable, MutableMapping, Mapping, List, Tuple
 
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
@@ -26,8 +26,8 @@ _decoder = weld.encoders.NumpyArrayDecoder()
 version_number = 0
 
 
-def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType],
-                         base_filename="weld_llvm_caller") -> str:
+def compile_weld_program(weld_program: str, type_map: MutableMapping[str, WeldType],
+                         aux_data: List[Tuple[int, str]]=[], base_filename="weld_llvm_caller") -> str:
     """
     Compile a Weld program to LLVM, then compile this into a Python C extension in a shared object
     file which can run the Weld program from Python.
@@ -53,11 +53,15 @@ def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType],
     while "__willump_arg{0}".format(arg_index) in type_map:
         input_types.append(type_map["__willump_arg{0}".format(arg_index)])
         arg_index += 1
+    for (_, type_name) in aux_data:
+        input_types.append(type_name)
+        type_map["__willump_arg{0}".format(arg_index)] = type_name
+        arg_index += 1
     weld_object.willump_dump_llvm(input_types, input_directory=willump_build_dir,
                                   input_filename=llvm_dump_name)
 
     # Compile the LLVM to assembly and build the C++ glue code with it.
-    driver_file = generate_cpp_driver(version_number, type_map, base_filename)
+    driver_file = generate_cpp_driver(version_number, type_map, base_filename, aux_data)
     output_filename: str = os.path.join(willump_build_dir,
                                         "{0}{1}.so".format(base_filename, version_number))
     # TODO:  Make this call more portable.
