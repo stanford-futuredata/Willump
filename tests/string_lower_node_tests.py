@@ -1,5 +1,4 @@
 import unittest
-import numpy
 import importlib
 
 import willump.evaluation.willump_executor as wexec

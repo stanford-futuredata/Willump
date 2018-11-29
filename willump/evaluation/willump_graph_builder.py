@@ -8,6 +8,7 @@ from willump.graph.willump_output_node import WillumpOutputNode
 from willump.graph.transform_math_node import TransformMathNode, MathOperation, MathOperationInput
 from willump.graph.string_split_node import StringSplitNode
 from willump.graph.string_lower_node import StringLowerNode
+from willump.graph.string_removechar_node import StringRemoveCharNode
 
 from typing import MutableMapping, List, Tuple, Optional, Set, Mapping
 from weld.types import *
@@ -87,6 +88,17 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 string_lower_node: StringLowerNode = StringLowerNode(input_node=input_node,
                                                                      output_name=output_var_name)
                 self._node_dict[output_var_name] = string_lower_node
+            # TODO:  Recognize replaces that do more than remove one character.
+            elif "replace" in called_function:
+                input_var: str = value.func.value.value.id
+                input_node: WillumpGraphNode = self._node_dict[input_var]
+                target_char: str = value.args[0].s
+                assert(len(target_char) == 1)
+                assert(len(value.args[1].s) == 0)
+                string_remove_char_node: StringLowerNode =\
+                    StringRemoveCharNode(input_node=input_node,
+                    target_char=target_char, output_name=output_var_name)
+                self._node_dict[output_var_name] = string_remove_char_node
             # TODO:  What to do here?
             elif called_function == "numpy.zeros":
                 pass
