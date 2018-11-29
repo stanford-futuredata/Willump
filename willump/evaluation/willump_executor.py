@@ -18,7 +18,7 @@ from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
 from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
 
-from typing import Callable, MutableMapping, Mapping
+from typing import Callable, MutableMapping, Mapping, List
 
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
@@ -26,7 +26,8 @@ _decoder = weld.encoders.NumpyArrayDecoder()
 version_number = 0
 
 
-def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType]) -> str:
+def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType],
+                         base_filename="weld_llvm_caller") -> str:
     """
     Compile a Weld program to LLVM, then compile this into a Python C extension in a shared object
     file which can run the Weld program from Python.
@@ -41,28 +42,33 @@ def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType]) ->
     # Compile the Weld program to LLVM and dump the LLVM.
     willump_home: str = os.environ["WILLUMP_HOME"]
     willump_build_dir: str = os.path.join(willump_home, "build")
-    llvm_dump_name: str = "weld_llvm_caller{0}.ll".format(version_number)
+    llvm_dump_name: str = "{0}{1}.ll".format(base_filename, version_number)
     llvm_dump_location = os.path.join(willump_build_dir, llvm_dump_name)
     if os.path.isfile(llvm_dump_location):
         os.remove(llvm_dump_location)
     weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
     weld_object.weld_code = weld_program.replace("WELD_INPUT_1", "_inp0")
-    weld_object.willump_dump_llvm([type_map["__willump_arg0"]], input_directory=willump_build_dir,
+    input_types: List[WeldType] = []
+    arg_index: int = 0
+    while "__willump_arg{0}".format(arg_index) in type_map:
+        input_types.append(type_map["__willump_arg{0}".format(arg_index)])
+        arg_index += 1
+    weld_object.willump_dump_llvm(input_types, input_directory=willump_build_dir,
                                   input_filename=llvm_dump_name)
 
     # Compile the LLVM to assembly and build the C++ glue code with it.
-    caller_file: str = generate_cpp_driver(version_number, type_map)
+    driver_file = generate_cpp_driver(version_number, type_map, base_filename)
     output_filename: str = os.path.join(willump_build_dir,
-                                        "weld_llvm_caller{0}.so".format(version_number))
+                                        "{0}{1}.so".format(base_filename, version_number))
     # TODO:  Make this call more portable.
     subprocess.run(["clang++", "-fPIC", "--shared", "-lweld", "-g", "-std=c++11", "-O3",
                     "-I{0}".format(sysconfig.get_path("include")),
                     "-I{0}".format(numpy.get_include()),
                     "-o", output_filename,
-                    caller_file, llvm_dump_location])
+                    driver_file, llvm_dump_location])
     version_number += 1
     importlib.invalidate_caches()
-    return "weld_llvm_caller{0}".format(version_number - 1)
+    return "{0}{1}".format(base_filename, version_number - 1)
 
 
 willump_typing_map_set: MutableMapping[str, MutableMapping[str, WeldType]] = {}
