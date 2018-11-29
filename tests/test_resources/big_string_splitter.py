@@ -1,4 +1,3 @@
-import string
 import random
 from timeit import default_timer as timer
 import willump.evaluation.willump_executor
@@ -16,13 +15,8 @@ def main():
     split_string("a b c")
     split_string("a b c")
     split_string("a b c")
-    big_string = ""
-
-    for _ in range(1000000):
-        if random.randint(0, 3) == 0:
-            big_string += " "
-        else:
-            big_string += random.choice(string.ascii_letters)
+    with open("tests/test_resources/hamlet.txt") as hamlet_file:
+        big_string = hamlet_file.read()
     start = timer()
     word_list = split_string(big_string)
     end = timer()
