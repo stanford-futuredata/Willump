@@ -7,6 +7,7 @@ from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
 from willump.graph.transform_math_node import TransformMathNode, MathOperation, MathOperationInput
 from willump.graph.string_split_node import StringSplitNode
+from willump.graph.string_lower_node import StringLowerNode
 
 from typing import MutableMapping, List, Tuple, Optional, Set, Mapping
 from weld.types import *
@@ -20,11 +21,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     1.  Input Python is the definition of a single function,
         from which the graph shall be extracted.
 
-    2.  This function takes in and returns a numpy.float64 array.
+    2.  The function does not reference anything outside of its own scope.
 
-    3.  The function does not reference anything outside of its own scope.
-
-    TODO:  Weaken these assumptions (especially 2 and 3).
+    TODO:  Implement UDFs to weaken assumption 2 as well as deal with syntax we don't recognize.
     """
     willump_graph: WillumpGraph
     # A map from the names of variables to the nodes that generate them.
@@ -81,6 +80,13 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 string_split_node: StringSplitNode = StringSplitNode(input_node=input_node,
                                                                      output_name=output_var_name)
                 self._node_dict[output_var_name] = string_split_node
+            # TODO:  Recognize when this is being called in a loop, don't just assume it is.
+            elif "lower" in called_function:
+                input_var: str = value.func.value.value.id
+                input_node: WillumpGraphNode = self._node_dict[input_var]
+                string_lower_node: StringLowerNode = StringLowerNode(input_node=input_node,
+                                                                     output_name=output_var_name)
+                self._node_dict[output_var_name] = string_lower_node
             # TODO:  What to do here?
             elif called_function == "numpy.zeros":
                 pass
@@ -242,6 +248,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 return func.id
             elif isinstance(func, ast.Attribute):
                 return _get_layer_name(func.value) + "." + func.attr
+            elif isinstance(func, ast.Subscript):
+                return _get_layer_name(func.value)
             else:
                 panic("Unrecognized node in function call {0}".format(ast.dump(func)))
                 return ""

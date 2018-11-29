@@ -59,4 +59,5 @@ class StringSplitNode(WillumpGraphNode):
         return self._output_name
 
     def __repr__(self):
-        return "Input node for input {0}\n".format(self._arg_name)
+        return "String Split node for input {0} output {1}\n"\
+            .format(self._input_string_name, self._output_name)

@@ -60,8 +60,15 @@ def sample_math_mixed(input_numpy_array):
 
 
 def sample_string_split(input_string):
-    output_string = input_string.split()
-    return output_string
+    output_strings = input_string.split()
+    return output_strings
+
+
+def sample_string_lower(input_string):
+    output_strings = input_string.split()
+    for i in range(len(output_strings)):
+        output_strings[i] = output_strings[i].lower()
+    return output_strings
 
 
 class GraphInferenceTests(unittest.TestCase):
@@ -160,6 +167,21 @@ class GraphInferenceTests(unittest.TestCase):
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(sample_string)
         numpy.testing.assert_equal(weld_output, ["cat", "dog", "house"])
+
+    def test_string_lower(self):
+        print("\ntest_string_lower")
+        sample_python: str = inspect.getsource(sample_string_lower)
+        sample_string: str = "cAt dOg \n houSe. "
+        self.set_typing_map(sample_python, "sample_string_lower", sample_string)
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        weld_program: str = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
+        weld_llvm_caller = importlib.import_module(module_name)
+        weld_output = weld_llvm_caller.caller_func(sample_string)
+        numpy.testing.assert_equal(weld_output, ["cat", "dog", "house."])
 
 if __name__ == '__main__':
     unittest.main()
