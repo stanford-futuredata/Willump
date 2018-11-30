@@ -56,12 +56,30 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
     def get_node_weld(self) -> str:
         weld_program = \
             """
-            let OUTPUT_NAME = filter(
-                INPUT_NAME,
-                | word: vec[i8]|
-                    keyexists(_inp1, word)
-                );
+            let index_frequency_map: dict[i64,i64] = result(for(INPUT_NAME,
+                dictmerger[i64,i64,+],
+                | bs: dictmerger[i64,i64,+], i: i64, word: vec[i8]|
+                    let exists_and_key = optlookup(_inp1, word);
+                    if(exists_and_key.$0,
+                        merge(bs, {exists_and_key.$1, 1L}),
+                        bs
+                    )
+            ));
+            let frequency_vector_struct = iterate({appender[i64], 0L},
+                | appender_index: {appender[i64], i64} |
+                    if(appender_index.$1 == VOCAB_SIZE,
+                        {appender_index, false},
+                        let exists_and_key = optlookup(index_frequency_map, appender_index.$1);
+                        if(exists_and_key.$0,
+                            {{merge(appender_index.$0, exists_and_key.$1),
+                                appender_index.$1 + 1L}, true},
+                            {{merge(appender_index.$0, 0L), appender_index.$1 + 1L}, true}
+                        )
+                    )
+            );
+            let OUTPUT_NAME = result(frequency_vector_struct.$0);
             """
+        weld_program = weld_program.replace("VOCAB_SIZE", "{0}L".format(len(self._vocabulary_list)))
         weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         return weld_program
