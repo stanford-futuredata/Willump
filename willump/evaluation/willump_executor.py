@@ -26,7 +26,7 @@ _decoder = weld.encoders.NumpyArrayDecoder()
 version_number = 0
 
 
-def compile_weld_program(weld_program: str, type_map: MutableMapping[str, WeldType],
+def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType],
                          aux_data: List[Tuple[int, str]]=[], base_filename="weld_llvm_caller") -> str:
     """
     Compile a Weld program to LLVM, then compile this into a Python C extension in a shared object
@@ -55,8 +55,6 @@ def compile_weld_program(weld_program: str, type_map: MutableMapping[str, WeldTy
         arg_index += 1
     for (_, type_name) in aux_data:
         input_types.append(type_name)
-        type_map["__willump_arg{0}".format(arg_index)] = type_name
-        arg_index += 1
     weld_object.willump_dump_llvm(input_types, input_directory=willump_build_dir,
                                   input_filename=llvm_dump_name)
 
@@ -123,9 +121,13 @@ def willump_execute(func: Callable) -> Callable:
                 graph_builder = WillumpGraphBuilder(willump_typing_map)
                 graph_builder.visit(python_ast)
                 python_graph: WillumpGraph = graph_builder.get_willump_graph()
+                args_list: List[str] = graph_builder.get_args_list()
+                aux_data: List[Tuple[int, str]] = graph_builder.get_aux_data()
                 # Convert the Willump graph to a Weld program.
                 python_weld: str =\
                     willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
+                python_weld = willump.evaluation.willump_weld_generator.set_input_names(python_weld,
+                                                                                args_list, aux_data)
                 # Compile the Weld to a Python C extension, then call into the extension.
                 module_name = compile_weld_program(python_weld, willump_typing_map)
                 weld_llvm_caller = importlib.import_module(module_name)

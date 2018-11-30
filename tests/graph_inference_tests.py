@@ -106,6 +106,8 @@ class GraphInferenceTests(unittest.TestCase):
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
         weld_program: str = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
         module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
@@ -121,6 +123,8 @@ class GraphInferenceTests(unittest.TestCase):
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
         weld_program: str = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
         module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
@@ -136,6 +140,8 @@ class GraphInferenceTests(unittest.TestCase):
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
         weld_program: str = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
         module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
@@ -153,6 +159,8 @@ class GraphInferenceTests(unittest.TestCase):
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
         weld_program: str = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
         module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
@@ -170,6 +178,8 @@ class GraphInferenceTests(unittest.TestCase):
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
         weld_program: str = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
         module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(sample_string)
@@ -185,6 +195,8 @@ class GraphInferenceTests(unittest.TestCase):
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
         weld_program: str = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
         module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(sample_string)
@@ -200,6 +212,8 @@ class GraphInferenceTests(unittest.TestCase):
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
         weld_program: str = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
         module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(sample_string)

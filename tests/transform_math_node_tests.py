@@ -33,6 +33,8 @@ class BasicEvaluationTests(unittest.TestCase):
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
         weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    ["input"], [])
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
         module_name = wexec.compile_weld_program(weld_program, all_floats_type_map)
@@ -59,6 +61,8 @@ class BasicEvaluationTests(unittest.TestCase):
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
         weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    ["input"], [])
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
         module_name = wexec.compile_weld_program(weld_program, all_floats_type_map)
@@ -84,6 +88,8 @@ class BasicEvaluationTests(unittest.TestCase):
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
         weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    ["input"], [])
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
         module_name = wexec.compile_weld_program(weld_program, all_floats_type_map)
@@ -107,6 +113,8 @@ class BasicEvaluationTests(unittest.TestCase):
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
         weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    ["input"], [])
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
         module_name = wexec.compile_weld_program(weld_program, all_floats_type_map)
@@ -132,6 +140,8 @@ class BasicEvaluationTests(unittest.TestCase):
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
         weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    ["input"], [])
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
         module_name = wexec.compile_weld_program(weld_program, all_floats_type_map)
@@ -166,6 +176,8 @@ class BasicEvaluationTests(unittest.TestCase):
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
         weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    ["input"], [])
 
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.int32)
         module_name = wexec.compile_weld_program(weld_program, type_map)

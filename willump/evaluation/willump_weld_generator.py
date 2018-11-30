@@ -1,4 +1,4 @@
-from typing import MutableMapping, List, Set
+from typing import MutableMapping, List, Set, Tuple
 
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
@@ -51,3 +51,13 @@ def graph_to_weld(graph: WillumpGraph) -> str:
     for node in sorted_nodes:
         weld_str += node.get_node_weld()
     return weld_str
+
+
+def set_input_names(weld_program: str, args_list: List[str], aux_data: List[Tuple[int, str]]) \
+        -> str:
+    for i, arg in enumerate(args_list):
+        weld_program = weld_program.replace("WELD_INPUT_{0}".format(arg), "_inp{0}".format(i))
+    for i in range(len(aux_data)):
+        weld_program = weld_program.replace("WELD_INPUT_AUX_DATA_{0}".format(i),
+                                            "_inp{0}".format(len(args_list) + i))
+    return weld_program

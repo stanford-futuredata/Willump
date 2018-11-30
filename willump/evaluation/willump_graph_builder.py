@@ -27,15 +27,23 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     TODO:  Implement UDFs to weaken assumption 2 as well as deal with syntax we don't recognize.
     """
     willump_graph: WillumpGraph
+    # A list of all argument names in the order they are passed in.
+    arg_list: List[str]
     # A map from the names of variables to the nodes that generate them.
-    _node_dict: MutableMapping[str, WillumpGraphNode] = {}
-    _mathops_list: List[MathOperation] = []
+    _node_dict: MutableMapping[str, WillumpGraphNode]
+    # A list of all mathops found.
+    _mathops_list: List[MathOperation]
+    # A map from variables to their Weld types.
     _type_map: MutableMapping[str, WeldType]
+    # Saved data structures required by some nodes.
+    aux_data: List[Tuple[int, str]]
 
     def __init__(self, type_map: MutableMapping[str, WeldType]) -> None:
         self._node_dict = {}
         self._mathops_list = []
         self._type_map = type_map
+        self.arg_list = []
+        self.aux_data = []
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """
@@ -47,6 +55,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             arg_name: str = arg.arg
             input_node: WillumpInputNode = WillumpInputNode(arg_name)
             self._node_dict[arg_name] = input_node
+            self.arg_list.append(arg_name)
         ast.NodeVisitor.generic_visit(self, node)
 
     def visit_Assign(self, node: ast.Assign) -> None:
@@ -136,6 +145,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
 
     def get_willump_graph(self) -> WillumpGraph:
         return self.willump_graph
+
+    def get_args_list(self) -> List[str]:
+        return self.arg_list
+
+    def get_aux_data(self) -> List[Tuple[int, str]]:
+        return self.aux_data
 
     def _expr_to_math_operation_input(self, expr: ast.expr) -> MathOperationInput:
         """
