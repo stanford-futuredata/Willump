@@ -2,6 +2,8 @@ from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
 import willump.evaluation.willump_executor as wexec
 
+from weld.types import *
+
 from typing import List, Tuple
 import importlib
 
@@ -45,19 +47,24 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
         Returns a pointer to a Weld dict[[vec[i8], i64] mapping between words and their indices
         in the vocabulary.
         """
-        weld_program = "let vocab_dict = dictmerger[vec[i8], i64, +];\n"
+        weld_program = "let INPUT_VOCAB = ["
         for word_index, word in enumerate(vocabulary_list):
             weld_word_list = list(map(lambda char: str(ord(char)) + "c,", word))
-            weld_word = "["
+            weld_program += "["
             for entry in weld_word_list:
-                weld_word += entry
-            weld_word += "]"
-            word_str = "let vocab_dict = merge(vocab_dict, {WELD_WORD, WORD_INDEX});\n"
-            word_str = word_str.replace("WELD_WORD", weld_word)
-            word_str = word_str.replace("WORD_INDEX", str(word_index) + "L")
-            weld_program += word_str
-        weld_program += "result(vocab_dict)"
-        module_name = wexec.compile_weld_program(weld_program, {},
+                weld_program += entry
+            weld_program += "],"
+        weld_program += "];\n"
+        weld_program = weld_program + \
+        """
+        result(for(INPUT_VOCAB,
+            dictmerger[vec[i8], i64, +],
+            | bs: dictmerger[vec[i8], i64, +], i: i64, word: vec[i8] |
+                merge(bs, {word, i})
+        ))
+        """
+        module_name = wexec.compile_weld_program(weld_program,
+                                                 {"__willump_arg0": WeldVec(WeldVec(WeldChar()))},
                                                  base_filename="vocabulary_to_dict_driver")
         vocab_to_dict = importlib.import_module(module_name)
         weld_output = vocab_to_dict.caller_func()
