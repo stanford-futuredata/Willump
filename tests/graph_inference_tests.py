@@ -78,6 +78,23 @@ def sample_string_remove_char(input_string):
     return output_strings
 
 
+def willump_frequency_count(input, filename):
+    vocab_dict = {}
+    output = numpy.zeros(len(vocab_dict), dtype=numpy.int64)
+    for word in input:
+        if word in vocab_dict:
+            index = vocab_dict[word]
+            output[index] += 1
+    return output
+
+
+def sample_string_freq_count(input_string):
+    output_strings = input_string.split()
+    output_strings = willump_frequency_count(output_strings,
+                        "tests/test_resources/simple_vocabulary.txt")
+    return output_strings
+
+
 class GraphInferenceTests(unittest.TestCase):
     def setUp(self):
         global willump_typing_map
@@ -108,7 +125,8 @@ class GraphInferenceTests(unittest.TestCase):
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
+                                                 graph_builder.get_aux_data())
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([2., -4., 6.]))
@@ -125,7 +143,8 @@ class GraphInferenceTests(unittest.TestCase):
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
+                                                 graph_builder.get_aux_data())
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([7., 1., 6.]))
@@ -142,7 +161,8 @@ class GraphInferenceTests(unittest.TestCase):
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
+                                                 graph_builder.get_aux_data())
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_equal(weld_output,
@@ -161,7 +181,8 @@ class GraphInferenceTests(unittest.TestCase):
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
+                                                 graph_builder.get_aux_data())
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_equal(weld_output,
@@ -180,7 +201,8 @@ class GraphInferenceTests(unittest.TestCase):
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
+                                                 graph_builder.get_aux_data())
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(sample_string)
         numpy.testing.assert_equal(weld_output, ["cat", "dog", "house"])
@@ -197,7 +219,8 @@ class GraphInferenceTests(unittest.TestCase):
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
+                                                 graph_builder.get_aux_data())
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(sample_string)
         numpy.testing.assert_equal(weld_output, ["cat", "dog", "house."])
@@ -214,10 +237,29 @@ class GraphInferenceTests(unittest.TestCase):
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map)
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
+                                                 graph_builder.get_aux_data())
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(sample_string)
         numpy.testing.assert_equal(weld_output, ["cat", "dog", "house"])
+
+    def test_string_freq_count(self):
+        print("\ntest_string_freq_count")
+        sample_python: str = inspect.getsource(sample_string_freq_count)
+        sample_string: str = "cat dog elephant"
+        self.set_typing_map(sample_python, "sample_string_freq_count", sample_string)
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        weld_program: str = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
+                                                 graph_builder.get_aux_data())
+        weld_llvm_caller = importlib.import_module(module_name)
+        weld_output = weld_llvm_caller.caller_func(sample_string)
+        numpy.testing.assert_equal(weld_output, numpy.array([0, 0, 0, 1, 1, 0], dtype=numpy.int64))
 
 
 if __name__ == '__main__':

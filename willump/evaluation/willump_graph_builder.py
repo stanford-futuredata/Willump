@@ -9,6 +9,7 @@ from willump.graph.transform_math_node import TransformMathNode, MathOperation, 
 from willump.graph.string_split_node import StringSplitNode
 from willump.graph.string_lower_node import StringLowerNode
 from willump.graph.string_removechar_node import StringRemoveCharNode
+from willump.graph.vocabulary_frequency_count_node import VocabularyFrequencyCountNode
 
 from typing import MutableMapping, List, Tuple, Optional, Set, Mapping
 from weld.types import *
@@ -108,6 +109,16 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     StringRemoveCharNode(input_node=input_node,
                     target_char=target_char, output_name=output_var_name)
                 self._node_dict[output_var_name] = string_remove_char_node
+            # TODO:  Find a real function to use here.
+            elif "willump_frequency_count" in called_function:
+                input_var: str = value.args[0].id
+                vocab_filename: str = value.args[1].s
+                input_node: WillumpGraphNode = self._node_dict[input_var]
+                vocab_freq_count_node: VocabularyFrequencyCountNode = VocabularyFrequencyCountNode(
+                    input_node=input_node, output_name=output_var_name,
+                    input_vocabulary_filename=vocab_filename, aux_data=self.aux_data
+                )
+                self._node_dict[output_var_name] = vocab_freq_count_node
             # TODO:  What to do here?
             elif called_function == "numpy.zeros":
                 pass

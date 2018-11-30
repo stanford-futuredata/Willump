@@ -14,9 +14,6 @@ import weld.encoders
 import willump.evaluation.willump_weld_generator
 from willump.evaluation.willump_driver_generator import generate_cpp_driver
 from willump.graph.willump_graph import WillumpGraph
-from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
-from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
-from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
 
 from typing import Callable, MutableMapping, Mapping, List, Tuple
 
@@ -84,6 +81,9 @@ def willump_execute(func: Callable) -> Callable:
 
     TODO:  Make those assumptions weaker.
     """
+    from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
+    from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
+    from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
     llvm_runner_func: str = "llvm_runner_func{0}".format(version_number)
     globals()[llvm_runner_func] = None
 
@@ -129,7 +129,7 @@ def willump_execute(func: Callable) -> Callable:
                 python_weld = willump.evaluation.willump_weld_generator.set_input_names(python_weld,
                                                                                 args_list, aux_data)
                 # Compile the Weld to a Python C extension, then call into the extension.
-                module_name = compile_weld_program(python_weld, willump_typing_map)
+                module_name = compile_weld_program(python_weld, willump_typing_map, aux_data)
                 weld_llvm_caller = importlib.import_module(module_name)
                 new_func: Callable = weld_llvm_caller.caller_func
                 globals()[llvm_runner_func] = new_func
