@@ -8,6 +8,7 @@
 #include <ctime>
 #include <chrono>
 #include <iostream>
+#include <string.h>
 
 using namespace std;
 
@@ -30,6 +31,11 @@ struct vec {
   T *ptr;
   i64 size;
 };
+struct struct0 {
+  vec<vec<i8>> _0;
+};
+typedef struct0 input_type;
+
 
 struct WeldInputArgs {
 	void* input;
@@ -50,7 +56,26 @@ extern "C" void* weld_runst_init(i32, i64);
 static PyObject *
 caller_func(PyObject *self, PyObject* args)
 {
+    PyObject* vocab_list = NULL;
+    if (!PyArg_ParseTuple(args, "O", &vocab_list)) {
+        return NULL;
+    }
+    Py_ssize_t vocab_list_length = PyList_Size(vocab_list);
+    input_type weld_input;
+    weld_input._0.size = vocab_list_length;
+    vec<i8>* weld_strings_list = (vec<i8>*) malloc(vocab_list_length * sizeof(vec<i8>));
+    weld_input._0.ptr = weld_strings_list;
+    for(Py_ssize_t i = 0; i < vocab_list_length; i++) {
+        PyObject* python_string = PyList_GetItem(vocab_list, i);
+        Py_ssize_t python_string_len;
+        char* python_string_data = PyUnicode_AsUTF8AndSize(python_string, &python_string_len);
+        weld_strings_list[i].size = python_string_len;
+        weld_strings_list[i].ptr = (i8*) malloc(sizeof(char) * python_string_len);
+        strncpy((char*) weld_strings_list[i].ptr, python_string_data, python_string_len);
+    }
+
     struct WeldInputArgs weld_input_args;
+    weld_input_args.input = &weld_input;
     weld_input_args.nworkers = 1;
     weld_input_args.memlimit = 100000000;
     weld_input_args.run_id = weld_runst_init(weld_input_args.nworkers, weld_input_args.memlimit);
