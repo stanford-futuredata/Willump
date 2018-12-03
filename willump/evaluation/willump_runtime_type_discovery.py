@@ -1,7 +1,7 @@
 import ast
 import copy
 import numpy
-from typing import List
+from typing import List, Optional
 
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 from willump import panic
@@ -15,6 +15,9 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
     assigned. This must run in a global namespace that contains a willump_typing_map variable
     (into which the types will be recorded) as well as the py_var_to_weld_type function.
 
+    Also extract a list of values of "static variables"--important and unchanging values such as
+    the weights of a logistic regression model or the contents of a vocabulary.
+
     TODO:  Add support for control flow changes inside the function body.
     """
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
@@ -25,8 +28,9 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             argument_name: str = arg.arg
             argument_internal_name = "__willump_arg{0}".format(i)
             argument_instrumentation_code: str = \
-            """willump_typing_map["{0}"] = py_var_to_weld_type({0})\n""".format(argument_name) +\
-            """willump_typing_map["{0}"] = py_var_to_weld_type({1})"""\
+                """willump_typing_map["{0}"] = py_var_to_weld_type({0})\n"""\
+                .format(argument_name) + \
+                """willump_typing_map["{0}"] = py_var_to_weld_type({1})"""\
                 .format(argument_internal_name, argument_name)
             instrumentation_ast: ast.Module = ast.parse(argument_instrumentation_code, "exec")
             instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
@@ -39,6 +43,10 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 target: ast.expr = body_entry.targets[0]
                 target_type_statement: List[ast.stmt] = self._analyze_target_type(target)
                 new_body = new_body + target_type_statement
+                # Remember static variables if present.
+                value: ast.expr = body_entry.value
+                extract_static_vars_statements = self._maybe_extract_static_variables(value)
+                new_body = new_body + extract_static_vars_statements
             elif isinstance(body_entry, ast.Return):
                 # Type the function's return value.
                 new_assignment: ast.Assign = ast.Assign()
@@ -58,6 +66,21 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
         return ast.copy_location(new_node, node)
 
     @staticmethod
+    def _maybe_extract_static_variables(value: ast.expr) -> List[ast.stmt]:
+        return_statements = []
+        if isinstance(value, ast.Call):
+            called_function_name: str = WillumpGraphBuilder._get_function_name(value)
+            if "willump_frequency_count" in called_function_name:
+                vocab_dict_name: str = value.args[1].id
+                static_variable_extraction_code = \
+                    """willump_static_vars["{0}"] = {1}""" \
+                    .format("willump_frequency_count_vocab", vocab_dict_name)
+                instrumentation_ast: ast.Module = ast.parse(static_variable_extraction_code, "exec")
+                instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
+                return_statements += instrumentation_statements
+        return return_statements
+
+    @staticmethod
     def _analyze_target_type(target: ast.expr) -> List[ast.stmt]:
         """
         Create a statement from the target of an assignment that will insert into a global
@@ -65,7 +88,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
         """
         target_name: str = WillumpGraphBuilder.get_assignment_target_name(target)
         target_analysis_instrumentation_code: str = \
-        """willump_typing_map["{0}"] = py_var_to_weld_type({0})""".format(target_name)
+            """willump_typing_map["{0}"] = py_var_to_weld_type({0})""".format(target_name)
         instrumentation_ast: ast.Module = ast.parse(target_analysis_instrumentation_code, "exec")
         instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
         return instrumentation_statements

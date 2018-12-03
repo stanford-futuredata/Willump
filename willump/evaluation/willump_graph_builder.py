@@ -36,13 +36,17 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     _mathops_list: List[MathOperation]
     # A map from variables to their Weld types.
     _type_map: MutableMapping[str, WeldType]
+    # A set of static variable values saved from Python execution.
+    _static_vars: Mapping[str, object]
     # Saved data structures required by some nodes.
     aux_data: List[Tuple[int, str]]
 
-    def __init__(self, type_map: MutableMapping[str, WeldType]) -> None:
+    def __init__(self, type_map: MutableMapping[str, WeldType],
+                 static_vars: Mapping[str, object]) -> None:
         self._node_dict = {}
         self._mathops_list = []
         self._type_map = type_map
+        self._static_vars = static_vars
         self.arg_list = []
         self.aux_data = []
 
@@ -112,11 +116,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             # TODO:  Find a real function to use here.
             elif "willump_frequency_count" in called_function:
                 input_var: str = value.args[0].id
-                vocab_filename: str = value.args[1].s
+                vocab_dict = self._static_vars["willump_frequency_count_vocab"]
                 input_node: WillumpGraphNode = self._node_dict[input_var]
                 vocab_freq_count_node: VocabularyFrequencyCountNode = VocabularyFrequencyCountNode(
                     input_node=input_node, output_name=output_var_name,
-                    input_vocabulary_filename=vocab_filename, aux_data=self.aux_data
+                    input_vocab_dict=vocab_dict, aux_data=self.aux_data
                 )
                 self._node_dict[output_var_name] = vocab_freq_count_node
             # TODO:  What to do here?

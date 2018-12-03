@@ -4,7 +4,7 @@ import willump.evaluation.willump_executor as wexec
 
 from weld.types import *
 
-from typing import List, Tuple
+from typing import List, Tuple, Mapping
 import importlib
 
 
@@ -20,14 +20,13 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
     _vocab_size: int
 
     def __init__(self, input_node: WillumpGraphNode, output_name: str,
-                 input_vocabulary_filename: str, aux_data: List[Tuple[int, str]]) -> None:
+                 input_vocab_dict: Mapping[str, int], aux_data: List[Tuple[int, str]]) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
         self._input_string_name = input_node.get_output_name()
         self._output_name = output_name
-        with open(input_vocabulary_filename, "r") as vocab_file:
-            vocabulary_list = vocab_file.read().splitlines()
+        vocabulary_list = sorted(input_vocab_dict.keys(), key=lambda x: input_vocab_dict[x])
         self._vocab_size = len(vocabulary_list)
         self._aux_data_name = "AUX_DATA_{0}".format(len(aux_data))
         self._input_nodes = []

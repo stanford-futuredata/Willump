@@ -20,10 +20,12 @@ class StringSplitNodeTests(unittest.TestCase):
         input_node: WillumpInputNode = WillumpInputNode("input_str")
         string_split_node: StringSplitNode = StringSplitNode(input_node, "output_words")
         aux_data = []
+        with open("tests/test_resources/simple_vocabulary.txt") as simple_vocab:
+            simple_vocab_dict = {word: index for index, word in
+                                 enumerate(simple_vocab.read().splitlines())}
         vocab_count_node: VocabularyFrequencyCountNode = \
             VocabularyFrequencyCountNode(string_split_node, output_name='lowered_output_words',
-                                         input_vocabulary_filename=
-                                         "tests/test_resources/simple_vocabulary.txt",
+                                         input_vocab_dict=simple_vocab_dict,
                                          aux_data=aux_data)
         output_node: WillumpOutputNode = WillumpOutputNode(vocab_count_node)
         graph: WillumpGraph = WillumpGraph(output_node)
@@ -44,10 +46,12 @@ class StringSplitNodeTests(unittest.TestCase):
         input_node: WillumpInputNode = WillumpInputNode("input_str")
         string_split_node: StringSplitNode = StringSplitNode(input_node, "output_words")
         aux_data = []
+        with open("tests/test_resources/simple_vocabulary.txt") as simple_vocab:
+            simple_vocab_dict = {word: index for index, word in
+                                 enumerate(simple_vocab.read().splitlines())}
         vocab_count_node: VocabularyFrequencyCountNode = \
             VocabularyFrequencyCountNode(string_split_node, output_name='lowered_output_words',
-                                         input_vocabulary_filename=
-                                         "tests/test_resources/simple_vocabulary.txt",
+                                         input_vocab_dict=simple_vocab_dict,
                                          aux_data=aux_data)
         output_node: WillumpOutputNode = WillumpOutputNode(vocab_count_node)
         graph: WillumpGraph = WillumpGraph(output_node)

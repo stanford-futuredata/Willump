@@ -71,6 +71,7 @@ def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType],
 
 
 willump_typing_map_set: MutableMapping[str, MutableMapping[str, WeldType]] = {}
+willump_static_vars_set: MutableMapping[str, object] = {}
 
 
 def willump_execute(func: Callable) -> Callable:
@@ -93,6 +94,7 @@ def willump_execute(func: Callable) -> Callable:
                 # On the first run of the function, instrument it to construct a map from variables
                 # in the function to their types at runtime.
                 willump_typing_map_set[llvm_runner_func] = {}
+                willump_static_vars_set[llvm_runner_func] = {}
                 python_source = inspect.getsource(func)
                 python_ast: ast.AST = ast.parse(python_source)
                 function_name: str = python_ast.body[0].name
@@ -106,6 +108,7 @@ def willump_execute(func: Callable) -> Callable:
                 # original globals and the ones the instrumentation needs.
                 augmented_globals = copy.copy(func.__globals__)
                 augmented_globals["willump_typing_map"] = willump_typing_map_set[llvm_runner_func]
+                augmented_globals["willump_static_vars"] = willump_static_vars_set[llvm_runner_func]
                 augmented_globals["py_var_to_weld_type"] = py_var_to_weld_type
                 # Run the instrumented function.
                 exec(compile(new_ast, filename="<ast>", mode="exec"), augmented_globals,
@@ -116,9 +119,11 @@ def willump_execute(func: Callable) -> Callable:
                 # infer the Willump graph from the function's AST.
                 willump_typing_map: Mapping[str, WeldType] = \
                     willump_typing_map_set[llvm_runner_func]
+                willump_static_vars: Mapping[str, object] = \
+                    willump_static_vars_set[llvm_runner_func]
                 python_source = inspect.getsource(func)
                 python_ast: ast.AST = ast.parse(python_source)
-                graph_builder = WillumpGraphBuilder(willump_typing_map)
+                graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars)
                 graph_builder.visit(python_ast)
                 python_graph: WillumpGraph = graph_builder.get_willump_graph()
                 args_list: List[str] = graph_builder.get_args_list()

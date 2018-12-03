@@ -6,6 +6,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Pickled models
+*.pk
+*.pkl
+
 # C extensions
 *.so
 
