@@ -54,7 +54,7 @@ def split_string(input_string):
         # output_strings[i] = output_strings[i].replace("}", "")
         # output_strings[i] = output_strings[i].replace("~", "")
     output_strings = willump_frequency_count(output_strings,
-                        "tests/test_resources/top_10k_english_words.txt")
+                        "tests/test_resources/top_1k_english_words.txt")
     return output_strings
 
 
@@ -63,7 +63,7 @@ def main():
     split_string("a b c")
     split_string("a b c")
     split_string("a b c")
-    with open("tests/test_resources/top_10k_english_words.txt") as vocab_file:
+    with open("tests/test_resources/top_1k_english_words.txt") as vocab_file:
         for i, line in enumerate(vocab_file.read().splitlines()):
             vocab_dict[line] = i
     with open("tests/test_resources/hamlet.txt") as hamlet_file:
