@@ -46,6 +46,3 @@ struct WeldOutputArgs {
 
 extern "C" struct WeldOutputArgs* run(struct WeldInputArgs*);
 extern "C" void* weld_runst_init(i32, i64);
-
-// Aliases for argument and return types.
-typedef vec<WELD_OUTPUT_TYPE> return_type;
