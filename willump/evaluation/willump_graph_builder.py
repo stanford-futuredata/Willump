@@ -10,6 +10,7 @@ from willump.graph.string_split_node import StringSplitNode
 from willump.graph.string_lower_node import StringLowerNode
 from willump.graph.string_removechar_node import StringRemoveCharNode
 from willump.graph.vocabulary_frequency_count_node import VocabularyFrequencyCountNode
+from willump.graph.logistic_regresion_node import LogisticRegressionNode
 
 from typing import MutableMapping, List, Tuple, Optional, Set, Mapping
 from weld.types import *
@@ -123,6 +124,17 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     input_vocab_dict=vocab_dict, aux_data=self.aux_data
                 )
                 self._node_dict[output_var_name] = vocab_freq_count_node
+            # TODO:  Lots of potential predictors, differentiate them!
+            elif "predict" in called_function:
+                input_var: str = value.args[0].id
+                logit_weights = self._static_vars["willump_logistic_regression_weights"]
+                logit_intercept = self._static_vars["willump_logistic_regression_intercept"]
+                input_node: WillumpGraphNode = self._node_dict[input_var]
+                logit_node: LogisticRegressionNode = LogisticRegressionNode(
+                    input_node=input_node, output_name=output_var_name, logit_weights=logit_weights,
+                    logit_intercept=logit_intercept, aux_data=self.aux_data
+                )
+                self._node_dict[output_var_name] = logit_node
             # TODO:  What to do here?
             elif called_function == "numpy.zeros":
                 pass

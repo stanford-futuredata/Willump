@@ -78,6 +78,15 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 instrumentation_ast: ast.Module = ast.parse(static_variable_extraction_code, "exec")
                 instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
                 return_statements += instrumentation_statements
+            if "predict" in called_function_name:
+                static_variable_extraction_code = \
+                    """willump_static_vars["{0}"] = {1}\n""" \
+                    .format("willump_logistic_regression_weights", "model.coef_") + \
+                    """willump_static_vars["{0}"] = {1}\n""" \
+                    .format("willump_logistic_regression_intercept", "model.intercept_")
+                instrumentation_ast: ast.Module = ast.parse(static_variable_extraction_code, "exec")
+                instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
+                return_statements += instrumentation_statements
         return return_statements
 
     @staticmethod

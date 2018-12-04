@@ -7,6 +7,7 @@ import math
 
 import willump.evaluation.willump_weld_generator
 from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
+import sklearn.linear_model
 from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
 from willump import pprint_weld
 from willump.graph.willump_graph import WillumpGraph
@@ -79,12 +80,12 @@ def sample_string_remove_char(input_string):
     return output_strings
 
 
-def willump_frequency_count(input, vocab_dict):
-    output = numpy.zeros(len(vocab_dict), dtype=numpy.int64)
-    for word in input:
+def willump_frequency_count(input_words, vocab_dict):
+    output = numpy.zeros((1, len(vocab_dict)), dtype=numpy.int64)
+    for word in input_words:
         if word in vocab_dict:
             index = vocab_dict[word]
-            output[index] += 1
+            output[0, index] += 1
     return output
 
 
@@ -96,6 +97,19 @@ simple_vocab_dict = {word: index for index, word in
 def sample_string_freq_count(input_string):
     output_strings = input_string.split()
     output_strings = willump_frequency_count(output_strings, simple_vocab_dict)
+    return output_strings
+
+
+model = sklearn.linear_model.LogisticRegression(solver='lbfgs')
+model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
+model.intercept_ = numpy.array([0.001], dtype=numpy.float64)
+model.classes_ = numpy.array([0, 1], dtype=numpy.int64)
+
+
+def sample_logistic_regression(input_string):
+    output_strings = input_string.split()
+    output_strings = willump_frequency_count(output_strings, simple_vocab_dict)
+    output_strings = model.predict(output_strings)
     return output_strings
 
 
@@ -273,6 +287,25 @@ class GraphInferenceTests(unittest.TestCase):
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(sample_string)
         numpy.testing.assert_equal(weld_output, numpy.array([0, 0, 0, 1, 1, 0], dtype=numpy.int64))
+
+    def test_logistic_regression(self):
+        print("\ntest_logistic_regression")
+        sample_python: str = inspect.getsource(sample_logistic_regression)
+        sample_string: str = "cat dog elephant"
+        self.set_typing_map(sample_python, "sample_logistic_regression", sample_string)
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        weld_program: str = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
+                                                 graph_builder.get_aux_data())
+        weld_llvm_caller = importlib.import_module(module_name)
+        weld_output = weld_llvm_caller.caller_func(sample_string)
+        numpy.testing.assert_equal(weld_output, numpy.array([0], dtype=numpy.int64))
 
 
 if __name__ == '__main__':
