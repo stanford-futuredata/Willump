@@ -31,14 +31,6 @@ struct vec {
   i64 size;
 };
 
-struct struct0 {
-  vec<WELD_INPUT_TYPE_0> _0;
-  void* _1;
-  vec<i64> _2;
-  vec<f64> _3;
-  vec<f64> _4;
-};
-
 struct WeldInputArgs {
 	void* input;
 	i32 nworkers;
@@ -56,5 +48,4 @@ extern "C" struct WeldOutputArgs* run(struct WeldInputArgs*);
 extern "C" void* weld_runst_init(i32, i64);
 
 // Aliases for argument and return types.
-typedef struct0 input_type;
 typedef vec<WELD_OUTPUT_TYPE> return_type;
