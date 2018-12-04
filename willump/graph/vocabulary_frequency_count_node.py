@@ -16,7 +16,8 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
     _input_nodes: List[WillumpGraphNode]
     _input_string_name: str
     _output_name: str
-    _aux_data_name: str
+    _vocab_dict_name: str
+    _big_zeros_vector_name: str
     _vocab_size: int
 
     def __init__(self, input_node: WillumpGraphNode, output_name: str,
@@ -28,11 +29,14 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
         self._output_name = output_name
         vocabulary_list = sorted(input_vocab_dict.keys(), key=lambda x: input_vocab_dict[x])
         self._vocab_size = len(vocabulary_list)
-        self._aux_data_name = "AUX_DATA_{0}".format(len(aux_data))
+        self._vocab_dict_name = "AUX_DATA_{0}".format(len(aux_data))
+        self._big_zeros_vector_name = "AUX_DATA_{0}".format(len(aux_data) + 1)
         self._input_nodes = []
         self._input_nodes.append(input_node)
-        self._input_nodes.append(WillumpInputNode(self._aux_data_name))
-        aux_data.append(self._process_aux_data(vocabulary_list))
+        self._input_nodes.append(WillumpInputNode(self._vocab_dict_name))
+        self._input_nodes.append(WillumpInputNode(self._big_zeros_vector_name))
+        for entry in self._process_aux_data(vocabulary_list):
+            aux_data.append(entry)
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
@@ -41,54 +45,42 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
         return "vocab_freq_count"
 
     @staticmethod
-    def _process_aux_data(vocabulary_list) -> Tuple[int, str]:
+    def _process_aux_data(vocabulary_list) -> List[Tuple[int, str]]:
         """
         Returns a pointer to a Weld dict[[vec[i8], i64] mapping between words and their indices
         in the vocabulary.
         """
         weld_program = \
-        """
-        result(for(_inp0,
-            dictmerger[vec[i8], i64, +],
-            | bs: dictmerger[vec[i8], i64, +], i: i64, word: vec[i8] |
-                merge(bs, {word, i})
-        ))
-        """
+            """
+            result(for(_inp0,
+                dictmerger[vec[i8], i64, +],
+                | bs: dictmerger[vec[i8], i64, +], i: i64, word: vec[i8] |
+                    merge(bs, {word, i})
+            ))
+            """
         module_name = wexec.compile_weld_program(weld_program,
                                                  {"__willump_arg0": WeldVec(WeldVec(WeldChar()))},
                                                  base_filename="vocabulary_to_dict_driver")
         vocab_to_dict = importlib.import_module(module_name)
-        weld_output = vocab_to_dict.caller_func(vocabulary_list)
-        return weld_output, "dict[vec[i8], i64]"
+        vocab_dict, zeros_vec = vocab_to_dict.caller_func(vocabulary_list)
+        return [(vocab_dict, "dict[vec[i8], i64]"), (zeros_vec, "vec[i64]")]
 
     def get_node_weld(self) -> str:
         weld_program = \
             """
-            let index_frequency_map: dict[i64,i64] = result(for(INPUT_NAME,
-                dictmerger[i64,i64,+],
-                | bs: dictmerger[i64,i64,+], i: i64, word: vec[i8]|
-                    let exists_and_key = optlookup(AUX_INPUT_NAME, word);
+            let OUTPUT_NAME: vec[i64] = result(for(INPUT_NAME,
+                vecmerger[i64, +](BIG_ZEROS_VECTOR),
+                | bs: vecmerger[i64, +], i: i64, word: vec[i8] |
+                    let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
                     if(exists_and_key.$0,
                         merge(bs, {exists_and_key.$1, 1L}),
                         bs
                     )
             ));
-            let frequency_vector_struct = iterate({appender[i64], 0L},
-                | appender_index: {appender[i64], i64} |
-                    if(appender_index.$1 == VOCAB_SIZE,
-                        {appender_index, false},
-                        let exists_and_key = optlookup(index_frequency_map, appender_index.$1);
-                        if(exists_and_key.$0,
-                            {{merge(appender_index.$0, exists_and_key.$1),
-                                appender_index.$1 + 1L}, true},
-                            {{merge(appender_index.$0, 0L), appender_index.$1 + 1L}, true}
-                        )
-                    )
-            );
-            let OUTPUT_NAME = result(frequency_vector_struct.$0);
             """
         weld_program = weld_program.replace("VOCAB_SIZE", "{0}L".format(self._vocab_size))
-        weld_program = weld_program.replace("AUX_INPUT_NAME", self._aux_data_name)
+        weld_program = weld_program.replace("VOCAB_DICT_NAME", self._vocab_dict_name)
+        weld_program = weld_program.replace("BIG_ZEROS_VECTOR", self._big_zeros_vector_name)
         weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         return weld_program

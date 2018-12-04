@@ -10,7 +10,7 @@ from willump.graph.string_split_node import StringSplitNode
 from willump.graph.string_lower_node import StringLowerNode
 from willump.graph.string_removechar_node import StringRemoveCharNode
 from willump.graph.vocabulary_frequency_count_node import VocabularyFrequencyCountNode
-from willump.graph.logistic_regresion_node import LogisticRegressionNode
+from willump.graph.logistic_regression_node import LogisticRegressionNode
 
 from typing import MutableMapping, List, Tuple, Optional, Set, Mapping
 from weld.types import *

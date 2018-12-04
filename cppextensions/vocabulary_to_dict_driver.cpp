@@ -81,8 +81,14 @@ caller_func(PyObject *self, PyObject* args)
     weld_input_args.run_id = weld_runst_init(weld_input_args.nworkers, weld_input_args.memlimit);
 
     WeldOutputArgs* weld_output_args = run(&weld_input_args);
+    vec<i64>* zeros_vec = (vec<i64>*) malloc(sizeof(vec<i64>));
+    zeros_vec->size = vocab_list_length;
+    zeros_vec->ptr = (i64*) calloc(vocab_list_length, sizeof(i64));
     // Weld returns a pointer to a pointer to the dict.
-    return PyLong_FromVoidPtr(* (void**) weld_output_args->output);
+    PyObject* return_tuple = PyTuple_New(2);
+    PyTuple_SetItem(return_tuple, 0, PyLong_FromVoidPtr(* (void**) weld_output_args->output));
+    PyTuple_SetItem(return_tuple, 1, PyLong_FromVoidPtr((void*) zeros_vec));
+    return return_tuple;
 }
 static PyMethodDef CallerMethods[] = {
  { "caller_func", caller_func, METH_VARARGS, "Call Weld LLVM." },

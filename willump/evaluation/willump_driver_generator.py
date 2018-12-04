@@ -27,10 +27,10 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
         output_type: WeldType = type_map["__willump_retval"]
         caller_header = open(os.path.join(willump_home, "cppextensions",
                                           "weld_llvm_caller_header.cpp"), "r")
-        if len(aux_data) == 1:
+        if len(aux_data) == 2:
             caller_input_handler = open(os.path.join(willump_home, "cppextensions",
                                                  "weld_llvm_input_handler_string_dict.cpp"), "r")
-        elif len(aux_data) > 1:
+        elif len(aux_data) > 2:
             caller_input_handler = open(os.path.join(willump_home, "cppextensions",
                                                  "weld_llvm_input_handler_freq_logit.cpp"), "r")
         elif isinstance(input_type, WeldStr):

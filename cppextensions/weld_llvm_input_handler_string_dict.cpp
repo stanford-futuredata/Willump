@@ -14,6 +14,9 @@ caller_func(PyObject *self, PyObject* args)
     input_type weld_input;
     weld_input._0 = weld_input_vec;
     weld_input._1 = (void*) POINTER0;
+    vec<i64>* big_zeros = (vec<i64>*) POINTER1;
+    weld_input._2.size = big_zeros->size;
+    weld_input._2.ptr = big_zeros->ptr;
 
     struct WeldInputArgs weld_input_args;
     weld_input_args.input = &weld_input;

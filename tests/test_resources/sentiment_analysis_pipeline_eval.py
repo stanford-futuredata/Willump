@@ -13,7 +13,7 @@ def willump_frequency_count(input_words, vocab_dict):
     for word in input_words:
         if word in vocab_dict:
             index = vocab_dict[word]
-            output[0,index] += 1
+            output[0, index] += 1
     return output
 
 

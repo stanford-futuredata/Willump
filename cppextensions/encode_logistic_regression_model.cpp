@@ -89,8 +89,8 @@ caller_func(PyObject *self, PyObject* args)
 
 
     PyObject* return_tuple = PyTuple_New(2);
-    int a = PyTuple_SetItem(return_tuple, 0, PyLong_FromVoidPtr((void*) weld_weights_vec));
-    int b = PyTuple_SetItem(return_tuple, 1, PyLong_FromVoidPtr((void*) weld_intercept_vec));
+    PyTuple_SetItem(return_tuple, 0, PyLong_FromVoidPtr((void*) weld_weights_vec));
+    PyTuple_SetItem(return_tuple, 1, PyLong_FromVoidPtr((void*) weld_intercept_vec));
     return return_tuple;
 }
 static PyMethodDef CallerMethods[] = {
