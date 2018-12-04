@@ -1,7 +1,7 @@
 import ast
 import copy
 import numpy
-from typing import List, Optional
+from typing import List
 
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 from willump import panic

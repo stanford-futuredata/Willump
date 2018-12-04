@@ -38,7 +38,7 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
         return self._input_nodes
 
     def get_node_type(self) -> str:
-        return "string_split"
+        return "vocab_freq_count"
 
     @staticmethod
     def _process_aux_data(vocabulary_list) -> Tuple[int, str]:
@@ -97,5 +97,5 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
         return self._output_name
 
     def __repr__(self):
-        return "String Split node for input {0} output {1}\n"\
+        return "Vocabulary frequency count node for input {0} output {1}\n"\
             .format(self._input_string_name, self._output_name)

@@ -27,9 +27,12 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
         output_type: WeldType = type_map["__willump_retval"]
         caller_header = open(os.path.join(willump_home, "cppextensions",
                                           "weld_llvm_caller_header.cpp"), "r")
-        if len(aux_data) > 0:
+        if len(aux_data) == 1:
             caller_input_handler = open(os.path.join(willump_home, "cppextensions",
                                                  "weld_llvm_input_handler_string_dict.cpp"), "r")
+        elif len(aux_data) > 1:
+            caller_input_handler = open(os.path.join(willump_home, "cppextensions",
+                                                 "weld_llvm_input_handler_freq_logit.cpp"), "r")
         elif isinstance(input_type, WeldStr):
             caller_input_handler = open(os.path.join(willump_home, "cppextensions",
                                                  "weld_llvm_input_handler_string.cpp"), "r")
@@ -51,8 +54,8 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
         buffer = buffer.replace("NUMPY_INPUT_TYPE_0", weld_type_to_numpy_macro(input_type))
         if "NUMPY_OUTPUT_TYPE" in buffer:
             buffer = buffer.replace("NUMPY_OUTPUT_TYPE", weld_type_to_numpy_macro(output_type))
-        if len(aux_data) > 0:
-            buffer = buffer.replace("POINTER", hex(aux_data[0][0]))
+        for i in range(len(aux_data)):
+            buffer = buffer.replace("POINTER{0}".format(i), hex(aux_data[i][0]))
         new_function_name = "weld_llvm_caller{0}".format(file_version)
         buffer = buffer.replace("weld_llvm_caller", new_function_name)
         caller_header.close()

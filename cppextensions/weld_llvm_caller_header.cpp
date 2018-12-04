@@ -34,6 +34,8 @@ struct vec {
 struct struct0 {
   vec<WELD_INPUT_TYPE_0> _0;
   void* _1;
+  vec<f64> _2;
+  vec<f64> _3;
 };
 
 struct WeldInputArgs {
