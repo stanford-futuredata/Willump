@@ -113,6 +113,11 @@ def sample_logistic_regression(input_string):
     return output_strings
 
 
+def sample_scalar_append(input_array, input_value):
+    output_array = numpy.append(input_array, input_value)
+    return output_array
+
+
 class GraphInferenceTests(unittest.TestCase):
     def setUp(self):
         global willump_typing_map, willump_static_vars
@@ -130,13 +135,13 @@ class GraphInferenceTests(unittest.TestCase):
         # Run the instrumented function.
         exec(compile(new_ast, filename="<ast>", mode="exec"), globals(),
              local_namespace)
-        local_namespace[func_name](basic_vec)
+        local_namespace[func_name](*basic_vec)
 
     def test_basic_math_inference(self):
         print("\ntest_basic_math_inference")
         sample_python: str = inspect.getsource(sample_math_basic)
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
-        self.set_typing_map(sample_python, "sample_math_basic", basic_vec)
+        self.set_typing_map(sample_python, "sample_math_basic", [basic_vec])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
@@ -155,7 +160,7 @@ class GraphInferenceTests(unittest.TestCase):
         print("\ntest_manyvars_math_inference")
         sample_python: str = inspect.getsource(sample_math_manyvars)
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
-        self.set_typing_map(sample_python, "sample_math_manyvars", basic_vec)
+        self.set_typing_map(sample_python, "sample_math_manyvars", [basic_vec])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
@@ -174,7 +179,7 @@ class GraphInferenceTests(unittest.TestCase):
         print("\ntest_in_out_type_inference")
         sample_python: str = inspect.getsource(sample_math_ints)
         basic_vec = numpy.array([1, 2, 3], dtype=numpy.int32)
-        self.set_typing_map(sample_python, "sample_math_ints", basic_vec)
+        self.set_typing_map(sample_python, "sample_math_ints", [basic_vec])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
@@ -195,7 +200,7 @@ class GraphInferenceTests(unittest.TestCase):
         print("\ntest_mixed_types")
         sample_python: str = inspect.getsource(sample_math_mixed)
         basic_vec = numpy.array([1, 2, 3], dtype=numpy.int32)
-        self.set_typing_map(sample_python, "sample_math_mixed", basic_vec)
+        self.set_typing_map(sample_python, "sample_math_mixed", [basic_vec])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
@@ -216,7 +221,7 @@ class GraphInferenceTests(unittest.TestCase):
         print("\ntest_string_split")
         sample_python: str = inspect.getsource(sample_string_split)
         sample_string: str = "cat dog \n house "
-        self.set_typing_map(sample_python, "sample_string_split", sample_string)
+        self.set_typing_map(sample_python, "sample_string_split", [sample_string])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
@@ -235,7 +240,7 @@ class GraphInferenceTests(unittest.TestCase):
         print("\ntest_string_lower")
         sample_python: str = inspect.getsource(sample_string_lower)
         sample_string: str = "cAt dOg \n houSe. "
-        self.set_typing_map(sample_python, "sample_string_lower", sample_string)
+        self.set_typing_map(sample_python, "sample_string_lower", [sample_string])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
@@ -254,7 +259,7 @@ class GraphInferenceTests(unittest.TestCase):
         print("\ntest_string_remove_char")
         sample_python: str = inspect.getsource(sample_string_remove_char)
         sample_string: str = "ca..t do..g \n hous...e. "
-        self.set_typing_map(sample_python, "sample_string_remove_char", sample_string)
+        self.set_typing_map(sample_python, "sample_string_remove_char", [sample_string])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
@@ -273,7 +278,7 @@ class GraphInferenceTests(unittest.TestCase):
         print("\ntest_string_freq_count")
         sample_python: str = inspect.getsource(sample_string_freq_count)
         sample_string: str = "cat dog elephant"
-        self.set_typing_map(sample_python, "sample_string_freq_count", sample_string)
+        self.set_typing_map(sample_python, "sample_string_freq_count", [sample_string])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
@@ -292,7 +297,7 @@ class GraphInferenceTests(unittest.TestCase):
         print("\ntest_logistic_regression")
         sample_python: str = inspect.getsource(sample_logistic_regression)
         sample_string: str = "cat dog elephant"
-        self.set_typing_map(sample_python, "sample_logistic_regression", sample_string)
+        self.set_typing_map(sample_python, "sample_logistic_regression", [sample_string])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
@@ -306,6 +311,26 @@ class GraphInferenceTests(unittest.TestCase):
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(sample_string)
         numpy.testing.assert_equal(weld_output, numpy.array([0], dtype=numpy.int64))
+
+    def test_scalar_append(self):
+        print("\ntest_scalar_append")
+        sample_python: str = inspect.getsource(sample_scalar_append)
+        basic_vec = numpy.array([1, 2, 3], dtype=numpy.int64)
+        self.set_typing_map(sample_python, "sample_scalar_append", [basic_vec, 5])
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        weld_program: str = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
+        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
+                                                 graph_builder.get_aux_data())
+        weld_llvm_caller = importlib.import_module(module_name)
+        weld_output = weld_llvm_caller.caller_func(basic_vec, 5)
+        output_vec = numpy.array([1, 2, 3, 5], dtype=numpy.int64)
+        numpy.testing.assert_equal(weld_output, output_vec)
 
 
 if __name__ == '__main__':

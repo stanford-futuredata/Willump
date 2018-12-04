@@ -115,7 +115,7 @@ def willump_execute(func: Callable) -> Callable:
                 # Run the instrumented function.
                 exec(compile(new_ast, filename="<ast>", mode="exec"), augmented_globals,
                      local_namespace)
-                return local_namespace[function_name](args[0])
+                return local_namespace[function_name](*args)
             else:
                 # With the types of variables all known, we can compile the function.  First,
                 # infer the Willump graph from the function's AST.
@@ -140,8 +140,8 @@ def willump_execute(func: Callable) -> Callable:
                 weld_llvm_caller = importlib.import_module(module_name)
                 new_func: Callable = weld_llvm_caller.caller_func
                 globals()[llvm_runner_func] = new_func
-                return globals()[llvm_runner_func](args[0])
+                return globals()[llvm_runner_func](*args)
         else:
             # Run the compiled function.
-            return globals()[llvm_runner_func](args[0])
+            return globals()[llvm_runner_func](*args)
     return wrapper

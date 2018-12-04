@@ -12,7 +12,7 @@ from willump.graph.string_lower_node import StringLowerNode
 from weld.types import *
 
 
-class StringSplitNodeTests(unittest.TestCase):
+class StringLowerNodeTests(unittest.TestCase):
     def test_basic_string_lower(self):
         print("\ntest_basic_string_lower")
         input_str = "aAa Bb cC"

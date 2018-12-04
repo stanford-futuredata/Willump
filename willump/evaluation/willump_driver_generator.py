@@ -64,6 +64,8 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                     PyObject* {0} = NULL;
                     PyArrayObject* {1} = NULL;
                     """.format(input_name, input_array_name)
+            elif wtype_is_scalar(input_type):
+                buffer += "%s %s;\n" % (str(input_type), input_name)
             else:
                 panic("Unsupported input type {0}".format(str(input_type)))
         # Parse all inputs into the input variables.
@@ -73,10 +75,15 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                 format_string += "s"
             elif isinstance(input_type, WeldVec):
                 format_string += "O!"
+            elif isinstance(input_type, WeldLong) or isinstance(input_type, WeldInt) or\
+                    isinstance(input_type, WeldInt16) or isinstance(input_type, WeldChar):
+                format_string += "l"
+            elif isinstance(input_type, WeldDouble) or isinstance(input_type, WeldFloat):
+                format_string += "d"
         acceptor_string = ""
         for i, input_type in enumerate(input_types):
             input_name = "driver_input{0}".format(i)
-            if isinstance(input_type, WeldStr):
+            if isinstance(input_type, WeldStr) or wtype_is_scalar(input_type):
                 acceptor_string += ", &{0}".format(input_name)
             elif isinstance(input_type, WeldVec):
                 acceptor_string += ", &PyArray_Type, &{0}".format(input_name)
@@ -128,6 +135,8 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                     {0}.ptr = ({3}*) PyArray_DATA({2});
                     """.format(weld_input_name, input_len_name,
                                input_array_name, wtype_to_c_type(input_type.elemType))
+            elif wtype_is_scalar(input_type):
+                buffer += "%s %s = %s;\n" % (wtype_to_c_type(input_type), weld_input_name, input_name)
             buffer += "weld_input._%d = %s;\n" % (i, weld_input_name)
         # Also make inputs out of the aux_data pointers so Weld knows where the data structures are.
         for (aux_i, (input_pointer, input_type)) in enumerate(aux_data):
@@ -192,6 +201,14 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
     with open(new_file_name, "w") as outfile:
         outfile.write(buffer)
     return new_file_name
+
+
+def wtype_is_scalar(wtype: WeldType) -> bool:
+    if isinstance(wtype, WeldLong) or isinstance(wtype, WeldInt) or isinstance(wtype, WeldInt16) or \
+            isinstance(wtype, WeldChar) or isinstance(wtype, WeldDouble) or isinstance(wtype, WeldFloat):
+        return True
+    else:
+        return False
 
 
 def wtype_to_c_type(wtype: WeldType) -> str:

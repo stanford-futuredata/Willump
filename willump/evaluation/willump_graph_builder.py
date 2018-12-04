@@ -11,6 +11,7 @@ from willump.graph.string_lower_node import StringLowerNode
 from willump.graph.string_removechar_node import StringRemoveCharNode
 from willump.graph.vocabulary_frequency_count_node import VocabularyFrequencyCountNode
 from willump.graph.logistic_regression_node import LogisticRegressionNode
+from willump.graph.array_append_node import ArrayAppendNode
 
 from typing import MutableMapping, List, Tuple, Optional, Set, Mapping
 from weld.types import *
@@ -136,6 +137,15 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     logit_intercept=logit_intercept, aux_data=self.aux_data
                 )
                 self._node_dict[output_var_name] = logit_node
+            # TODO:  Support values that are not scalar variables.
+            elif "numpy.append" in called_function:
+                append_input_array: str = value.args[0].id
+                append_input_value: str = value.args[1].id
+                append_input_array_node: WillumpGraphNode = self._node_dict[append_input_array]
+                append_input_val_node: WillumpGraphNode = self._node_dict[append_input_value]
+                array_append_node: ArrayAppendNode = ArrayAppendNode(append_input_array_node, append_input_val_node,
+                                                                output_var_name, self._type_map[append_input_array])
+                self._node_dict[output_var_name] = array_append_node
             # TODO:  What to do here?
             elif called_function == "numpy.zeros":
                 pass

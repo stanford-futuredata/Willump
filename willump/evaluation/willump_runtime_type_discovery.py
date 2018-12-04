@@ -113,7 +113,7 @@ def py_var_to_weld_type(py_var: object) -> WeldType:
     TODO:  Handle more types of variables.
     """
     if isinstance(py_var, int):
-        return WeldInt()
+        return WeldLong()
     elif isinstance(py_var, float):
         return WeldDouble()
     elif isinstance(py_var, str):
