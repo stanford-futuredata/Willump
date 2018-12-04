@@ -316,7 +316,7 @@ class GraphInferenceTests(unittest.TestCase):
         print("\ntest_scalar_append")
         sample_python: str = inspect.getsource(sample_scalar_append)
         basic_vec = numpy.array([1, 2, 3], dtype=numpy.int64)
-        self.set_typing_map(sample_python, "sample_scalar_append", [basic_vec, 5])
+        self.set_typing_map(sample_python, "sample_scalar_append", [basic_vec, 5.0])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
@@ -329,8 +329,9 @@ class GraphInferenceTests(unittest.TestCase):
                                                  graph_builder.get_aux_data())
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec, 5)
-        output_vec = numpy.array([1, 2, 3, 5], dtype=numpy.int64)
+        output_vec = numpy.array([1., 2., 3., 5.], dtype=numpy.float64)
         numpy.testing.assert_equal(weld_output, output_vec)
+        self.assertEqual(weld_output.dtype, output_vec.dtype)
 
 
 if __name__ == '__main__':

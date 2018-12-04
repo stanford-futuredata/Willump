@@ -13,17 +13,20 @@ class ArrayAppendNode(WillumpGraphNode):
     _input_value_name: str
     _output_name: str
     _input_array_type: WeldType
+    _output_type: WeldType
 
     def __init__(self,
                  input_array_node: WillumpGraphNode,
                  input_value_node: WillumpGraphNode,
                  output_name: str,
-                 input_array_type: WeldType) -> None:
+                 input_array_type: WeldType,
+                 output_type: WeldType) -> None:
         self._input_nodes = [input_array_node, input_value_node]
         self._input_array_name = input_array_node.get_output_name()
         self._input_value_name = input_value_node.get_output_name()
         self._output_name = output_name
         self._input_array_type = input_array_type
+        self._output_type = output_type
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
@@ -35,12 +38,13 @@ class ArrayAppendNode(WillumpGraphNode):
         weld_program = \
             """
             let appender_of_in_array = for(INPUT_ARRAY_NAME,
-                appender[INPUT_ARRAY_ELEMTYPE],
-                | bs: appender[INPUT_ARRAY_ELEMTYPE], i: i64, n: INPUT_ARRAY_ELEMTYPE |
-                    merge(bs, n)
+                appender[OUTPUT_ELEMTYPE],
+                | bs: appender[OUTPUT_ELEMTYPE], i: i64, n: INPUT_ARRAY_ELEMTYPE |
+                    merge(bs, OUTPUT_ELEMTYPE(n))
             );
-            let OUTPUT_NAME = result(merge(appender_of_in_array, INPUT_ARRAY_ELEMTYPE(INPUT_VALUE_NAME)));
+            let OUTPUT_NAME = result(merge(appender_of_in_array, OUTPUT_ELEMTYPE(INPUT_VALUE_NAME)));
             """
+        weld_program = weld_program.replace("OUTPUT_ELEMTYPE", str(self._output_type.elemType))
         weld_program = weld_program.replace("INPUT_ARRAY_ELEMTYPE", str(self._input_array_type.elemType))
         weld_program = weld_program.replace("INPUT_ARRAY_NAME", self._input_array_name)
         weld_program = weld_program.replace("INPUT_VALUE_NAME", self._input_value_name)

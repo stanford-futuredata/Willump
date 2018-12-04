@@ -18,7 +18,7 @@ def willump_frequency_count(input_words, vocab_dict):
 
 
 @willump.evaluation.willump_executor.willump_execute
-def process_string(input_string):
+def process_string(input_string, time_of_day):
     output_strings = input_string.split()
     for i in range(len(output_strings)):
         output_strings[i] = output_strings[i].lower()
@@ -56,6 +56,7 @@ def process_string(input_string):
         # output_strings[i] = output_strings[i].replace("}", "")
         # output_strings[i] = output_strings[i].replace("~", "")
     output_strings = willump_frequency_count(output_strings, g_vocab_dict)
+    output_strings = numpy.append(output_strings, time_of_day)
     return output_strings
 
 
@@ -66,19 +67,20 @@ def main():
             g_vocab_dict[line] = i
     tweet_labels = []
     processed_inputs = []
-    process_string("a b c")
-    process_string("a b c")
-    process_string("a b c")
+    process_string("a b c", 5)
+    process_string("a b c", 5)
+    process_string("a b c", 5)
     dataset_nlines = 0
     with open("tests/test_resources/twitter.200000.processed.noemoticon.csv", "r", encoding="latin-1") as csvfile:
         csvreader = csv.reader(csvfile)
         start = timer()
         for row in csvreader:
-            processed_input = process_string(row[5])
+            processed_input = process_string(row[5], int(row[2][11:13]))
             processed_inputs.append(processed_input)
             tweet_labels.append(int(row[0]))
             dataset_nlines += 1
         end = timer()
+    print(processed_inputs[0])
     print("Total processing time: {0}".format(end - start))
     print("Processing latency: {0}".format((end - start) / dataset_nlines))
     model = sklearn.linear_model.LogisticRegression()

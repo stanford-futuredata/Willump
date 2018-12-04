@@ -18,7 +18,7 @@ def willump_frequency_count(input_words, vocab_dict):
 
 
 @willump.evaluation.willump_executor.willump_execute
-def process_string(input_string):
+def process_string(input_string, time_of_day):
     output_strings = input_string.split()
     for i in range(len(output_strings)):
         output_strings[i] = output_strings[i].lower()
@@ -56,6 +56,8 @@ def process_string(input_string):
         # output_strings[i] = output_strings[i].replace("}", "")
         # output_strings[i] = output_strings[i].replace("~", "")
     output_strings = willump_frequency_count(output_strings, g_vocab_dict)
+    output_strings = numpy.append(output_strings, time_of_day)
+    output_strings = output_strings.reshape(1, -1)
     output_strings = model.predict(output_strings)
     return output_strings
 
@@ -67,15 +69,15 @@ def main():
             g_vocab_dict[line] = i
     dataset_nlines = 0
     model = pickle.load(open("tests/test_resources/sa_model.pk", 'rb'))
-    process_string("a b c")
-    process_string("a b c")
-    process_string("a b c")
+    process_string("a b c", 5)
+    process_string("a b c", 5)
+    process_string("a b c", 5)
     with open("tests/test_resources/twitter.200000.processed.noemoticon.csv", "r",
               encoding="latin-1") as csv_file:
         csv_reader = csv.reader(csv_file)
         start = timer()
         for row in csv_reader:
-            prediction = process_string(row[5])
+            prediction = process_string(row[5], int(row[2][11:13]))
             dataset_nlines += 1
         end = timer()
     print("Total Processing time: {0}".format(end - start))

@@ -144,10 +144,13 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 append_input_array_node: WillumpGraphNode = self._node_dict[append_input_array]
                 append_input_val_node: WillumpGraphNode = self._node_dict[append_input_value]
                 array_append_node: ArrayAppendNode = ArrayAppendNode(append_input_array_node, append_input_val_node,
-                                                                output_var_name, self._type_map[append_input_array])
+                                                                output_var_name, self._type_map[append_input_array],
+                                                                self._type_map[output_var_name])
                 self._node_dict[output_var_name] = array_append_node
-            # TODO:  What to do here?
+            # TODO:  What to do with these?
             elif called_function == "numpy.zeros":
+                pass
+            elif "reshape" in called_function:
                 pass
             else:
                 panic("Unrecognized function call {0} node {1}".format(called_function,
