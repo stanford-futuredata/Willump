@@ -40,7 +40,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     # A set of static variable values saved from Python execution.
     _static_vars: Mapping[str, object]
     # Saved data structures required by some nodes.
-    aux_data: List[Tuple[int, str]]
+    aux_data: List[Tuple[int, WeldType]]
 
     def __init__(self, type_map: MutableMapping[str, WeldType],
                  static_vars: Mapping[str, object]) -> None:
@@ -91,47 +91,48 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 self._mathops_list.append(unary_mathop)
             # TODO:  Recognize functions in attributes properly.
             elif "split" in called_function:
-                input_var: str = value.func.value.id
-                input_node: WillumpGraphNode = self._node_dict[input_var]
-                string_split_node: StringSplitNode = StringSplitNode(input_node=input_node,
+                split_input_var: str = value.func.value.id
+                split_input_node: WillumpGraphNode = self._node_dict[split_input_var]
+                string_split_node: StringSplitNode = StringSplitNode(input_node=split_input_node,
                                                                      output_name=output_var_name)
                 self._node_dict[output_var_name] = string_split_node
             # TODO:  Recognize when this is being called in a loop, don't just assume it is.
             elif "lower" in called_function:
-                input_var: str = value.func.value.value.id
-                input_node: WillumpGraphNode = self._node_dict[input_var]
-                string_lower_node: StringLowerNode = StringLowerNode(input_node=input_node,
+                lower_input_var: str = value.func.value.value.id
+                lower_input_node: WillumpGraphNode = self._node_dict[lower_input_var]
+                string_lower_node: StringLowerNode = StringLowerNode(input_node=lower_input_node,
                                                                      output_name=output_var_name)
                 self._node_dict[output_var_name] = string_lower_node
             # TODO:  Recognize replaces that do more than remove one character.
             elif "replace" in called_function:
-                input_var: str = value.func.value.value.id
-                input_node: WillumpGraphNode = self._node_dict[input_var]
+                replace_input_var: str = value.func.value.value.id
+                replace_input_node: WillumpGraphNode = self._node_dict[replace_input_var]
                 target_char: str = value.args[0].s
                 assert(len(target_char) == 1)
                 assert(len(value.args[1].s) == 0)
-                string_remove_char_node: StringLowerNode =\
-                    StringRemoveCharNode(input_node=input_node,
+                string_remove_char_node: StringRemoveCharNode =\
+                    StringRemoveCharNode(input_node=replace_input_node,
                     target_char=target_char, output_name=output_var_name)
                 self._node_dict[output_var_name] = string_remove_char_node
             # TODO:  Find a real function to use here.
             elif "willump_frequency_count" in called_function:
-                input_var: str = value.args[0].id
+                freq_count_input_var: str = value.args[0].id
                 vocab_dict = self._static_vars["willump_frequency_count_vocab"]
-                input_node: WillumpGraphNode = self._node_dict[input_var]
+                freq_count_input_node: WillumpGraphNode = self._node_dict[freq_count_input_var]
                 vocab_freq_count_node: VocabularyFrequencyCountNode = VocabularyFrequencyCountNode(
-                    input_node=input_node, output_name=output_var_name,
+                    input_node=freq_count_input_node, output_name=output_var_name,
                     input_vocab_dict=vocab_dict, aux_data=self.aux_data
                 )
                 self._node_dict[output_var_name] = vocab_freq_count_node
             # TODO:  Lots of potential predictors, differentiate them!
             elif "predict" in called_function:
-                input_var: str = value.args[0].id
+                logit_input_var: str = value.args[0].id
                 logit_weights = self._static_vars["willump_logistic_regression_weights"]
                 logit_intercept = self._static_vars["willump_logistic_regression_intercept"]
-                input_node: WillumpGraphNode = self._node_dict[input_var]
+                logit_input_node: WillumpGraphNode = self._node_dict[logit_input_var]
                 logit_node: LogisticRegressionNode = LogisticRegressionNode(
-                    input_node=input_node, output_name=output_var_name, logit_weights=logit_weights,
+                    input_node=logit_input_node, output_name=output_var_name,
+                    logit_weights=logit_weights,
                     logit_intercept=logit_intercept, aux_data=self.aux_data
                 )
                 self._node_dict[output_var_name] = logit_node
@@ -176,7 +177,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     def get_args_list(self) -> List[str]:
         return self.arg_list
 
-    def get_aux_data(self) -> List[Tuple[int, str]]:
+    def get_aux_data(self) -> List[Tuple[int, WeldType]]:
         return self.aux_data
 
     def _expr_to_math_operation_input(self, expr: ast.expr) -> MathOperationInput:

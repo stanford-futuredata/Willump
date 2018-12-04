@@ -67,7 +67,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
 
     @staticmethod
     def _maybe_extract_static_variables(value: ast.expr) -> List[ast.stmt]:
-        return_statements = []
+        return_statements: List[ast.stmt] = []
         if isinstance(value, ast.Call):
             called_function_name: str = WillumpGraphBuilder._get_function_name(value)
             if "willump_frequency_count" in called_function_name:
@@ -75,18 +75,21 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 static_variable_extraction_code = \
                     """willump_static_vars["{0}"] = {1}""" \
                     .format("willump_frequency_count_vocab", vocab_dict_name)
-                instrumentation_ast: ast.Module = ast.parse(static_variable_extraction_code, "exec")
-                instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
-                return_statements += instrumentation_statements
+                freq_count_instrumentation_ast: ast.Module = \
+                    ast.parse(static_variable_extraction_code, "exec")
+                freq_count_instrumentation_statements: List[ast.stmt] = \
+                    freq_count_instrumentation_ast.body
+                return_statements += freq_count_instrumentation_statements
             if "predict" in called_function_name:
                 static_variable_extraction_code = \
                     """willump_static_vars["{0}"] = {1}\n""" \
                     .format("willump_logistic_regression_weights", "model.coef_") + \
                     """willump_static_vars["{0}"] = {1}\n""" \
                     .format("willump_logistic_regression_intercept", "model.intercept_")
-                instrumentation_ast: ast.Module = ast.parse(static_variable_extraction_code, "exec")
-                instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
-                return_statements += instrumentation_statements
+                logit_instrumentation_ast: ast.Module = \
+                    ast.parse(static_variable_extraction_code, "exec")
+                logit_instrumentation_statements: List[ast.stmt] = logit_instrumentation_ast.body
+                return_statements += logit_instrumentation_statements
         return return_statements
 
     @staticmethod

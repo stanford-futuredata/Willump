@@ -22,7 +22,7 @@ class LogisticRegressionNode(WillumpGraphNode):
     _intercept_data_name: str
 
     def __init__(self, input_node: WillumpGraphNode, output_name: str,
-                 logit_weights, logit_intercept, aux_data: List[Tuple[int, str]]) -> None:
+                 logit_weights, logit_intercept, aux_data: List[Tuple[int, WeldType]]) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
@@ -44,7 +44,7 @@ class LogisticRegressionNode(WillumpGraphNode):
         return "logistic_regression"
 
     @staticmethod
-    def _process_aux_data(logit_weights, logit_intercept) -> List[Tuple[int, str]]:
+    def _process_aux_data(logit_weights, logit_intercept) -> List[Tuple[int, WeldType]]:
         """
         Returns pointers to Weld vectors containing the logistic regression model weights
         and intercept.
@@ -56,8 +56,9 @@ class LogisticRegressionNode(WillumpGraphNode):
         module_name = wexec.compile_weld_program(weld_program, {},
                                                  base_filename="encode_logistic_regression_model")
         encode_logit_model = importlib.import_module(module_name)
-        weld_weights, weld_intercept = encode_logit_model.caller_func(logit_weights[0], logit_intercept)
-        return [(weld_weights, "vec[f64]"), (weld_intercept, "vec[f64]")]
+        weld_weights, weld_intercept = \
+            encode_logit_model.caller_func(logit_weights[0], logit_intercept)
+        return [(weld_weights, WeldVec(WeldDouble())), (weld_intercept, WeldVec(WeldDouble()))]
 
     def get_node_weld(self) -> str:
         weld_program = \

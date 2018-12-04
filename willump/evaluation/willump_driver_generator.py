@@ -4,7 +4,6 @@ from weld.types import *
 from willump import panic
 
 from typing import Mapping, List, Tuple
-import willump.willump_utilities
 
 
 def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],

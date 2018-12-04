@@ -21,7 +21,7 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
     _vocab_size: int
 
     def __init__(self, input_node: WillumpGraphNode, output_name: str,
-                 input_vocab_dict: Mapping[str, int], aux_data: List[Tuple[int, str]]) -> None:
+                 input_vocab_dict: Mapping[str, int], aux_data: List[Tuple[int, WeldType]]) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
@@ -45,7 +45,7 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
         return "vocab_freq_count"
 
     @staticmethod
-    def _process_aux_data(vocabulary_list) -> List[Tuple[int, str]]:
+    def _process_aux_data(vocabulary_list) -> List[Tuple[int, WeldType]]:
         """
         Returns a pointer to a Weld dict[[vec[i8], i64] mapping between words and their indices
         in the vocabulary.
@@ -63,7 +63,8 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
                                                  base_filename="vocabulary_to_dict_driver")
         vocab_to_dict = importlib.import_module(module_name)
         vocab_dict, zeros_vec = vocab_to_dict.caller_func(vocabulary_list)
-        return [(vocab_dict, "dict[vec[i8], i64]"), (zeros_vec, "vec[i64]")]
+        return [(vocab_dict, WeldDict(WeldVec(WeldChar()), WeldLong())),
+                (zeros_vec, WeldVec(WeldLong()))]
 
     def get_node_weld(self) -> str:
         weld_program = \

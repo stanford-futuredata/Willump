@@ -24,7 +24,7 @@ version_number = 0
 
 
 def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType],
-                         aux_data: List[Tuple[int, str]]=[], base_filename="weld_llvm_caller") -> str:
+                         aux_data=None, base_filename="weld_llvm_caller") -> str:
     """
     Compile a Weld program to LLVM, then compile this into a Python C extension in a shared object
     file which can run the Weld program from Python.
@@ -35,6 +35,8 @@ def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType],
     Import the new module with:
     importlib.import_module(module_name)
     """
+    if aux_data is None:
+        aux_data = []
     global version_number
     # Compile the Weld program to LLVM and dump the LLVM.
     willump_home: str = os.environ["WILLUMP_HOME"]
