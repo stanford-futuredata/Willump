@@ -137,7 +137,7 @@ def py_var_to_weld_type(py_var: object) -> WeldType:
         elif py_var.dtype == numpy.float64:
             return WeldVec(WeldDouble())
         else:
-            panic("Unrecognized ndarray type {0}".format(py_var.dtype.__str__))
+            panic("Unrecognized ndarray type {0}".format(py_var.dtype.__str__()))
             return WeldType()
     else:
         panic("Unrecognized type of object {0} with type {1}"

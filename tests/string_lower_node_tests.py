@@ -15,17 +15,16 @@ from weld.types import *
 class StringLowerNodeTests(unittest.TestCase):
     def test_basic_string_lower(self):
         print("\ntest_basic_string_lower")
-        input_str = "aAa Bb cC"
+        input_str = ["aAa", "Bb", "cC"]
         input_node: WillumpInputNode = WillumpInputNode("input_str")
-        string_split_node: StringSplitNode = StringSplitNode(input_node, "output_words")
         string_lower_node: StringLowerNode =\
-            StringLowerNode(string_split_node, "lowered_output_words")
+            StringLowerNode(input_node, "lowered_output_words")
         output_node: WillumpOutputNode = WillumpOutputNode(string_lower_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_str"], [])
-        type_map = {"__willump_arg0": WeldStr(),
+        type_map = {"__willump_arg0": WeldVec(WeldStr()),
                     "__willump_retval": WeldVec(WeldStr())}
         module_name = wexec.compile_weld_program(weld_program, type_map)
         weld_llvm_caller = importlib.import_module(module_name)
@@ -34,17 +33,16 @@ class StringLowerNodeTests(unittest.TestCase):
 
     def test_mixed_string_lower(self):
         print("\ntest_mixed_string_lower")
-        input_str = "aA,.,.a B,,b c34234C"
+        input_str = ["aA,.,.a", "B,,b", "c34234C"]
         input_node: WillumpInputNode = WillumpInputNode("input_str")
-        string_split_node: StringSplitNode = StringSplitNode(input_node, "output_words")
         string_lower_node: StringLowerNode =\
-            StringLowerNode(string_split_node, "lowered_output_words")
+            StringLowerNode(input_node, "lowered_output_words")
         output_node: WillumpOutputNode = WillumpOutputNode(string_lower_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_str"], [])
-        type_map = {"__willump_arg0": WeldStr(),
+        type_map = {"__willump_arg0": WeldVec(WeldStr()),
                     "__willump_retval": WeldVec(WeldStr())}
         module_name = wexec.compile_weld_program(weld_program, type_map)
         weld_llvm_caller = importlib.import_module(module_name)

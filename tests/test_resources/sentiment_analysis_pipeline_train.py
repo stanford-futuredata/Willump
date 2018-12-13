@@ -55,9 +55,9 @@ def process_string(input_string, time_of_day):
         # output_strings[i] = output_strings[i].replace("|", "")
         # output_strings[i] = output_strings[i].replace("}", "")
         # output_strings[i] = output_strings[i].replace("~", "")
-    output_strings = willump_frequency_count(output_strings, g_vocab_dict)
-    output_strings = numpy.append(output_strings, time_of_day)
-    return output_strings
+    output_vec = willump_frequency_count(output_strings, g_vocab_dict)
+    output_vec = numpy.append(output_strings, time_of_day)
+    return output_vec
 
 
 def main():

@@ -12,6 +12,7 @@ from willump.graph.string_removechar_node import StringRemoveCharNode
 from willump.graph.vocabulary_frequency_count_node import VocabularyFrequencyCountNode
 from willump.graph.logistic_regression_node import LogisticRegressionNode
 from willump.graph.array_append_node import ArrayAppendNode
+from willump.graph.willump_python_node import WillumpPythonNode
 
 from typing import MutableMapping, List, Tuple, Optional, Set, Mapping
 import typing
@@ -66,7 +67,18 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             if isinstance(entry, ast.Assign):
                 result = self.analyze_Assign(entry)
                 if result is None:
-                    panic("Unrecognized assign %s" % ast.dump(entry))
+                    entry_analyzer = ExpressionVariableAnalyzer()
+                    entry_analyzer.visit(entry)
+                    input_list, output_list = entry_analyzer.get_in_out_list()
+                    # TODO:  Multiple outputs.
+                    assert(len(output_list) == 1)
+                    output_var_name = output_list[0]
+                    input_node_list = []
+                    for input_var in input_list:
+                        if input_var in self._node_dict:
+                            input_node_list.append(self._node_dict[input_var])
+                    willump_python_node: WillumpPythonNode = WillumpPythonNode(entry, output_var_name, input_node_list)
+                    self._node_dict[output_var_name] = willump_python_node
                 else:
                     output_var_name, node_or_mathop = result
                     if node_or_mathop is None:
@@ -76,7 +88,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     else:
                         self._mathops_list.append(node_or_mathop)
             elif isinstance(entry, ast.Return):
-                self.visit_Return(entry)
+                self.analyze_Return(entry)
             elif isinstance(entry, ast.For):
                 for for_entry in entry.body:
                     if isinstance(for_entry, ast.Assign):
@@ -197,7 +209,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         else:
             return None
 
-    def visit_Return(self, node: ast.Return) -> None:
+    def analyze_Return(self, node: ast.Return) -> None:
         """
         Process the function return and create a graph which outputs whatever the function
         is returning.
@@ -208,12 +220,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         if isinstance(node.value, ast.Name):
             output_name: str = node.value.id
             if output_name in self._node_dict:
-                output_node = WillumpOutputNode(self._node_dict[output_name])
+                output_node = WillumpOutputNode(WillumpPythonNode(node, output_name, [self._node_dict[output_name]]))
             else:
                 potential_in_node: Optional[TransformMathNode] = \
                     self._build_math_transform_for_output(output_name)
                 if potential_in_node is not None:
-                    output_node = WillumpOutputNode(potential_in_node)
+                    output_node = WillumpOutputNode(WillumpPythonNode(node, output_name, [potential_in_node]))
                 else:
                     panic("No in-node found for return node {0}".format(ast.dump(node)))
             self.willump_graph = WillumpGraph(output_node)
@@ -396,3 +408,18 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             return "log"
         else:
             return None
+
+
+class ExpressionVariableAnalyzer(ast.NodeVisitor):
+    def __init__(self) -> None:
+        self._output_list: List[str] = []
+        self._input_list: List[str] = []
+
+    def visit_Name(self, node: ast.Name):
+        if isinstance(node.ctx, ast.Store):
+            self._output_list.append(node.id)
+        else:
+            self._input_list.append(node.id)
+
+    def get_in_out_list(self) -> Tuple[List[str], List[str]]:
+        return self._input_list, self._output_list

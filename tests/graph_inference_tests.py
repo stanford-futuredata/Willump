@@ -14,7 +14,8 @@ from willump.graph.willump_graph import WillumpGraph
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 import willump.evaluation.willump_executor as wexec
 
-from typing import Mapping, MutableMapping
+from typing import Mapping, MutableMapping, List, Tuple
+import typing
 from weld.types import *
 
 
@@ -96,8 +97,8 @@ simple_vocab_dict = {word: index for index, word in
 
 def sample_string_freq_count(input_string):
     output_strings = input_string.split()
-    output_strings = willump_frequency_count(output_strings, simple_vocab_dict)
-    return output_strings
+    output_vec = willump_frequency_count(output_strings, simple_vocab_dict)
+    return output_vec
 
 
 model = sklearn.linear_model.LogisticRegression(solver='lbfgs')
@@ -108,9 +109,9 @@ model.classes_ = numpy.array([0, 1], dtype=numpy.int64)
 
 def sample_logistic_regression(input_string):
     output_strings = input_string.split()
-    output_strings = willump_frequency_count(output_strings, simple_vocab_dict)
-    output_strings = model.predict(output_strings)
-    return output_strings
+    output_vec = willump_frequency_count(output_strings, simple_vocab_dict)
+    predicted_result = model.predict(output_vec)
+    return predicted_result
 
 
 def sample_scalar_append(input_array, input_value):
@@ -146,14 +147,17 @@ class GraphInferenceTests(unittest.TestCase):
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        weld_program: str = \
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
-        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
-                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
-                                                 graph_builder.get_aux_data())
-        weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(basic_vec)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                    graph_builder.get_aux_data(), willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_math_basic"](basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([2., -4., 6.]))
 
     def test_manyvars_math_inference(self):
@@ -165,14 +169,17 @@ class GraphInferenceTests(unittest.TestCase):
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        weld_program: str = \
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
-        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
-                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
-                                                 graph_builder.get_aux_data())
-        weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(basic_vec)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                    graph_builder.get_aux_data(), willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_math_manyvars"](basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([7., 1., 6.]))
 
     def test_in_out_type_inference(self):
@@ -184,14 +191,17 @@ class GraphInferenceTests(unittest.TestCase):
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        weld_program: str = \
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
-        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
-                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
-                                                 graph_builder.get_aux_data())
-        weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(basic_vec)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                    graph_builder.get_aux_data(), willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_math_ints"](basic_vec)
         numpy.testing.assert_equal(weld_output,
                                           numpy.array([2, 1, 6], dtype=numpy.int32))
         numpy.testing.assert_equal(weld_output.dtype, numpy.int32)
@@ -205,14 +215,17 @@ class GraphInferenceTests(unittest.TestCase):
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        weld_program: str = \
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
-        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
-                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
-                                                 graph_builder.get_aux_data())
-        weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(basic_vec)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                    graph_builder.get_aux_data(), willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_math_mixed"](basic_vec)
         numpy.testing.assert_equal(weld_output,
                                           numpy.array([4.1, 2, 20], dtype=numpy.float64))
         numpy.testing.assert_equal(weld_output.dtype, numpy.float64)
@@ -226,14 +239,17 @@ class GraphInferenceTests(unittest.TestCase):
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        weld_program: str = \
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
-        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
-                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
-                                                 graph_builder.get_aux_data())
-        weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(sample_string)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                    graph_builder.get_aux_data(), willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_string_split"](sample_string)
         numpy.testing.assert_equal(weld_output, ["cat", "dog", "house"])
 
     def test_string_lower(self):
@@ -245,14 +261,17 @@ class GraphInferenceTests(unittest.TestCase):
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        weld_program: str = \
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
-        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
-                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
-                                                 graph_builder.get_aux_data())
-        weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(sample_string)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                    graph_builder.get_aux_data(), willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_string_lower"](sample_string)
         numpy.testing.assert_equal(weld_output, ["cat", "dog", "house."])
 
     def test_string_remove_char(self):
@@ -264,14 +283,17 @@ class GraphInferenceTests(unittest.TestCase):
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        weld_program: str = \
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
-        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
-                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
-                                                 graph_builder.get_aux_data())
-        weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(sample_string)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                    graph_builder.get_aux_data(), willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_string_remove_char"](sample_string)
         numpy.testing.assert_equal(weld_output, ["cat", "dog", "house"])
 
     def test_string_freq_count(self):
@@ -283,14 +305,17 @@ class GraphInferenceTests(unittest.TestCase):
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        weld_program: str = \
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
-        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
-                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
-                                                 graph_builder.get_aux_data())
-        weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(sample_string)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                    graph_builder.get_aux_data(), willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_string_freq_count"](sample_string)
         numpy.testing.assert_equal(weld_output, numpy.array([0, 0, 0, 1, 1, 0], dtype=numpy.int64))
 
     def test_logistic_regression(self):
@@ -302,14 +327,17 @@ class GraphInferenceTests(unittest.TestCase):
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        weld_program: str = \
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
-        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
-                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
-                                                 graph_builder.get_aux_data())
-        weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(sample_string)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                    graph_builder.get_aux_data(), willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_logistic_regression"](sample_string)
         numpy.testing.assert_equal(weld_output, numpy.array([0], dtype=numpy.int64))
 
     def test_scalar_append(self):
@@ -321,14 +349,17 @@ class GraphInferenceTests(unittest.TestCase):
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        weld_program: str = \
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
-        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
-                                    graph_builder.get_args_list(), graph_builder.get_aux_data())
-        module_name = wexec.compile_weld_program(weld_program, willump_typing_map,
-                                                 graph_builder.get_aux_data())
-        weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(basic_vec, 5)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                    graph_builder.get_aux_data(), willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_scalar_append"](basic_vec, 5)
         output_vec = numpy.array([1., 2., 3., 5.], dtype=numpy.float64)
         numpy.testing.assert_equal(weld_output, output_vec)
         self.assertEqual(weld_output.dtype, output_vec.dtype)

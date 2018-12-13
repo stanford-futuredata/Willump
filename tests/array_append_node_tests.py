@@ -22,7 +22,7 @@ class ArrayAppendNodeTests(unittest.TestCase):
                                                 "output", WeldVec(WeldDouble()), WeldVec(WeldDouble()))
         output_node: WillumpOutputNode = WillumpOutputNode(array_append_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_vec", "input_val"], [])
         type_map = {"__willump_arg0": WeldVec(WeldDouble()),

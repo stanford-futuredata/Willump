@@ -16,6 +16,7 @@ from willump.evaluation.willump_driver_generator import generate_cpp_driver
 from willump.graph.willump_graph import WillumpGraph
 
 from typing import Callable, MutableMapping, Mapping, List, Tuple
+import typing
 
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
@@ -76,6 +77,50 @@ willump_typing_map_set: MutableMapping[str, MutableMapping[str, WeldType]] = {}
 willump_static_vars_set: MutableMapping[str, object] = {}
 
 
+def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]],
+                                  aux_data: List[Tuple[int, WeldType]], type_map: MutableMapping[str, WeldType]) \
+        -> Tuple[List[ast.AST], List[str]]:
+    python_weld_program = list(map(lambda x: (willump.evaluation.willump_weld_generator.set_input_names(x[0], x[1],
+                                                                                                        aux_data), x[1],
+                                              x[2]) if isinstance(x, tuple) else x, python_weld_program))
+    type_map = copy.copy(type_map)
+    arg_index: int = 0
+    while "__willump_arg{0}".format(arg_index) in type_map:
+        del type_map["__willump_arg{0}".format(arg_index)]
+        arg_index += 1
+    del type_map["__willump_retval"]
+    all_python_program: List[ast.AST] = []
+    module_to_import = []
+    for entry in python_weld_program:
+        if isinstance(entry, ast.AST):
+            all_python_program.append(entry)
+        else:
+            weld_program, input_list, output_name = entry
+            entry_type_map = copy.copy(type_map)
+            for i, input_name in enumerate(input_list):
+                entry_type_map["__willump_arg{0}".format(i)] = entry_type_map[input_name]
+            entry_type_map["__willump_retval"] = entry_type_map[output_name]
+            module_name = compile_weld_program(weld_program, entry_type_map, aux_data)
+            module_to_import.append(module_name)
+            argument_string = ""
+            for input_name in input_list:
+                argument_string += input_name + ","
+            argument_string = argument_string[:-1]  # Remove trailing comma.
+            python_string = "%s = %s.caller_func(%s)" % (output_name, module_name, argument_string)
+            python_ast_module: ast.Module = ast.parse(python_string)
+            python_ast_expr: ast.AST = python_ast_module.body[0]
+            all_python_program.append(python_ast_expr)
+    return all_python_program, module_to_import
+
+
+def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
+                              original_functiondef: ast.Module) -> ast.Module:
+    new_functiondef = copy.copy(original_functiondef)
+    new_functiondef.body[0].body = py_weld_statements
+    new_functiondef.body[0].decorator_list = []
+    return new_functiondef
+
+
 def willump_execute(func: Callable) -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
@@ -124,24 +169,30 @@ def willump_execute(func: Callable) -> Callable:
                 willump_static_vars: Mapping[str, object] = \
                     willump_static_vars_set[llvm_runner_func]
                 python_source = inspect.getsource(func)
-                python_ast: ast.AST = ast.parse(python_source)
+                python_ast: ast.Module = ast.parse(python_source)
+                function_name: str = python_ast.body[0].name
                 graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars)
                 graph_builder.visit(python_ast)
                 python_graph: WillumpGraph = graph_builder.get_willump_graph()
-                args_list: List[str] = graph_builder.get_args_list()
-                aux_data: List[Tuple[int, str]] = graph_builder.get_aux_data()
+                # args_list: List[str] = graph_builder.get_args_list()
+                aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()
                 # Convert the Willump graph to a Weld program.
-                python_weld: str =\
+                python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
                     willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
-                python_weld = willump.evaluation.willump_weld_generator.set_input_names(python_weld,
-                                                                                args_list, aux_data)
+                python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
+                                                                                         aux_data, willump_typing_map)
+                compiled_functiondef = py_weld_statements_to_ast(python_statement_list, python_ast)
                 # Compile the Weld to a Python C extension, then call into the extension.
-                module_name = compile_weld_program(python_weld, willump_typing_map, aux_data)
-                weld_llvm_caller = importlib.import_module(module_name)
-                new_func: Callable = weld_llvm_caller.caller_func
-                globals()[llvm_runner_func] = new_func
+                augmented_globals = copy.copy(func.__globals__)
+                for module in modules_to_import:
+                    augmented_globals[module] = importlib.import_module(module)
+                local_namespace = {}
+                exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), augmented_globals,
+                     local_namespace)
+                globals()[llvm_runner_func] = local_namespace[function_name]
                 return globals()[llvm_runner_func](*args)
         else:
             # Run the compiled function.
             return globals()[llvm_runner_func](*args)
+
     return wrapper

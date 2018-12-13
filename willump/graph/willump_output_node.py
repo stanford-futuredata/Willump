@@ -24,7 +24,7 @@ class WillumpOutputNode(WillumpGraphNode):
         return "{0}\n".format(self.input_node.get_output_name())
 
     def get_output_name(self) -> str:
-        return ""
+        return self.input_node.get_output_name()
 
     def __repr__(self):
         return "Output node\n"

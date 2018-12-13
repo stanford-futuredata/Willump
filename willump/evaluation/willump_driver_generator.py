@@ -58,12 +58,17 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             if isinstance(input_type, WeldStr):
                 buffer += "char* {0} = NULL;\n".format(input_name)
             elif isinstance(input_type, WeldVec):
-                input_array_name = "driver_input_array{0}".format(i)
-                buffer += \
-                    """
-                    PyObject* {0} = NULL;
-                    PyArrayObject* {1} = NULL;
-                    """.format(input_name, input_array_name)
+                if wtype_is_scalar(input_type.elemType):
+                    input_array_name = "driver_input_array{0}".format(i)
+                    buffer += \
+                        """
+                        PyObject* {0} = NULL;
+                        PyArrayObject* {1} = NULL;
+                        """.format(input_name, input_array_name)
+                elif isinstance(input_type.elemType, WeldStr):
+                    buffer += "PyObject* %s = NULL;\n" % input_name
+                else:
+                    panic("Unsupported input type {0}".format(str(input_type)))
             elif wtype_is_scalar(input_type):
                 buffer += "%s %s;\n" % (str(input_type), input_name)
             else:
@@ -74,7 +79,10 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             if isinstance(input_type, WeldStr):
                 format_string += "s"
             elif isinstance(input_type, WeldVec):
-                format_string += "O!"
+                if wtype_is_scalar(input_type.elemType):
+                    format_string += "O!"
+                else:
+                    format_string += "O"
             elif isinstance(input_type, WeldLong) or isinstance(input_type, WeldInt) or\
                     isinstance(input_type, WeldInt16) or isinstance(input_type, WeldChar):
                 format_string += "l"
@@ -86,7 +94,10 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             if isinstance(input_type, WeldStr) or wtype_is_scalar(input_type):
                 acceptor_string += ", &{0}".format(input_name)
             elif isinstance(input_type, WeldVec):
-                acceptor_string += ", &PyArray_Type, &{0}".format(input_name)
+                if wtype_is_scalar(input_type.elemType):
+                    acceptor_string += ", &PyArray_Type, &{0}".format(input_name)
+                else:
+                    acceptor_string += ", &{0}".format(input_name)
         buffer += \
             """
             if (!PyArg_ParseTuple(args, "%s"%s)) {
@@ -95,7 +106,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             """ % (format_string, acceptor_string)
         # Convert all input Numpy arrays into PyArrayObjects.
         for i, input_type in enumerate(input_types):
-            if isinstance(input_type, WeldVec):
+            if isinstance(input_type, WeldVec) and wtype_is_scalar(input_type.elemType):
                 input_name = "driver_input{0}".format(i)
                 input_array_name = "driver_input_array{0}".format(i)
                 buffer += \
@@ -110,7 +121,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             if isinstance(input_type, WeldStr):
                 input_name = "driver_input{0}".format(i)
                 buffer += "int %s = strlen(%s);\n" % (input_len_name, input_name)
-            elif isinstance(input_type, WeldVec):
+            elif isinstance(input_type, WeldVec) and wtype_is_scalar(input_type.elemType):
                 input_array_name = "driver_input_array{0}".format(i)
                 buffer += "int %s = PyArray_DIMS(%s)[0];\n" % (input_len_name, input_array_name)
         # Define all the entries of the weld input struct.
@@ -128,13 +139,27 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                     {0}.ptr = (i8*) {2};
                     """.format(weld_input_name, input_len_name, input_name)
             elif isinstance(input_type, WeldVec):
-                buffer += \
-                    """
-                    vec<{3}> {0};
-                    {0}.size = {1};
-                    {0}.ptr = ({3}*) PyArray_DATA({2});
-                    """.format(weld_input_name, input_len_name,
-                               input_array_name, wtype_to_c_type(input_type.elemType))
+                if wtype_is_scalar(input_type.elemType):
+                    buffer += \
+                        """
+                        vec<{3}> {0};
+                        {0}.size = {1};
+                        {0}.ptr = ({3}*) PyArray_DATA({2});
+                        """.format(weld_input_name, input_len_name,
+                                   input_array_name, wtype_to_c_type(input_type.elemType))
+                else:
+                    buffer += \
+                        """
+                        vec<vec<i8>> %s;
+                        %s.size = PyList_Size(%s);
+                        %s.ptr = (vec<i8>*) malloc(sizeof(vec<i8>) * %s.size);
+                        for(int i = 0; i < %s.size; i++) {
+                            PyObject* string_entry = PyList_GetItem(%s, i);
+                            %s.ptr[i].size = PyUnicode_GET_LENGTH(string_entry);
+                            %s.ptr[i].ptr = (i8*) PyUnicode_DATA(string_entry);
+                        }
+                        """ % (weld_input_name, weld_input_name, input_name, weld_input_name, weld_input_name,
+                               weld_input_name, input_name, weld_input_name, weld_input_name)
             elif wtype_is_scalar(input_type):
                 buffer += "%s %s = %s;\n" % (wtype_to_c_type(input_type), weld_input_name, input_name)
             buffer += "weld_input._%d = %s;\n" % (i, weld_input_name)
@@ -238,10 +263,10 @@ def weld_type_to_numpy_macro(wtype: WeldType) -> str:
         elif isinstance(wtype.elemType, WeldLong):
             return "NPY_INT64"
         else:
-            panic("Unrecognized IO type {0}".format(wtype.__str__))
+            panic("Unrecognized IO type {0}".format(wtype.__str__()))
             return ""
     elif isinstance(wtype, WeldStr):
         return "NPY_INT8"
     else:
-        panic("Numpy array type that is not vector {0}".format(wtype.__str__))
+        panic("Numpy array type that is not vector {0}".format(wtype.__str__()))
         return ""

@@ -32,7 +32,7 @@ class BasicEvaluationTests(unittest.TestCase):
                                                                 "output", WeldDouble())
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
-        weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input"], [])
 
@@ -60,7 +60,7 @@ class BasicEvaluationTests(unittest.TestCase):
                                    [index_op_one, index_op_two, index_op_three], "output", WeldDouble())
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
-        weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input"], [])
 
@@ -87,7 +87,7 @@ class BasicEvaluationTests(unittest.TestCase):
                                    "output", WeldDouble())
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
-        weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input"], [])
 
@@ -112,7 +112,7 @@ class BasicEvaluationTests(unittest.TestCase):
                                    "output", WeldDouble())
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
-        weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input"], [])
 
@@ -139,7 +139,7 @@ class BasicEvaluationTests(unittest.TestCase):
                                    "output", WeldDouble())
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
-        weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input"], [])
 
@@ -175,7 +175,7 @@ class BasicEvaluationTests(unittest.TestCase):
                                    "output", WeldDouble())
         out_node: wgon.WillumpOutputNode = wgon.WillumpOutputNode(add_node)
         graph: wg.WillumpGraph = wg.WillumpGraph(out_node)
-        weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input"], [])
 

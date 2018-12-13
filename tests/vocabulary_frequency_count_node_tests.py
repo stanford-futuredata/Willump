@@ -16,23 +16,22 @@ from weld.types import *
 class StringSplitNodeTests(unittest.TestCase):
     def test_basic_frequency(self):
         print("\ntest_basic_frequency")
-        input_str = "cat dog elephant"
+        input_str = ["cat", "dog", "elephant"]
         input_node: WillumpInputNode = WillumpInputNode("input_str")
-        string_split_node: StringSplitNode = StringSplitNode(input_node, "output_words")
         aux_data = []
         with open("tests/test_resources/simple_vocabulary.txt") as simple_vocab:
             simple_vocab_dict = {word: index for index, word in
                                  enumerate(simple_vocab.read().splitlines())}
         vocab_count_node: VocabularyFrequencyCountNode = \
-            VocabularyFrequencyCountNode(string_split_node, output_name='lowered_output_words',
+            VocabularyFrequencyCountNode(input_node, output_name='lowered_output_words',
                                          input_vocab_dict=simple_vocab_dict,
                                          aux_data=aux_data)
         output_node: WillumpOutputNode = WillumpOutputNode(vocab_count_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_str"], aux_data)
-        type_map = {"__willump_arg0": WeldStr(),
+        type_map = {"__willump_arg0": WeldVec(WeldStr()),
                     "__willump_retval": WeldVec(WeldLong())}
         module_name = wexec.compile_weld_program(weld_program, type_map, aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
@@ -42,23 +41,22 @@ class StringSplitNodeTests(unittest.TestCase):
 
     def test_multiples_frequency(self):
         print("\ntest_multiples_frequency")
-        input_str = "the cat the dog the elephant a dog"
+        input_str = "the cat the dog the elephant a dog".split()
         input_node: WillumpInputNode = WillumpInputNode("input_str")
-        string_split_node: StringSplitNode = StringSplitNode(input_node, "output_words")
         aux_data = []
         with open("tests/test_resources/simple_vocabulary.txt") as simple_vocab:
             simple_vocab_dict = {word: index for index, word in
                                  enumerate(simple_vocab.read().splitlines())}
         vocab_count_node: VocabularyFrequencyCountNode = \
-            VocabularyFrequencyCountNode(string_split_node, output_name='lowered_output_words',
+            VocabularyFrequencyCountNode(input_node, output_name='lowered_output_words',
                                          input_vocab_dict=simple_vocab_dict,
                                          aux_data=aux_data)
         output_node: WillumpOutputNode = WillumpOutputNode(vocab_count_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        weld_program: str = willump.evaluation.willump_weld_generator.graph_to_weld(graph)
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_str"], aux_data)
-        type_map = {"__willump_arg0": WeldStr(),
+        type_map = {"__willump_arg0": WeldVec(WeldStr()),
                     "__willump_retval": WeldVec(WeldLong())}
         module_name = wexec.compile_weld_program(weld_program, type_map, aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)

@@ -200,8 +200,7 @@ class TransformMathNode(WillumpGraphNode):
         return weld_str
 
     def __repr__(self) -> str:
-        return "Transform math node with output {0}\n Inputs: {1}\n Transform: {2}\n"\
+        return "Transform math node with output {0}\n Inputs: {1}\n\n"\
             .format(self.output_name,
-                    str(list(map(lambda node: node.get_output_name(), self.input_nodes))),
-                    self.input_mathops.__repr__())
+                    str(list(map(lambda node: node.get_output_name(), self.input_nodes))))
 
