@@ -6,8 +6,8 @@ import sys
 
 class WillumpExecutionTests(unittest.TestCase):
     def setUp(self):
-        if "tests/test_resources" not in sys.path:
-            sys.path.append("tests/test_resources")
+        if "tests/test_scripts" not in sys.path:
+            sys.path.append("tests/test_scripts")
 
     def test_execution_speed(self):
         print("\ntest_execution_speed")
