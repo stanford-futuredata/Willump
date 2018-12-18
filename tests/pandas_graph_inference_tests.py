@@ -22,7 +22,6 @@ willump_typing_map: MutableMapping[str, WeldType]
 willump_static_vars: Mapping[str, object]
 
 
-
 def sample_pandas_unpacked(array_one, array_two):
     df = pd.DataFrame()
     df["a"] = array_one
@@ -30,7 +29,8 @@ def sample_pandas_unpacked(array_one, array_two):
     df_a = df["a"].values
     df_b = df["b"].values
     sum_var = df_a + df_b
-    df["c"] = sum_var
+    mul_sum_var = sum_var * sum_var
+    df["c"] = mul_sum_var
     return df
 
 
@@ -66,7 +66,8 @@ class PandasGraphInferenceTests(unittest.TestCase):
         python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
             willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
         python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
-                                                                    graph_builder.get_aux_data(), willump_typing_map)
+                                                                                       graph_builder.get_aux_data(),
+                                                                                       willump_typing_map)
         compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
         for module in modules_to_import:
             globals()[module] = importlib.import_module(module)
@@ -74,4 +75,4 @@ class PandasGraphInferenceTests(unittest.TestCase):
         exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
              local_namespace)
         weld_output = local_namespace["sample_pandas_unpacked"](vec_one, vec_two)
-        numpy.testing.assert_almost_equal(weld_output["c"].values, numpy.array([5., 7., 9.]))
+        numpy.testing.assert_almost_equal(weld_output["c"].values, numpy.array([25., 49., 81.]))

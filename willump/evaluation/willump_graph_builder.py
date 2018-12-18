@@ -11,7 +11,7 @@ from willump.graph.string_removechar_node import StringRemoveCharNode
 from willump.graph.vocabulary_frequency_count_node import VocabularyFrequencyCountNode
 from willump.graph.logistic_regression_node import LogisticRegressionNode
 from willump.graph.array_append_node import ArrayAppendNode
-from willump.graph.array_addition_node import ArrayAdditionNode
+from willump.graph.array_binop_node import ArrayBinopNode
 from willump.graph.willump_python_node import WillumpPythonNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
@@ -114,8 +114,19 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             else:
                 return None
             if isinstance(value.op, ast.Add):
-                array_addition_node = ArrayAdditionNode(left_node, right_node, output_var_name, output_type)
-                return output_var_name, array_addition_node
+                array_binop_node = ArrayBinopNode(left_node, right_node, output_var_name, output_type, "+")
+                return output_var_name, array_binop_node
+            elif isinstance(value.op, ast.Sub):
+                array_binop_node = ArrayBinopNode(left_node, right_node, output_var_name, output_type, "-")
+                return output_var_name, array_binop_node
+            elif isinstance(value.op, ast.Mult):
+                array_binop_node = ArrayBinopNode(left_node, right_node, output_var_name, output_type, "*")
+                return output_var_name, array_binop_node
+            elif isinstance(value.op, ast.Div):
+                array_binop_node = ArrayBinopNode(left_node, right_node, output_var_name, output_type, "/")
+                return output_var_name, array_binop_node
+            else:
+                return None
         elif isinstance(value, ast.Call):
             called_function: Optional[str] = self._get_function_name(value)
             if called_function is None:

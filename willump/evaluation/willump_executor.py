@@ -47,7 +47,7 @@ def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType],
     if os.path.isfile(llvm_dump_location):
         os.remove(llvm_dump_location)
     weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
-    weld_object.weld_code = weld_program.replace("WELD_INPUT_1", "_inp0")
+    weld_object.weld_code = weld_program
     input_types: List[WeldType] = []
     arg_index: int = 0
     while "__willump_arg{0}".format(arg_index) in type_map:

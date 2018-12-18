@@ -8,19 +8,19 @@ import willump.evaluation.willump_weld_generator
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
-from willump.graph.array_addition_node import ArrayAdditionNode
+from willump.graph.array_binop_node import ArrayBinopNode
 from weld.types import *
 
 
 class ArrayAppendNodeTests(unittest.TestCase):
-    def test_basic_array_append(self):
-        print("\ntest_basic_array_append")
+    def test_basic_array_add(self):
+        print("\ntest_basic_array_add")
         vec_1 = numpy.array([1.1, 2.2, 3.3], dtype=numpy.float64)
         vec_2 = numpy.array([4, 5, 6], dtype=numpy.int64)
         vec1_input_node: WillumpInputNode = WillumpInputNode("vec_1")
         vec2_input_node: WillumpInputNode = WillumpInputNode("vec_2")
-        array_addition_node: ArrayAdditionNode = ArrayAdditionNode(vec1_input_node, vec2_input_node,
-                                                "output", WeldVec(WeldDouble()))
+        array_addition_node: ArrayBinopNode = ArrayBinopNode(vec1_input_node, vec2_input_node,
+                                                "output", WeldVec(WeldDouble()), "+")
         output_node: WillumpOutputNode = WillumpOutputNode(array_addition_node)
         graph: WillumpGraph = WillumpGraph(output_node)
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]

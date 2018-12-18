@@ -12,7 +12,7 @@ class WeldLLVMCallerTests(unittest.TestCase):
         print("\ntest_basic_weld_llvm_caller")
         basic_vec = numpy.array([1., 2., 3.], dtype=numpy.float64)
         # Add 1 to every element in an array.
-        weld_program = "(map(WELD_INPUT_1, |e| e + 1.0))"
+        weld_program = "(map(_inp0, |e| e + 1.0))"
         type_map = {"__willump_arg0": WeldVec(WeldDouble()), "e": WeldVec(WeldDouble()),
                     "__willump_retval": WeldVec(WeldDouble())}
         module_name = wexec.compile_weld_program(weld_program, type_map)

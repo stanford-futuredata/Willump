@@ -19,7 +19,7 @@ class WillumpInputNode(WillumpGraphNode):
         return "input"
 
     def get_node_weld(self) -> str:
-        return "let {0} = WELD_INPUT_{0};".format(self._arg_name)
+        return "let {0} = WELD_INPUT_{0}__;".format(self._arg_name)
 
     def get_output_name(self) -> str:
         return self._arg_name
