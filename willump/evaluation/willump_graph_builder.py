@@ -11,6 +11,7 @@ from willump.graph.string_removechar_node import StringRemoveCharNode
 from willump.graph.vocabulary_frequency_count_node import VocabularyFrequencyCountNode
 from willump.graph.logistic_regression_node import LogisticRegressionNode
 from willump.graph.array_append_node import ArrayAppendNode
+from willump.graph.array_addition_node import ArrayAdditionNode
 from willump.graph.willump_python_node import WillumpPythonNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
@@ -44,7 +45,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     def __init__(self, type_map: MutableMapping[str, WeldType],
                  static_vars: Mapping[str, object]) -> None:
         self._node_dict = {}
-        self._mathops_list = []
         self._type_map = type_map
         self._static_vars = static_vars
         self.arg_list = []
@@ -65,11 +65,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 if result is None:
                     self._create_py_node(entry)
                 else:
-                    output_var_name, node = result
-                    if node is None:
+                    output_var_name, assignment_node = result
+                    if assignment_node is None:
                         pass
                     else:
-                        self._node_dict[output_var_name] = node
+                        self._node_dict[output_var_name] = assignment_node
             elif isinstance(entry, ast.Return):
                 self.analyze_Return(entry)
             elif isinstance(entry, ast.For):
@@ -79,13 +79,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         if result is None:
                             panic("Unrecognized assign %s" % ast.dump(for_entry))
                         else:
-                            output_var_name, node = result
-                            if node is None:
+                            output_var_name, assignment_node = result
+                            if assignment_node is None:
                                 pass
-                            elif isinstance(node, WillumpGraphNode):
-                                self._node_dict[output_var_name] = node
                             else:
-                                self._mathops_list.append(node)
+                                self._node_dict[output_var_name] = assignment_node
             else:
                 panic("Unrecognized body node %s" % ast.dump(entry))
 
@@ -102,7 +100,23 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             return None
         output_type = self._type_map[output_var_name]
         value: ast.expr = node.value
-        if isinstance(value, ast.Call):
+        if isinstance(value, ast.BinOp):
+            if not isinstance(output_type, WeldVec):
+                return None
+            if isinstance(value.left, ast.Name):
+                left_name: str = value.left.id
+                left_node: WillumpGraphNode = self._node_dict[left_name]
+            else:
+                return None
+            if isinstance(value.right, ast.Name):
+                right_name: str = value.right.id
+                right_node: WillumpGraphNode = self._node_dict[right_name]
+            else:
+                return None
+            if isinstance(value.op, ast.Add):
+                array_addition_node = ArrayAdditionNode(left_node, right_node, output_var_name, output_type)
+                return output_var_name, array_addition_node
+        elif isinstance(value, ast.Call):
             called_function: Optional[str] = self._get_function_name(value)
             if called_function is None:
                 return None
@@ -249,34 +263,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 return None
 
         return _get_layer_name(call.func)
-
-    @staticmethod
-    def _pybinop_to_wbinop(binop: ast.operator) -> Optional[str]:
-        """
-        Convert from AST binops to strings for TransformMathNode.
-        """
-        if isinstance(binop, ast.Add):
-            return "+"
-        elif isinstance(binop, ast.Sub):
-            return "-"
-        elif isinstance(binop, ast.Mult):
-            return "*"
-        elif isinstance(binop, ast.Div):
-            return "/"
-        else:
-            return None
-
-    @staticmethod
-    def _pyunop_to_wunop(unop: str) -> Optional[str]:
-        """
-        Convert from Python function unops to strings for TransformMathModule.
-        """
-        if unop == "math.sqrt":
-            return "sqrt"
-        elif unop == "math.log":
-            return "log"
-        else:
-            return None
 
 
 class ExpressionVariableAnalyzer(ast.NodeVisitor):

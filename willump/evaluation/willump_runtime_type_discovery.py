@@ -1,7 +1,7 @@
 import ast
 import copy
 import numpy
-from typing import List
+from typing import List, Optional
 
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 from willump import panic
@@ -106,7 +106,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
         return instrumentation_statements
 
 
-def py_var_to_weld_type(py_var: object) -> WeldType:
+def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
     """
     Get the Weld type of a Python variable.
 
@@ -138,8 +138,6 @@ def py_var_to_weld_type(py_var: object) -> WeldType:
             return WeldVec(WeldDouble())
         else:
             panic("Unrecognized ndarray type {0}".format(py_var.dtype.__str__()))
-            return WeldType()
+            return None
     else:
-        panic("Unrecognized type of object {0} with type {1}"
-              .format(py_var.__str__(), type(py_var)))
-        return WeldType()
+        return None

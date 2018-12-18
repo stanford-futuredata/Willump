@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import time
+import willump.evaluation.willump_executor
 
 # Physical constants:
 c = 299.792458  # Speed of light
@@ -11,6 +12,7 @@ m_tau = 1776.82  # Tau mass (in MeV)
 
 
 # Function to add extra features:
+# @willump.evaluation.willump_executor.willump_execute
 def add_features(df):
     # Number of events:
     N = len(df)
@@ -155,6 +157,10 @@ if __name__ == "__main__":
     # Add extra features:
     num_rows = len(df.index)
     t0 = time.time()
+    mini_df = df.head(2).copy()
+    add_features(mini_df)
+    add_features(mini_df)
+    add_features(mini_df)
     df = add_features(df)
     time_elapsed = time.time() - t0
     print("Featurization time: {}".format(time_elapsed))
