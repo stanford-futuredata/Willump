@@ -1,6 +1,6 @@
 import ast
 
-from willump import panic
+from willump import *
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
@@ -9,6 +9,7 @@ from willump.graph.string_split_node import StringSplitNode
 from willump.graph.string_lower_node import StringLowerNode
 from willump.graph.string_removechar_node import StringRemoveCharNode
 from willump.graph.vocabulary_frequency_count_node import VocabularyFrequencyCountNode
+from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.logistic_regression_node import LogisticRegressionNode
 from willump.graph.array_append_node import ArrayAppendNode
 from willump.graph.array_binop_node import ArrayBinopNode
@@ -160,7 +161,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             # TODO:  Find a real function to use here.
             elif "willump_frequency_count" in called_function:
                 freq_count_input_var: str = value.args[0].id
-                vocab_dict = self._static_vars["willump_frequency_count_vocab"]
+                vocab_dict = self._static_vars[WILLUMP_FREQUENCY_COUNT_VOCAB]
                 freq_count_input_node: WillumpGraphNode = self._node_dict[freq_count_input_var]
                 vocab_freq_count_node: VocabularyFrequencyCountNode = VocabularyFrequencyCountNode(
                     input_node=freq_count_input_node, output_name=output_var_name,
@@ -170,8 +171,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             # TODO:  Lots of potential predictors, differentiate them!
             elif "predict" in called_function:
                 logit_input_var: str = value.args[0].id
-                logit_weights = self._static_vars["willump_logistic_regression_weights"]
-                logit_intercept = self._static_vars["willump_logistic_regression_intercept"]
+                logit_weights = self._static_vars[WILLUMP_LOGISTIC_REGRESSION_WEIGHTS]
+                logit_intercept = self._static_vars[WILLUMP_LOGISTIC_REGRESSION_INTERCEPT]
                 logit_input_node: WillumpGraphNode = self._node_dict[logit_input_var]
                 logit_node: LogisticRegressionNode = LogisticRegressionNode(
                     input_node=logit_input_node, output_name=output_var_name,
@@ -190,6 +191,20 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                      self._type_map[append_input_array],
                                                                      self._type_map[output_var_name])
                 return output_var_name, array_append_node
+            # TODO:  Don't assume name is input_vect.
+            elif "input_vect.transform" in called_function:
+                if self._static_vars[WILLUMP_COUNT_VECTORIZER_LOWERCASE] is True \
+                        or self._static_vars[WILLUMP_COUNT_VECTORIZER_ANALYZER] is not 'char':
+                    return self._create_py_node(node)
+                freq_count_input_var: str = value.args[0].id
+                vocab_dict = self._static_vars[WILLUMP_COUNT_VECTORIZER_VOCAB]
+                array_cv_input_node: WillumpGraphNode = self._node_dict[freq_count_input_var]
+                array_cv_node: ArrayCountVectorizerNode = ArrayCountVectorizerNode(
+                    input_node=array_cv_input_node, output_name=output_var_name,
+                    input_vocab_dict=vocab_dict, aux_data=self.aux_data,
+                    ngram_range=self._static_vars[WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE]
+                )
+                return output_var_name, array_cv_node
             # TODO:  What to do with these?
             elif "reshape" in called_function:
                 return output_var_name, None

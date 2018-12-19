@@ -2,6 +2,15 @@ import sys
 import re
 import os
 
+# Static variable names
+WILLUMP_LOGISTIC_REGRESSION_WEIGHTS = "willump_logistic_regression_weights"
+WILLUMP_LOGISTIC_REGRESSION_INTERCEPT = "willump_logistic_regression_intercept"
+WILLUMP_FREQUENCY_COUNT_VOCAB = "willump_frequency_count_vocab"
+WILLUMP_COUNT_VECTORIZER_VOCAB = "willump_cv_vocab"
+WILLUMP_COUNT_VECTORIZER_ANALYZER = "willump_cv_analyzer"
+WILLUMP_COUNT_VECTORIZER_LOWERCASE = "willump_cv_lowercase"
+WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE = "willump_cv_ngram_range"
+
 
 def panic(error: str):
     print("Error: {0}".format(error))

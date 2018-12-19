@@ -4,7 +4,8 @@ import numpy
 from typing import List, Optional
 
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
-from willump import panic
+from willump import *
+import scipy.sparse.csr
 
 from weld.types import *
 
@@ -75,7 +76,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 vocab_dict_name: str = value.args[1].id
                 static_variable_extraction_code = \
                     """willump_static_vars["{0}"] = {1}""" \
-                        .format("willump_frequency_count_vocab", vocab_dict_name)
+                        .format(WILLUMP_FREQUENCY_COUNT_VOCAB, vocab_dict_name)
                 freq_count_instrumentation_ast: ast.Module = \
                     ast.parse(static_variable_extraction_code, "exec")
                 freq_count_instrumentation_statements: List[ast.stmt] = \
@@ -84,9 +85,9 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             elif "predict" in called_function_name:
                 static_variable_extraction_code = \
                     """willump_static_vars["{0}"] = {1}\n""" \
-                        .format("willump_logistic_regression_weights", "model.coef_") + \
+                        .format(WILLUMP_LOGISTIC_REGRESSION_WEIGHTS, "model.coef_") + \
                     """willump_static_vars["{0}"] = {1}\n""" \
-                        .format("willump_logistic_regression_intercept", "model.intercept_")
+                        .format(WILLUMP_LOGISTIC_REGRESSION_INTERCEPT, "model.intercept_")
                 logit_instrumentation_ast: ast.Module = \
                     ast.parse(static_variable_extraction_code, "exec")
                 logit_instrumentation_statements: List[ast.stmt] = logit_instrumentation_ast.body
@@ -94,7 +95,13 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             elif "transform" in called_function_name:
                 static_variable_extraction_code = \
                     """willump_static_vars["{0}"] = {1}\n""" \
-                        .format("willump_logistic_regression_weights", "input_vect.vocabulary_")
+                        .format(WILLUMP_COUNT_VECTORIZER_VOCAB, "input_vect.vocabulary_") + \
+                    """willump_static_vars["{0}"] = {1}\n""" \
+                        .format(WILLUMP_COUNT_VECTORIZER_ANALYZER, "input_vect.analyzer") + \
+                    """willump_static_vars["{0}"] = {1}\n""" \
+                        .format(WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE, "input_vect.ngram_range") + \
+                    """willump_static_vars["{0}"] = {1}\n""" \
+                        .format(WILLUMP_COUNT_VECTORIZER_LOWERCASE, "input_vect.lowercase")
                 count_vectorizer_instrumentation_ast: ast.Module = \
                     ast.parse(static_variable_extraction_code, "exec")
                 count_vectorizer_instrumentation_statements: List[ast.stmt] = count_vectorizer_instrumentation_ast.body
@@ -131,6 +138,9 @@ def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
     # TODO:  This fails badly if a list (of strings) shows up empty (degenerate input).
     elif isinstance(py_var, list) and len(py_var) > 0 and isinstance(py_var[0], str):
         return WeldVec(WeldStr())
+    # TODO:  Actual sparse matrices
+    elif isinstance(py_var, scipy.sparse.csr.csr_matrix):
+        return WeldVec(WeldVec(WeldLong()))
     # TODO:  Handle multidimensional arrays
     elif isinstance(py_var, numpy.ndarray):
         if py_var.dtype == numpy.int8:
@@ -149,4 +159,5 @@ def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
             panic("Unrecognized ndarray type {0}".format(py_var.dtype.__str__()))
             return None
     else:
+        # print("Unrecognized var type {0}".format(type(py_var)))
         return None

@@ -4,6 +4,7 @@ import importlib
 import inspect
 import ast
 import pandas as pd
+from sklearn.feature_extraction.text import CountVectorizer
 
 import willump.evaluation.willump_weld_generator
 from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
@@ -16,7 +17,6 @@ import willump.evaluation.willump_executor as wexec
 from typing import Mapping, MutableMapping, List, Tuple
 import typing
 from weld.types import *
-import astpretty
 
 willump_typing_map: MutableMapping[str, WeldType]
 willump_static_vars: Mapping[str, object]
@@ -45,6 +45,22 @@ def sample_pandas_unpacked_nested_ops(array_one, array_two, array_three):
     op_var = (df_a - df_c) + df_b * df_c
     df["ret"] = op_var
     return df
+
+
+with open("tests/test_resources/simple_vocabulary.txt") as simple_vocab:
+    simple_vocab_dict = {word: index for index, word in
+                         enumerate(simple_vocab.read().splitlines())}
+vectorizer = CountVectorizer(analyzer='char', ngram_range=(3, 6), min_df=0.005, max_df=1.0,
+                       lowercase=False, stop_words=None, binary=False, decode_error='replace',
+                       vocabulary=simple_vocab_dict)
+
+
+def sample_pandas_count_vectorizer(array_one, input_vect):
+    df = pd.DataFrame()
+    df["strings"] = array_one
+    np_input = list(df["strings"].values)
+    transformed_result = input_vect.transform(np_input)
+    return transformed_result
 
 
 class PandasGraphInferenceTests(unittest.TestCase):
@@ -114,3 +130,27 @@ class PandasGraphInferenceTests(unittest.TestCase):
              local_namespace)
         weld_output = local_namespace["sample_pandas_unpacked_nested_ops"](vec_one, vec_two, vec_three)
         numpy.testing.assert_almost_equal(weld_output["ret"].values, numpy.array([1., 6., 3.]))
+
+    def test_pandas_count_vectorizer(self):
+        print("\ntest_pandas_count_vectorizer")
+        sample_python: str = inspect.getsource(sample_pandas_count_vectorizer)
+        string_array = ["theaancatdog house", "bobthe builder"]
+        self.set_typing_map(sample_python, "sample_pandas_count_vectorizer", [string_array, vectorizer])
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                                       graph_builder.get_aux_data(),
+                                                                                       willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_pandas_count_vectorizer"](string_array, vectorizer)
+        numpy.testing.assert_almost_equal(weld_output[0], numpy.array([1, 0, 0, 1, 1, 1]))
+        numpy.testing.assert_almost_equal(weld_output[1], numpy.array([1, 0, 0, 0, 0, 0]))

@@ -184,7 +184,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             struct WeldInputArgs weld_input_args;
             weld_input_args.input = &weld_input;
             weld_input_args.nworkers = 1;
-            weld_input_args.memlimit = 100000000;
+            weld_input_args.memlimit = 10000000000;
             weld_input_args.run_id = weld_runst_init(weld_input_args.nworkers, weld_input_args.memlimit);
         
             WeldOutputArgs* weld_output_args = run(&weld_input_args);
