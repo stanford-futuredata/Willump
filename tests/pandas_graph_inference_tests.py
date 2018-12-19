@@ -30,7 +30,20 @@ def sample_pandas_unpacked(array_one, array_two):
     df_b = df["b"].values
     sum_var = df_a + df_b
     mul_sum_var = sum_var * sum_var
-    df["c"] = mul_sum_var
+    df["ret"] = mul_sum_var
+    return df
+
+
+def sample_pandas_unpacked_nested_ops(array_one, array_two, array_three):
+    df = pd.DataFrame()
+    df["a"] = array_one
+    df["b"] = array_two
+    df["c"] = array_three
+    df_a = df["a"].values
+    df_b = df["b"].values
+    df_c = df["c"].values
+    op_var = (df_a - df_c) + df_b * df_c
+    df["ret"] = op_var
     return df
 
 
@@ -75,4 +88,29 @@ class PandasGraphInferenceTests(unittest.TestCase):
         exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
              local_namespace)
         weld_output = local_namespace["sample_pandas_unpacked"](vec_one, vec_two)
-        numpy.testing.assert_almost_equal(weld_output["c"].values, numpy.array([25., 49., 81.]))
+        numpy.testing.assert_almost_equal(weld_output["ret"].values, numpy.array([25., 49., 81.]))
+
+    def test_unpacked_pandas_nested_ops(self):
+        print("\ntest_unpacked_pandas_nested_ops")
+        sample_python: str = inspect.getsource(sample_pandas_unpacked_nested_ops)
+        vec_one = numpy.array([1., 2., 3.], dtype=numpy.float64)
+        vec_two = numpy.array([4., 5., 6.], dtype=numpy.float64)
+        vec_three = numpy.array([0., 1., 0.], dtype=numpy.float64)
+        self.set_typing_map(sample_python, "sample_pandas_unpacked_nested_ops", [vec_one, vec_two, vec_three])
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                                       graph_builder.get_aux_data(),
+                                                                                       willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_pandas_unpacked_nested_ops"](vec_one, vec_two, vec_three)
+        numpy.testing.assert_almost_equal(weld_output["ret"].values, numpy.array([1., 6., 3.]))

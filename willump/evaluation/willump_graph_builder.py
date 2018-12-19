@@ -64,52 +64,42 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             self.arg_list.append(arg_name)
         for entry in node.body:
             if isinstance(entry, ast.Assign):
-                result = self.analyze_Assign(entry)
-                if result is None:
-                    output_var_name, assignment_node = self._create_py_node(entry)
-                    self._node_dict[output_var_name] = assignment_node
+                output_var_name, assignment_node = self.analyze_Assign(entry)
+                if assignment_node is None:
+                    pass
                 else:
-                    output_var_name, assignment_node = result
-                    if assignment_node is None:
-                        pass
-                    else:
-                        self._node_dict[output_var_name] = assignment_node
+                    self._node_dict[output_var_name] = assignment_node
             elif isinstance(entry, ast.Return):
                 self.analyze_Return(entry)
             elif isinstance(entry, ast.For):
                 for for_entry in entry.body:
-                    if isinstance(for_entry, ast.Assign):
-                        result = self.analyze_Assign(for_entry)
-                        if result is None:
-                            panic("Unrecognized assign %s" % ast.dump(for_entry))
-                        else:
-                            output_var_name, assignment_node = result
-                            if assignment_node is None:
-                                pass
-                            else:
-                                self._node_dict[output_var_name] = assignment_node
+                    output_var_name, assignment_node = self.analyze_Assign(for_entry)
+                    if assignment_node is None:
+                        pass
+                    else:
+                        self._node_dict[output_var_name] = assignment_node
             else:
                 panic("Unrecognized body node %s" % ast.dump(entry))
 
     def analyze_Assign(self, node: ast.Assign) -> \
-            Optional[Tuple[str, Optional[WillumpGraphNode]]]:
+            Tuple[str, Optional[WillumpGraphNode]]:
         """
-        Process an assignment AST node into either a Willump node or MathOperation that
+        Process an assignment AST node into either a Willump Weld node or Willump Python node that
         defines the variable being assigned.
         """
         assert (len(node.targets) == 1)  # Assume assignment to only one variable.
         target: ast.expr = node.targets[0]
         output_var_name = self.get_assignment_target_name(target)
         if output_var_name is None:
-            return None
+            return self._create_py_node(node)
         output_type = self._type_map[output_var_name]
         value: ast.expr = node.value
         if isinstance(value, ast.BinOp):
             if not isinstance(output_type, WeldVec):
-                return None
+                return self._create_py_node(node)
             # TODO:  This is a hacky way to get around the bad type system for intermediates.
             if isinstance(target, ast.Subscript):
-                return None
+                return self._create_py_node(node)
             if isinstance(value.left, ast.Name) and value.left.id in self._node_dict:
                 left_name: str = value.left.id
                 left_node: WillumpGraphNode = self._node_dict[left_name]
@@ -137,11 +127,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 array_binop_node = ArrayBinopNode(left_node, right_node, output_var_name, output_type, "/")
                 return output_var_name, array_binop_node
             else:
-                return None
+                return self._create_py_node(node)
         elif isinstance(value, ast.Call):
             called_function: Optional[str] = self._get_function_name(value)
             if called_function is None:
-                return None
+                return self._create_py_node(node)
             # TODO:  Recognize functions in attributes properly.
             if "split" in called_function:
                 split_input_var: str = value.func.value.id
@@ -204,9 +194,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             elif "reshape" in called_function:
                 return output_var_name, None
             else:
-                return None
+                return self._create_py_node(node)
         else:
-            return None
+            return self._create_py_node(node)
 
     def analyze_Return(self, node: ast.Return) -> None:
         """
@@ -253,15 +243,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         new_assign_node: ast.Assign = ast.Assign()
         new_assign_node.targets = [temp_var_name_node]
         new_assign_node.value = entry
-        result = self.analyze_Assign(new_assign_node)
-        if result is None:
-            output_var_name, assignment_node = self._create_py_node(new_assign_node)
-            assert (output_var_name == temp_var_name_node.id)
-            return output_var_name, assignment_node
-        else:
-            output_var_name, assignment_node = result
-            assert (output_var_name == temp_var_name_node.id)
-            return output_var_name, assignment_node
+        return self.analyze_Assign(new_assign_node)
 
     def get_willump_graph(self) -> WillumpGraph:
         return self.willump_graph
