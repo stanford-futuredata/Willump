@@ -201,7 +201,21 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                     PyList_Append(ret, PyUnicode_FromStringAndSize((const char *) str_ptr, str_size));
                 }
                 """
-        elif isinstance(output_type, WeldVec) and not isinstance(output_type.elemType, WeldStr):
+        # TODO:  Return a 2-D array instead of a list of 1-D arrays.
+        elif isinstance(output_type, WeldVec) and isinstance(output_type.elemType, WeldVec):
+            buffer += \
+                """
+                PyObject* ret = PyList_New(0);
+                for(int i = 0; i < weld_output->size; i++) {
+                    %s* entry_ptr = weld_output->ptr[i].ptr;
+                    i64 entry_size = weld_output->ptr[i].size;
+                    PyArrayObject* ret_entry = 
+                        (PyArrayObject*) PyArray_SimpleNewFromData(1, &entry_size, %s, entry_ptr);
+                    PyArray_ENABLEFLAGS(ret_entry, NPY_ARRAY_OWNDATA);
+                    PyList_Append(ret, (PyObject*) ret_entry);
+                }
+                """ % (str(output_type.elemType.elemType), weld_type_to_numpy_macro(output_type.elemType))
+        elif isinstance(output_type, WeldVec):
             buffer += \
                 """
                 PyArrayObject* ret = 

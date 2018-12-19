@@ -20,6 +20,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
 
     TODO:  Add support for control flow changes inside the function body.
     """
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
         new_node = copy.deepcopy(node)
         new_body: List[ast.stmt] = []
@@ -28,10 +29,10 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             argument_name: str = arg.arg
             argument_internal_name = "__willump_arg{0}".format(i)
             argument_instrumentation_code: str = \
-                """willump_typing_map["{0}"] = py_var_to_weld_type({0})\n"""\
-                .format(argument_name) + \
-                """willump_typing_map["{0}"] = py_var_to_weld_type({1})"""\
-                .format(argument_internal_name, argument_name)
+                """willump_typing_map["{0}"] = py_var_to_weld_type({0})\n""" \
+                    .format(argument_name) + \
+                """willump_typing_map["{0}"] = py_var_to_weld_type({1})""" \
+                    .format(argument_internal_name, argument_name)
             instrumentation_ast: ast.Module = ast.parse(argument_instrumentation_code, "exec")
             instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
             new_body = new_body + instrumentation_statements
@@ -39,7 +40,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             if isinstance(body_entry, ast.Assign):
                 # Type all variables as they are assigned.
                 new_body.append(body_entry)
-                assert(len(body_entry.targets) == 1)  # Assume assignment to only one variable.
+                assert (len(body_entry.targets) == 1)  # Assume assignment to only one variable.
                 target: ast.expr = body_entry.targets[0]
                 target_type_statement: List[ast.stmt] = self._analyze_target_type(target)
                 new_body = new_body + target_type_statement
@@ -74,22 +75,30 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 vocab_dict_name: str = value.args[1].id
                 static_variable_extraction_code = \
                     """willump_static_vars["{0}"] = {1}""" \
-                    .format("willump_frequency_count_vocab", vocab_dict_name)
+                        .format("willump_frequency_count_vocab", vocab_dict_name)
                 freq_count_instrumentation_ast: ast.Module = \
                     ast.parse(static_variable_extraction_code, "exec")
                 freq_count_instrumentation_statements: List[ast.stmt] = \
                     freq_count_instrumentation_ast.body
                 return_statements += freq_count_instrumentation_statements
-            if "predict" in called_function_name:
+            elif "predict" in called_function_name:
                 static_variable_extraction_code = \
                     """willump_static_vars["{0}"] = {1}\n""" \
-                    .format("willump_logistic_regression_weights", "model.coef_") + \
+                        .format("willump_logistic_regression_weights", "model.coef_") + \
                     """willump_static_vars["{0}"] = {1}\n""" \
-                    .format("willump_logistic_regression_intercept", "model.intercept_")
+                        .format("willump_logistic_regression_intercept", "model.intercept_")
                 logit_instrumentation_ast: ast.Module = \
                     ast.parse(static_variable_extraction_code, "exec")
                 logit_instrumentation_statements: List[ast.stmt] = logit_instrumentation_ast.body
                 return_statements += logit_instrumentation_statements
+            elif "transform" in called_function_name:
+                static_variable_extraction_code = \
+                    """willump_static_vars["{0}"] = {1}\n""" \
+                        .format("willump_logistic_regression_weights", "input_vect.vocabulary_")
+                count_vectorizer_instrumentation_ast: ast.Module = \
+                    ast.parse(static_variable_extraction_code, "exec")
+                count_vectorizer_instrumentation_statements: List[ast.stmt] = count_vectorizer_instrumentation_ast.body
+                return_statements += count_vectorizer_instrumentation_statements
         return return_statements
 
     @staticmethod

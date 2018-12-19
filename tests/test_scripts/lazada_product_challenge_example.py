@@ -4,7 +4,8 @@ import pandas as pd
 
 
 def vectorizer_transform(input_vect, input_df):
-    transformed_result = input_vect.transform(input_df["title"])
+    np_input = input_df["title"].values
+    transformed_result = input_vect.transform(np_input)
     return transformed_result
 
 

@@ -8,31 +8,37 @@ from typing import List, Tuple, Mapping
 import importlib
 
 
-class VocabularyFrequencyCountNode(WillumpGraphNode):
+class ArrayCountVectorizerNode(WillumpGraphNode):
     """
-    Willump Vocabulary Frequency Count node.  Take in a list of words and an ordered vocabulary
-    and return a vector of how many times each word in the vocabulary occurred in the list.
+    Willump Array Count Vectorizer node.  Take in a list of strings and an ordered vocabulary
+    and return vectors of how many times each word in the vocabulary occurred in each string in the list.
     """
     _input_nodes: List[WillumpGraphNode]
-    _input_string_name: str
+    _input_array_string_name: str
     _output_name: str
     _vocab_dict_name: str
     _big_zeros_vector_name: str
+    _vocab_size: int
+    _min_gram: int
+    _max_gram: int
 
     def __init__(self, input_node: WillumpGraphNode, output_name: str,
-                 input_vocab_dict: Mapping[str, int], aux_data: List[Tuple[int, WeldType]]) -> None:
+                 input_vocab_dict: Mapping[str, int], aux_data: List[Tuple[int, WeldType]],
+                 ngram_range: Tuple[int, int]) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
-        self._input_string_name = input_node.get_output_name()
+        self._input_array_string_name = input_node.get_output_name()
         self._output_name = output_name
         vocabulary_list = sorted(input_vocab_dict.keys(), key=lambda x: input_vocab_dict[x])
+        self._vocab_size = len(vocabulary_list)
         self._vocab_dict_name = "AUX_DATA_{0}".format(len(aux_data))
         self._big_zeros_vector_name = "AUX_DATA_{0}".format(len(aux_data) + 1)
         self._input_nodes = []
         self._input_nodes.append(input_node)
         self._input_nodes.append(WillumpInputNode(self._vocab_dict_name))
         self._input_nodes.append(WillumpInputNode(self._big_zeros_vector_name))
+        self._min_gram, self._max_gram = ngram_range
         for entry in self._process_aux_data(vocabulary_list):
             aux_data.append(entry)
 
@@ -40,7 +46,7 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
         return self._input_nodes
 
     def get_node_type(self) -> str:
-        return "vocab_freq_count"
+        return "array count vectorizer"
 
     @staticmethod
     def _process_aux_data(vocabulary_list) -> List[Tuple[int, WeldType]]:
@@ -67,25 +73,41 @@ class VocabularyFrequencyCountNode(WillumpGraphNode):
     def get_node_weld(self) -> str:
         weld_program = \
             """
-            let OUTPUT_NAME: vec[i64] = result(for(INPUT_NAME,
-                vecmerger[i64, +](BIG_ZEROS_VECTOR),
-                | bs: vecmerger[i64, +], i: i64, word: vec[i8] |
-                    let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
-                    if(exists_and_key.$0,
-                        merge(bs, {exists_and_key.$1, 1L}),
-                        bs
-                    )
+            let OUTPUT_NAME: vec[vec[i64]] = result(for(INPUT_NAME,
+                appender[vec[i64]],
+                | count_vectors: appender[vec[i64]], i_out: i64, string: vec[i8] |
+                    let string_len: i64 = len(string);
+                    let string_vector: vec[i64] = result(for(string,
+                        vecmerger[i64, +](BIG_ZEROS_VECTOR),
+                        | count_vector:  vecmerger[i64, +], i_string: i64, char: i8 |
+                        for(rangeiter(NGRAM_MINL, NGRAM_MAXL, 1L),
+                            count_vector,
+                            | count_vector_inner: vecmerger[i64, +], num_iter, iter_value |
+                                if(i_string + iter_value <= string_len,
+                                    let word: vec[i8] = slice(string, i_string, iter_value);
+                                    let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
+                                    if(exists_and_key.$0,
+                                        merge(count_vector_inner, {exists_and_key.$1, 1L}),
+                                        count_vector_inner
+                                    ),
+                                    count_vector_inner    
+                                )
+                        )
+                    ));
+                    merge(count_vectors, string_vector)
             ));
             """
         weld_program = weld_program.replace("VOCAB_DICT_NAME", self._vocab_dict_name)
         weld_program = weld_program.replace("BIG_ZEROS_VECTOR", self._big_zeros_vector_name)
-        weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
+        weld_program = weld_program.replace("INPUT_NAME", self._input_array_string_name)
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
+        weld_program = weld_program.replace("NGRAM_MIN", str(self._min_gram))
+        weld_program = weld_program.replace("NGRAM_MAX", str(self._max_gram))
         return weld_program
 
     def get_output_name(self) -> str:
         return self._output_name
 
     def __repr__(self):
-        return "Vocabulary frequency count node for input {0} output {1}\n"\
-            .format(self._input_string_name, self._output_name)
+        return "Array count-vectorizer node for input {0} output {1}\n"\
+            .format(self._input_array_string_name, self._output_name)
