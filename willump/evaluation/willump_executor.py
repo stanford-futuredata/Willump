@@ -118,6 +118,7 @@ def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
     new_functiondef = copy.copy(original_functiondef)
     new_functiondef.body[0].body = py_weld_statements
     new_functiondef.body[0].decorator_list = []
+    new_functiondef = ast.fix_missing_locations(new_functiondef)
     return new_functiondef
 
 

@@ -6,7 +6,8 @@ import time
 import willump.evaluation.willump_executor
 
 # Physical constants:
-c = 299.792458  # Speed of light
+# TODO:  Proper typing for c (and other floats mixed with arrays).
+# c = 299.792458  # Speed of light
 m_mu = 105.6583715  # Muon mass (in MeV)
 m_tau = 1776.82  # Tau mass (in MeV)
 
@@ -161,12 +162,14 @@ def add_features(df):
 if __name__ == "__main__":
     # Prediction and output:
     df = pd.read_csv("tests/test_resources/flavors_of_physics_huge.csv", index_col='id')
+    c = np.ones(2) * 299.792458
     # Add extra features:
     num_rows = len(df.index)
     mini_df = df.head(2).copy()
     add_features(mini_df)
     add_features(mini_df)
     add_features(mini_df)
+    c = np.ones(len(df)) * 299.792458
     t0 = time.time()
     df = add_features(df)
     time_elapsed = time.time() - t0

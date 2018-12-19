@@ -41,6 +41,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     _static_vars: Mapping[str, object]
     # Saved data structures required by some nodes.
     aux_data: List[Tuple[int, WeldType]]
+    # Temporary variable counter
+    _temp_var_counter: int
 
     def __init__(self, type_map: MutableMapping[str, WeldType],
                  static_vars: Mapping[str, object]) -> None:
@@ -49,6 +51,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         self._static_vars = static_vars
         self.arg_list = []
         self.aux_data = []
+        self._temp_var_counter = 0
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """
@@ -63,7 +66,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             if isinstance(entry, ast.Assign):
                 result = self.analyze_Assign(entry)
                 if result is None:
-                    self._create_py_node(entry)
+                    output_var_name, assignment_node = self._create_py_node(entry)
+                    self._node_dict[output_var_name] = assignment_node
                 else:
                     output_var_name, assignment_node = result
                     if assignment_node is None:
@@ -103,16 +107,23 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         if isinstance(value, ast.BinOp):
             if not isinstance(output_type, WeldVec):
                 return None
-            if isinstance(value.left, ast.Name):
+            # TODO:  This is a hacky way to get around the bad type system for intermediates.
+            if isinstance(target, ast.Subscript):
+                return None
+            if isinstance(value.left, ast.Name) and value.left.id in self._node_dict:
                 left_name: str = value.left.id
                 left_node: WillumpGraphNode = self._node_dict[left_name]
             else:
-                return None
-            if isinstance(value.right, ast.Name):
+                # TODO Handle typing properly.
+                left_name, left_node = self._create_temp_var_from_node(value.left, output_type)
+                self._node_dict[left_name] = left_node
+            if isinstance(value.right, ast.Name) and value.right.id in self._node_dict:
                 right_name: str = value.right.id
                 right_node: WillumpGraphNode = self._node_dict[right_name]
             else:
-                return None
+                # TODO:  Handle typing properly.
+                right_name, right_node = self._create_temp_var_from_node(value.right, output_type)
+                self._node_dict[right_name] = right_node
             if isinstance(value.op, ast.Add):
                 array_binop_node = ArrayBinopNode(left_node, right_node, output_var_name, output_type, "+")
                 return output_var_name, array_binop_node
@@ -215,7 +226,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         else:
             panic("Unrecognized return: {0}".format(ast.dump(node)))
 
-    def _create_py_node(self, entry: ast.AST) -> None:
+    def _create_py_node(self, entry: ast.AST) -> Tuple[str, WillumpGraphNode]:
         entry_analyzer = ExpressionVariableAnalyzer()
         entry_analyzer.visit(entry)
         input_list, output_list = entry_analyzer.get_in_out_list()
@@ -227,8 +238,30 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             if input_var in self._node_dict:
                 input_node_list.append(self._node_dict[input_var])
         willump_python_node: WillumpPythonNode = WillumpPythonNode(entry, output_var_name, input_node_list)
-        self._node_dict[output_var_name] = willump_python_node
-        return
+        return output_var_name, willump_python_node
+
+    def _create_temp_var_from_node(self, entry: ast.expr, entry_type: WeldType) -> Tuple[str, WillumpGraphNode]:
+        """
+        Creates a variable equal to the value returned when evaluating an expression.  Returns the name of the variable
+        and the node that generates it.
+        """
+        temp_var_name_node: ast.Name = ast.Name()
+        temp_var_name_node.id = "__TEMP__%d" % self._temp_var_counter
+        self._type_map[temp_var_name_node.id] = entry_type
+        self._temp_var_counter += 1
+        temp_var_name_node.ctx = ast.Store()
+        new_assign_node: ast.Assign = ast.Assign()
+        new_assign_node.targets = [temp_var_name_node]
+        new_assign_node.value = entry
+        result = self.analyze_Assign(new_assign_node)
+        if result is None:
+            output_var_name, assignment_node = self._create_py_node(new_assign_node)
+            assert (output_var_name == temp_var_name_node.id)
+            return output_var_name, assignment_node
+        else:
+            output_var_name, assignment_node = result
+            assert (output_var_name == temp_var_name_node.id)
+            return output_var_name, assignment_node
 
     def get_willump_graph(self) -> WillumpGraph:
         return self.willump_graph
