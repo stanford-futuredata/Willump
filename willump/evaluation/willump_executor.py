@@ -106,13 +106,13 @@ def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST
             for input_name in input_list:
                 argument_string += input_name + ","
             argument_string = argument_string[:-1]  # Remove trailing comma.
-            if not isinstance(type_map[output_name], WeldCSR):
+            if True:  # not isinstance(type_map[output_name], WeldCSR):
                 python_string = "%s = %s.caller_func(%s)" % (output_name, module_name, argument_string)
             else:
                 output_name_w = output_name + "_weld__"
                 python_string = "%s = %s.caller_func(%s)\n" % (output_name_w, module_name, argument_string) +\
-                    "%s = scipy.sparse.csr.csr_matrix((%s[2], (%s[0], %s[1])))" % \
-                                (output_name, output_name_w, output_name_w, output_name_w)
+                    "%s = scipy.sparse.csr.csr_matrix((%s[2], (%s[0], %s[1])), shape=(len(%s[0]), %d))" % \
+                                (output_name, output_name_w, output_name_w, output_name_w, output_name_w, 8793)
             python_ast_module: ast.Module = ast.parse(python_string)
             all_python_program = all_python_program + python_ast_module.body
     return all_python_program, module_to_import
