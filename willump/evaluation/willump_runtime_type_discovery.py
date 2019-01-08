@@ -138,9 +138,23 @@ def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
     # TODO:  This fails badly if a list (of strings) shows up empty (degenerate input).
     elif isinstance(py_var, list) and len(py_var) > 0 and isinstance(py_var[0], str):
         return WeldVec(WeldStr())
-    # TODO:  Actual sparse matrices
+    # Sparse matrix type used by CountVectorizer
     elif isinstance(py_var, scipy.sparse.csr.csr_matrix):
-        return WeldVec(WeldVec(WeldLong()))
+        if py_var.dtype == numpy.int8:
+            return WeldCSR(WeldChar())
+        elif py_var.dtype == numpy.int16:
+            return WeldCSR(WeldInt16())
+        elif py_var.dtype == numpy.int32:
+            return WeldCSR(WeldInt())
+        elif py_var.dtype == numpy.int64:
+            return WeldCSR(WeldLong())
+        elif py_var.dtype == numpy.float32:
+            return WeldCSR(WeldFloat())
+        elif py_var.dtype == numpy.float64:
+            return WeldCSR(WeldDouble())
+        else:
+            panic("Unrecognized ndarray type {0}".format(py_var.dtype.__str__()))
+            return None
     # TODO:  Handle multidimensional arrays
     elif isinstance(py_var, numpy.ndarray):
         if py_var.dtype == numpy.int8:

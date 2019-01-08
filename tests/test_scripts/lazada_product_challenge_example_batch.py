@@ -2,6 +2,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 import time
 import pandas as pd
 import willump.evaluation.willump_executor
+import scipy.sparse.csr
 
 
 @willump.evaluation.willump_executor.willump_execute
@@ -27,6 +28,7 @@ vectorizer_transform(vect, mini_df)
 vectorizer_transform(vect, mini_df)
 t0 = time.time()
 X_title = vectorizer_transform(vect, df)
+# X_title = scipy.sparse.csr.csr_matrix((X_title[2], (X_title[0], X_title[1])))
 time_elapsed = time.time() - t0
 print("Title Processing Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))

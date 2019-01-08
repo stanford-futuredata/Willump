@@ -222,6 +222,27 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                     (PyArrayObject*) PyArray_SimpleNewFromData(1, &weld_output->size, %s, weld_output->ptr);
                 PyArray_ENABLEFLAGS(ret, NPY_ARRAY_OWNDATA);
                 """ % weld_type_to_numpy_macro(output_type)
+        elif isinstance(output_type, WeldCSR):
+            buffer += \
+                """
+                PyArrayObject* rowInd = 
+                    (PyArrayObject*) PyArray_SimpleNewFromData(1, 
+                    &weld_output->ptr[0].size, %s, weld_output->ptr[0].ptr);
+                PyArray_ENABLEFLAGS(rowInd, NPY_ARRAY_OWNDATA);
+                PyArrayObject* colInd = 
+                    (PyArrayObject*) PyArray_SimpleNewFromData(1, 
+                    &weld_output->ptr[1].size, %s, weld_output->ptr[1].ptr);
+                PyArray_ENABLEFLAGS(colInd, NPY_ARRAY_OWNDATA);
+                PyArrayObject* retData = 
+                    (PyArrayObject*) PyArray_SimpleNewFromData(1, 
+                    &weld_output->ptr[2].size, %s, weld_output->ptr[2].ptr);
+                PyArray_ENABLEFLAGS(retData, NPY_ARRAY_OWNDATA);
+                PyObject* ret = PyTuple_New(3);
+                PyTuple_SetItem(ret, 0, (PyObject*) rowInd);
+                PyTuple_SetItem(ret, 1, (PyObject*) colInd);
+                PyTuple_SetItem(ret, 2, (PyObject*) retData);
+                """ % (weld_type_to_numpy_macro(output_type),
+                       weld_type_to_numpy_macro(output_type), weld_type_to_numpy_macro(output_type))
         else:
             panic("Unrecognized output type %s" % str(output_type))
         buffer += \
@@ -258,6 +279,8 @@ def wtype_to_c_type(wtype: WeldType) -> str:
         return "vec<{0}>".format(wtype_to_c_type(wtype.elemType))
     elif isinstance(wtype, WeldDict):
         return "void*"
+    elif isinstance(wtype, WeldCSR):
+        return "vec<vec<{0}>>".format(wtype_to_c_type(wtype.elemType))
     else:
         return str(wtype)
 
@@ -269,7 +292,7 @@ def weld_type_to_numpy_macro(wtype: WeldType) -> str:
 
     TODO:  More types.
     """
-    if isinstance(wtype, WeldVec):
+    if isinstance(wtype, WeldVec)or isinstance(wtype, WeldCSR):
         if isinstance(wtype.elemType, WeldDouble):
             return "NPY_FLOAT64"
         elif isinstance(wtype.elemType, WeldInt):

@@ -36,8 +36,8 @@ class ArrayCountVectorizerNodeTests(unittest.TestCase):
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(input_str)
         numpy.testing.assert_equal(
-            weld_output[0], numpy.array([0, 0, 0, 3, 0, 0], dtype=numpy.int64))
+            weld_output[0], numpy.array([0, 1, 2, 2], dtype=numpy.int64))
         numpy.testing.assert_equal(
-            weld_output[1], numpy.array([0, 0, 0, 0, 3, 0], dtype=numpy.int64))
+            weld_output[1], numpy.array([3, 4, 2, 3], dtype=numpy.int64))
         numpy.testing.assert_equal(
-            weld_output[2], numpy.array([0, 0, 1, 1, 0, 0], dtype=numpy.int64))
+            weld_output[2], numpy.array([3, 3, 1, 1], dtype=numpy.int64))

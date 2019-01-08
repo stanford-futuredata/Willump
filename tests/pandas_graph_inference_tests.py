@@ -152,5 +152,6 @@ class PandasGraphInferenceTests(unittest.TestCase):
         exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
              local_namespace)
         weld_output = local_namespace["sample_pandas_count_vectorizer"](string_array, vectorizer)
-        numpy.testing.assert_almost_equal(weld_output[0], numpy.array([1, 0, 0, 1, 1, 1]))
-        numpy.testing.assert_almost_equal(weld_output[1], numpy.array([1, 0, 0, 0, 0, 0]))
+        numpy.testing.assert_almost_equal(weld_output[0], numpy.array([0, 0, 0, 0, 1]))
+        numpy.testing.assert_almost_equal(weld_output[1], numpy.array([0, 4, 3, 5, 0]))
+        numpy.testing.assert_almost_equal(weld_output[2], numpy.array([1, 1, 1, 1, 1]))

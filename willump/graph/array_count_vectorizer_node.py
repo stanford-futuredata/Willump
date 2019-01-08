@@ -73,29 +73,46 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
     def get_node_weld(self) -> str:
         weld_program = \
             """
-            let OUTPUT_NAME: vec[vec[i64]] = result(for(INPUT_NAME,
-                appender[vec[i64]],
-                | count_vectors: appender[vec[i64]], i_out: i64, string: vec[i8] |
+            let list_dicts: vec[dict[i64, i64]] = result(for(INPUT_NAME,
+                appender[dict[i64, i64]],
+                | count_dicts: appender[dict[i64, i64]], i_out: i64, string: vec[i8] |
                     let string_len: i64 = len(string);
-                    let string_vector: vec[i64] = result(for(string,
-                        vecmerger[i64, +](BIG_ZEROS_VECTOR),
-                        | count_vector:  vecmerger[i64, +], i_string: i64, char: i8 |
+                    let string_dict: dict[i64, i64] = result(for(string,
+                        dictmerger[i64, i64, +],
+                        | count_dict:  dictmerger[i64, i64, +], i_string: i64, char: i8 |
                         for(rangeiter(NGRAM_MINL, NGRAM_MAXL, 1L),
-                            count_vector,
-                            | count_vector_inner: vecmerger[i64, +], num_iter, iter_value |
+                            count_dict,
+                            | count_dict_inner: dictmerger[i64, i64, +], num_iter, iter_value |
                                 if(i_string + iter_value <= string_len,
                                     let word: vec[i8] = slice(string, i_string, iter_value);
                                     let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
                                     if(exists_and_key.$0,
-                                        merge(count_vector_inner, {exists_and_key.$1, 1L}),
-                                        count_vector_inner
+                                        merge(count_dict_inner, {exists_and_key.$1, 1L}),
+                                        count_dict_inner
                                     ),
-                                    count_vector_inner    
+                                    count_dict_inner    
                                 )
                         )
                     ));
-                    merge(count_vectors, string_vector)
+                    merge(count_dicts, string_dict)
             ));
+            let vec_dict_vecs: vec[vec[{i64, i64}]] = map(list_dicts, 
+                | string_dict: dict[i64, i64] | 
+                    tovec(string_dict)
+            );
+            let out_struct: {appender[i64], appender[i64], appender[i64]} = for(vec_dict_vecs,
+                {appender[i64], appender[i64], appender[i64]}, # Row number, index number, frequency
+                | bs: {appender[i64], appender[i64], appender[i64]}, i: i64, x: vec[{i64, i64}] |
+                    for(x,
+                        bs,
+                        | bs2: {appender[i64], appender[i64], appender[i64]}, i2: i64, x2: {i64, i64} |
+                            {merge(bs2.$0, i), merge(bs2.$1, x2.$0), merge(bs2.$2, x2.$1)}
+                    )
+            );
+            let ros: {vec[i64], vec[i64], vec[i64]} =
+                {result(out_struct.$0), result(out_struct.$1), result(out_struct.$2)};
+                    
+            let OUTPUT_NAME: vec[vec[i64]] = [ros.$0, ros.$1, ros.$2];
             """
         weld_program = weld_program.replace("VOCAB_DICT_NAME", self._vocab_dict_name)
         weld_program = weld_program.replace("BIG_ZEROS_VECTOR", self._big_zeros_vector_name)
