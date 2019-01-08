@@ -13,6 +13,7 @@ from willump import pprint_weld
 from willump.graph.willump_graph import WillumpGraph
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 import willump.evaluation.willump_executor as wexec
+import scipy.sparse.csr
 
 from typing import Mapping, MutableMapping, List, Tuple
 import typing
@@ -151,7 +152,6 @@ class PandasGraphInferenceTests(unittest.TestCase):
         local_namespace = {}
         exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
              local_namespace)
-        weld_output = local_namespace["sample_pandas_count_vectorizer"](string_array, vectorizer)
-        numpy.testing.assert_almost_equal(weld_output[0], numpy.array([0, 0, 0, 0, 1]))
-        numpy.testing.assert_almost_equal(weld_output[1], numpy.array([0, 4, 3, 5, 0]))
-        numpy.testing.assert_almost_equal(weld_output[2], numpy.array([1, 1, 1, 1, 1]))
+        weld_output = local_namespace["sample_pandas_count_vectorizer"](string_array, vectorizer).toarray()
+        numpy.testing.assert_almost_equal(weld_output[0], numpy.array([1, 0, 0, 1, 1, 1]))
+        numpy.testing.assert_almost_equal(weld_output[1], numpy.array([1, 0, 0, 0, 0, 0]))
