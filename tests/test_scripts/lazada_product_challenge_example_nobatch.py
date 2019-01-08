@@ -7,7 +7,7 @@ import scipy.sparse.csr
 
 @willump.evaluation.willump_executor.willump_execute
 def vectorizer_transform(input_vect, input_df):
-    np_input = list(input_df["title"].values)
+    np_input = list(input_df.values)
     transformed_result = input_vect.transform(np_input)
     return transformed_result
 
@@ -22,13 +22,13 @@ vect.fit(df["title"].tolist())
 print("Vocabulary has length %d" % len(vect.vocabulary_))
 
 set_size = len(df)
-mini_df = df.loc[0:0].copy()
+mini_df = df.loc[0:0].copy()["title"]
 vectorizer_transform(vect, mini_df)
 vectorizer_transform(vect, mini_df)
 vectorizer_transform(vect, mini_df)
 entry_list = []
 for i in range(set_size):
-    entry_list.append(df.loc[i:i])
+    entry_list.append(df.loc[i:i]["title"])
 t0 = time.time()
 for entry in entry_list:
     X_title = vectorizer_transform(vect, entry)
