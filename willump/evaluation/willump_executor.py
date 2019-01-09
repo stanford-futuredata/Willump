@@ -110,7 +110,7 @@ def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST
             output_string = ""
             for output_name in output_names:
                 output_string += output_name + ","
-                output_string = output_string[:-1]  # Remove trailing comma.
+            output_string = output_string[:-1]  # Remove trailing comma.
             python_string = "%s = %s.caller_func(%s)" % (output_string, module_name, argument_string)
             python_ast_module: ast.Module = ast.parse(python_string)
             all_python_program = all_python_program + python_ast_module.body

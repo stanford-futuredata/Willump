@@ -51,33 +51,76 @@ def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
     return sorted_nodes
 
 
+def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_block_output_set, weld_block_node_list,
+                       future_nodes)\
+        -> Tuple[str, List[str], List[str]]:
+    """
+    Helper function for graph_to_weld.  Creates a Willump statement for a block of Weld code given information about
+    the code, its inputs, and its outputs.
+    """
+    for entry in weld_block_input_set:
+        weld_block_node_list.insert(0, WillumpInputNode(entry))
+    for entry in weld_block_aux_input_set:
+        weld_block_node_list.insert(0, WillumpInputNode(entry))
+    # Do not emit any output that are not needed in later blocks.
+    for entry in weld_block_output_set.copy():
+        appears_later = False
+        for future_node in future_nodes:
+            for node_input in future_node.get_in_nodes():
+                input_name = node_input.get_output_name()
+                if entry == input_name:
+                    appears_later = True
+        if not appears_later:
+            weld_block_output_set.remove(entry)
+    weld_block_node_list.append(WillumpMultiOutputNode(list(weld_block_output_set)))
+    weld_str = ""
+    for weld_node in weld_block_node_list:
+        weld_str += weld_node.get_node_weld()
+    return weld_str, list(weld_block_input_set), list(weld_block_output_set)
+
+
 def graph_to_weld(graph: WillumpGraph) -> List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]]:
     """
-    Convert a Willump graph into a valid Weld program string.
+    Convert a Willump graph into a sequence of Willump statements.
 
-    Graphs are converted by reversing their arrows (so that inputs are sources and outputs are
-    sinks), topologically sorting them (so that all nodes come after all their inputs) and then
-    concatenating the weld strings in the topological sort order.
+    A Willump statement consists of either a block of Python code or a block of Weld code with
+    metadata.  The block of Python code is represented as an AST.  The block of Weld code
+    is represented as a Weld string followed by a list of all its inputs followed by
+    a list of all its outputs.
     """
+    # We must first topologically sort the graph so that all of a node's inputs are computed before the node runs.
     sorted_nodes = topological_sort_graph(graph)
     weld_python_list: List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]] = []
-    for node in sorted_nodes:
+    weld_block_input_set: Set[str] = set()
+    weld_block_aux_input_set: Set[str] = set()
+    weld_block_output_set: Set[str] = set()
+    weld_block_node_list: List[WillumpGraphNode] = []
+    for i, node in enumerate(sorted_nodes):
         if isinstance(node, WillumpPythonNode):
+            if len(weld_block_node_list) > 0:
+                processed_block_tuple = process_weld_block(weld_block_input_set, weld_block_aux_input_set,
+                                                        weld_block_output_set, weld_block_node_list, sorted_nodes[i:])
+                weld_python_list.append(processed_block_tuple)
+                weld_block_input_set = set()
+                weld_block_aux_input_set = set()
+                weld_block_output_set = set()
+                weld_block_node_list = []
             weld_python_list.append(node.get_python())
         elif isinstance(node, WillumpInputNode) or isinstance(node, WillumpOutputNode):
             pass
         else:
-            node_input_list: List[WillumpGraphNode] = []
-            weld_in_list: List[str] = []
             for node_input in node.get_in_nodes():
-                node_input_list.append(WillumpInputNode(node_input.get_output_name()))
-                if "AUX_DATA" not in node_input.get_output_name():
-                    weld_in_list.append(node_input.get_output_name())
-            node_output_node: WillumpOutputNode = WillumpMultiOutputNode([node.get_output_name()])
-            weld_str = ""
-            for weld_node in node_input_list + [node] + [node_output_node]:
-                weld_str += weld_node.get_node_weld()
-            weld_python_list.append((weld_str, weld_in_list, [node.get_output_name()]))
+                input_name = node_input.get_output_name()
+                if "AUX_DATA" in input_name:
+                    weld_block_aux_input_set.add(input_name)
+                elif input_name not in weld_block_output_set:
+                    weld_block_input_set.add(input_name)
+            weld_block_output_set.add(node.get_output_name())
+            weld_block_node_list.append(node)
+    if len(weld_block_node_list) > 0:
+        processed_block_tuple = process_weld_block(weld_block_input_set, weld_block_aux_input_set,
+                                                   weld_block_output_set, weld_block_node_list, [sorted_nodes[-1]])
+        weld_python_list.append(processed_block_tuple)
     return weld_python_list
 
 

@@ -210,8 +210,8 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             if len(output_types) > 1:
                 buffer += \
                     """
-                    for(int i = 0; i < %d; i++) {
-                    """ % len(output_types)
+                    {
+                    """
             buffer += "%s curr_output = weld_output->_%d;\n" % (wtype_to_c_type(output_type), i)
             if isinstance(output_type, WeldVec) and isinstance(output_type.elemType, WeldStr):
                 buffer += \
