@@ -27,7 +27,7 @@ class ArrayAppendNodeTests(unittest.TestCase):
                                     ["input_vec", "input_val"], [])
         type_map = {"__willump_arg0": WeldVec(WeldDouble()),
                     "__willump_arg1": WeldLong(),
-                    "__willump_retval":  WeldVec(WeldDouble())}
+                    "__willump_retval0":  WeldVec(WeldDouble())}
         module_name = wexec.compile_weld_program(weld_program, type_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(basic_vec, 5)

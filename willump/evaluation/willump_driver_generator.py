@@ -23,29 +23,39 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             buffer = buffer.replace(base_filename, base_filename + str(file_version))
     else:
         input_types: List[WeldType] = []
+        output_types: List[WeldType] = []
         num_inputs = 0
+        num_outputs = 0
         while "__willump_arg{0}".format(num_inputs) in type_map:
             input_types.append(type_map["__willump_arg{0}".format(num_inputs)])
             num_inputs += 1
-        output_type: WeldType = type_map["__willump_retval"]
+        while "__willump_retval{0}".format(num_outputs) in type_map:
+            output_types.append(type_map["__willump_retval{0}".format(num_outputs)])
+            num_outputs += 1
         buffer = ""
         # Header boilerplate.
         with open(os.path.join(willump_home, "cppextensions", "weld_llvm_caller_header.cpp"), "r") as caller_header:
             buffer += caller_header.read()
-        # Define the Weld input struct and return type.
+        # Define the Weld input struct and output struct.
         input_struct = ""
         for i, input_type in enumerate(input_types):
             input_struct += "{0} _{1};\n".format(wtype_to_c_type(input_type), i)
         for (i, (_, input_type)) in enumerate(aux_data):
             input_struct += "{0} _{1};\n".format(wtype_to_c_type(input_type), i + len(input_types))
+        output_struct = ""
+        for i, output_type in enumerate(output_types):
+            output_struct += "{0} _{1};\n".format(wtype_to_c_type(output_type), i)
         buffer += \
             """
             struct struct0 {
               %s
             };
             typedef struct0 input_type;
-            typedef %s return_type;
-            """ % (input_struct, wtype_to_c_type(output_type))
+            struct struct_out {
+             %s
+            };
+            typedef struct_out return_type;
+            """ % (input_struct, output_struct)
         # Begin the Weld LLVM caller function.
         buffer += \
             """
@@ -191,65 +201,90 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             return_type* weld_output = (return_type*) weld_output_args->output;
             """
         # Parse Weld outputs and return them.
-        if isinstance(output_type, WeldVec) and isinstance(output_type.elemType, WeldStr):
+        if len(output_types) > 1:
             buffer += \
                 """
-                PyObject* ret = PyList_New(0);
-                for(int i = 0; i < weld_output->size; i++) {
-                    i8* str_ptr = weld_output->ptr[i].ptr;
-                    i64 str_size = weld_output->ptr[i].size;
-                    PyList_Append(ret, PyUnicode_FromStringAndSize((const char *) str_ptr, str_size));
+                PyObject* ret_tuple = PyTuple_New(%d);
+                """ % (len(output_types))
+        for i, output_type in enumerate(output_types):
+            if len(output_types) > 1:
+                buffer += \
+                    """
+                    for(int i = 0; i < %d; i++) {
+                    """ % len(output_types)
+            buffer += "%s curr_output = weld_output->_%d;\n" % (wtype_to_c_type(output_type), i)
+            if isinstance(output_type, WeldVec) and isinstance(output_type.elemType, WeldStr):
+                buffer += \
+                    """
+                    PyObject* ret = PyList_New(0);
+                    for(int i = 0; i < curr_output.size; i++) {
+                        i8* str_ptr = curr_output.ptr[i].ptr;
+                        i64 str_size = curr_output.ptr[i].size;
+                        PyList_Append(ret, PyUnicode_FromStringAndSize((const char *) str_ptr, str_size));
+                    }
+                    """
+            # TODO:  Return a 2-D array instead of a list of 1-D arrays.
+            elif isinstance(output_type, WeldVec) and isinstance(output_type.elemType, WeldVec):
+                buffer += \
+                    """
+                    PyObject* ret = PyList_New(0);
+                    for(int i = 0; i < curr_output.size; i++) {
+                        %s* entry_ptr = curr_output.ptr[i].ptr;
+                        i64 entry_size = curr_output.ptr[i].size;
+                        PyArrayObject* ret_entry = 
+                            (PyArrayObject*) PyArray_SimpleNewFromData(1, &entry_size, %s, entry_ptr);
+                        PyArray_ENABLEFLAGS(ret_entry, NPY_ARRAY_OWNDATA);
+                        PyList_Append(ret, (PyObject*) ret_entry);
+                    }
+                    """ % (str(output_type.elemType.elemType), weld_type_to_numpy_macro(output_type.elemType))
+            elif isinstance(output_type, WeldVec):
+                buffer += \
+                    """
+                    PyArrayObject* ret = 
+                        (PyArrayObject*) PyArray_SimpleNewFromData(1, &curr_output.size, %s, curr_output.ptr);
+                    PyArray_ENABLEFLAGS(ret, NPY_ARRAY_OWNDATA);
+                    """ % weld_type_to_numpy_macro(output_type)
+            elif isinstance(output_type, WeldCSR):
+                buffer += \
+                    """
+                    PyArrayObject* rowInd = 
+                        (PyArrayObject*) PyArray_SimpleNewFromData(1, 
+                        &curr_output.ptr[0].size, %s, curr_output.ptr[0].ptr);
+                    PyArray_ENABLEFLAGS(rowInd, NPY_ARRAY_OWNDATA);
+                    PyArrayObject* colInd = 
+                        (PyArrayObject*) PyArray_SimpleNewFromData(1, 
+                        &curr_output.ptr[1].size, %s, curr_output.ptr[1].ptr);
+                    PyArray_ENABLEFLAGS(colInd, NPY_ARRAY_OWNDATA);
+                    PyArrayObject* retData = 
+                        (PyArrayObject*) PyArray_SimpleNewFromData(1, 
+                        &curr_output.ptr[2].size, %s, curr_output.ptr[2].ptr);
+                    PyArray_ENABLEFLAGS(retData, NPY_ARRAY_OWNDATA);
+                    PyObject* ret = PyTuple_New(3);
+                    PyTuple_SetItem(ret, 0, (PyObject*) rowInd);
+                    PyTuple_SetItem(ret, 1, (PyObject*) colInd);
+                    PyTuple_SetItem(ret, 2, (PyObject*) retData);
+                    """ % (weld_type_to_numpy_macro(output_type),
+                           weld_type_to_numpy_macro(output_type), weld_type_to_numpy_macro(output_type))
+            else:
+                panic("Unrecognized output type %s" % str(output_type))
+            if len(output_types) > 1:
+                buffer += \
+                    """
+                    PyTuple_SetItem(ret_tuple, %d, (PyObject*) ret);
+                    }
+                    """ % i
+        if len(output_types) > 1:
+            buffer += \
+                """
+                    return (PyObject*) ret_tuple;
                 }
                 """
-        # TODO:  Return a 2-D array instead of a list of 1-D arrays.
-        elif isinstance(output_type, WeldVec) and isinstance(output_type.elemType, WeldVec):
-            buffer += \
-                """
-                PyObject* ret = PyList_New(0);
-                for(int i = 0; i < weld_output->size; i++) {
-                    %s* entry_ptr = weld_output->ptr[i].ptr;
-                    i64 entry_size = weld_output->ptr[i].size;
-                    PyArrayObject* ret_entry = 
-                        (PyArrayObject*) PyArray_SimpleNewFromData(1, &entry_size, %s, entry_ptr);
-                    PyArray_ENABLEFLAGS(ret_entry, NPY_ARRAY_OWNDATA);
-                    PyList_Append(ret, (PyObject*) ret_entry);
-                }
-                """ % (str(output_type.elemType.elemType), weld_type_to_numpy_macro(output_type.elemType))
-        elif isinstance(output_type, WeldVec):
-            buffer += \
-                """
-                PyArrayObject* ret = 
-                    (PyArrayObject*) PyArray_SimpleNewFromData(1, &weld_output->size, %s, weld_output->ptr);
-                PyArray_ENABLEFLAGS(ret, NPY_ARRAY_OWNDATA);
-                """ % weld_type_to_numpy_macro(output_type)
-        elif isinstance(output_type, WeldCSR):
-            buffer += \
-                """
-                PyArrayObject* rowInd = 
-                    (PyArrayObject*) PyArray_SimpleNewFromData(1, 
-                    &weld_output->ptr[0].size, %s, weld_output->ptr[0].ptr);
-                PyArray_ENABLEFLAGS(rowInd, NPY_ARRAY_OWNDATA);
-                PyArrayObject* colInd = 
-                    (PyArrayObject*) PyArray_SimpleNewFromData(1, 
-                    &weld_output->ptr[1].size, %s, weld_output->ptr[1].ptr);
-                PyArray_ENABLEFLAGS(colInd, NPY_ARRAY_OWNDATA);
-                PyArrayObject* retData = 
-                    (PyArrayObject*) PyArray_SimpleNewFromData(1, 
-                    &weld_output->ptr[2].size, %s, weld_output->ptr[2].ptr);
-                PyArray_ENABLEFLAGS(retData, NPY_ARRAY_OWNDATA);
-                PyObject* ret = PyTuple_New(3);
-                PyTuple_SetItem(ret, 0, (PyObject*) rowInd);
-                PyTuple_SetItem(ret, 1, (PyObject*) colInd);
-                PyTuple_SetItem(ret, 2, (PyObject*) retData);
-                """ % (weld_type_to_numpy_macro(output_type),
-                       weld_type_to_numpy_macro(output_type), weld_type_to_numpy_macro(output_type))
         else:
-            panic("Unrecognized output type %s" % str(output_type))
-        buffer += \
-            """
-                return (PyObject*) ret;
-            }
-            """
+            buffer += \
+                """
+                    return (PyObject*) ret;
+                }
+                """
         # Footer boilerplate.
         with open(os.path.join(willump_home, "cppextensions", "weld_llvm_caller_footer.cpp"), "r") as footer:
             buffer += footer.read()

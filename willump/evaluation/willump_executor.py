@@ -77,7 +77,7 @@ willump_typing_map_set: MutableMapping[str, MutableMapping[str, WeldType]] = {}
 willump_static_vars_set: MutableMapping[str, object] = {}
 
 
-def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]],
+def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]],
                                   aux_data: List[Tuple[int, WeldType]], type_map: MutableMapping[str, WeldType]) \
         -> Tuple[List[ast.AST], List[str]]:
     python_weld_program = list(map(lambda x: (willump.evaluation.willump_weld_generator.set_input_names(x[0], x[1],
@@ -95,24 +95,23 @@ def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST
         if isinstance(entry, ast.AST):
             all_python_program.append(entry)
         else:
-            weld_program, input_list, output_name = entry
+            weld_program, input_list, output_names = entry
             entry_type_map = copy.copy(type_map)
             for i, input_name in enumerate(input_list):
                 entry_type_map["__willump_arg{0}".format(i)] = entry_type_map[input_name]
-            entry_type_map["__willump_retval"] = entry_type_map[output_name]
+            for i, output_name in enumerate(output_names):
+                entry_type_map["__willump_retval{0}".format(i)] = entry_type_map[output_name]
             module_name = compile_weld_program(weld_program, entry_type_map, aux_data)
             module_to_import.append(module_name)
             argument_string = ""
             for input_name in input_list:
                 argument_string += input_name + ","
             argument_string = argument_string[:-1]  # Remove trailing comma.
-            if True:  # not isinstance(type_map[output_name], WeldCSR):
-                python_string = "%s = %s.caller_func(%s)" % (output_name, module_name, argument_string)
-            else:
-                output_name_w = output_name + "_weld__"
-                python_string = "%s = %s.caller_func(%s)\n" % (output_name_w, module_name, argument_string) +\
-                    "%s = scipy.sparse.csr.csr_matrix((%s[2], (%s[0], %s[1])), shape=(len(%s[0]), %d))" % \
-                                (output_name, output_name_w, output_name_w, output_name_w, output_name_w, 8793)
+            output_string = ""
+            for output_name in output_names:
+                output_string += output_name + ","
+                output_string = output_string[:-1]  # Remove trailing comma.
+            python_string = "%s = %s.caller_func(%s)" % (output_string, module_name, argument_string)
             python_ast_module: ast.Module = ast.parse(python_string)
             all_python_program = all_python_program + python_ast_module.body
     return all_python_program, module_to_import

@@ -24,7 +24,7 @@ class StringSplitNodeTests(unittest.TestCase):
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_str"], [])
         type_map = {"__willump_arg0": WeldVec(WeldStr()),
-                    "__willump_retval": WeldVec(WeldStr())}
+                    "__willump_retval0": WeldVec(WeldStr())}
         module_name = wexec.compile_weld_program(weld_program, type_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(input_str)
