@@ -48,13 +48,25 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             input_struct += "{0} _{1};\n".format(wtype_to_c_type(input_type), i + len(input_types))
         output_struct = ""
         for i, output_type in enumerate(output_types):
-            output_struct += "{0} _{1};\n".format(wtype_to_c_type(output_type), i)
+            if isinstance(output_type, WeldStruct):
+                inner_struct = ""
+                for inner_i, inner_type in enumerate(output_type.field_types):
+                    inner_struct += "{0} _{1};\n".format(wtype_to_c_type(inner_type), inner_i)
+                buffer += \
+                    """
+                    struct struct%d {
+                      %s
+                    };
+                    """ % (i, inner_struct)
+                output_struct += "struct struct{0} _{1};\n".format(i, i)
+            else:
+                output_struct += "{0} _{1};\n".format(wtype_to_c_type(output_type), i)
         buffer += \
             """
-            struct struct0 {
+            struct struct_in {
               %s
             };
-            typedef struct0 input_type;
+            typedef struct_in input_type;
             struct struct_out {
              %s
             };
@@ -92,7 +104,10 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                     """
                     {
                     """
-            buffer += "%s curr_output = weld_output->_%d;\n" % (wtype_to_c_type(output_type), i)
+            if isinstance(output_type, WeldStruct):
+                buffer += "struct struct%d curr_output = weld_output->_%d;\n" % (i, i)
+            else:
+                buffer += "%s curr_output = weld_output->_%d;\n" % (wtype_to_c_type(output_type), i)
             if isinstance(output_type, WeldVec) and isinstance(output_type.elemType, WeldStr):
                 buffer += \
                     """
@@ -124,6 +139,22 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                         (PyArrayObject*) PyArray_SimpleNewFromData(1, &curr_output.size, %s, curr_output.ptr);
                     PyArray_ENABLEFLAGS(ret, NPY_ARRAY_OWNDATA);
                     """ % weld_type_to_numpy_macro(output_type)
+            elif isinstance(output_type, WeldStruct):
+                field_types = output_type.field_types
+                buffer += \
+                    """
+                    PyObject *ret = PyTuple_New(%d);
+                    PyArrayObject* ret_entry;
+                    """ % len(field_types)
+                for inner_i, field_type in enumerate(field_types):
+                    assert(isinstance(field_type, WeldVec))
+                    buffer += \
+                        """
+                        ret_entry = (PyArrayObject*) 
+                            PyArray_SimpleNewFromData(1, &curr_output._%d.size, %s, curr_output._%d.ptr);
+                        PyArray_ENABLEFLAGS(ret_entry, NPY_ARRAY_OWNDATA);
+                        PyTuple_SetItem(ret, %d, (PyObject*) ret_entry);
+                        """ % (inner_i, weld_type_to_numpy_macro(field_type), inner_i, inner_i)
             elif isinstance(output_type, WeldCSR):
                 buffer += \
                     """
@@ -341,6 +372,8 @@ def weld_type_to_numpy_macro(wtype: WeldType) -> str:
     if isinstance(wtype, WeldVec) or isinstance(wtype, WeldCSR):
         if isinstance(wtype.elemType, WeldDouble):
             return "NPY_FLOAT64"
+        elif isinstance(wtype.elemType, WeldFloat):
+            return "NPY_FLOAT32"
         elif isinstance(wtype.elemType, WeldInt):
             return "NPY_INT32"
         elif isinstance(wtype.elemType, WeldLong):
