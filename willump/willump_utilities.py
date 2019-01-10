@@ -1,29 +1,6 @@
 from weld.types import *
+import numpy
 from willump import panic
-
-
-def weld_scalar_type_to_str(weld_type: WeldType) -> str:
-    """
-    Converts a Weld scalar type into a string.  Converts a Weld Vector type into the scalar
-    type of its elements.
-    """
-    if isinstance(weld_type, WeldChar):
-        return "i8"
-    elif isinstance(weld_type, WeldInt16):
-        return "i16"
-    elif isinstance(weld_type, WeldInt):
-        return "i32"
-    elif isinstance(weld_type, WeldLong):
-        return "i64"
-    elif isinstance(weld_type, WeldFloat):
-        return "f32"
-    elif isinstance(weld_type, WeldDouble):
-        return "f64"
-    elif isinstance(weld_type, WeldVec):
-        return weld_scalar_type_to_str(weld_type.elemType)
-    else:
-        panic("Invalid Weld type {0}".format(weld_type.__str__))
-        return ""
 
 
 def weld_scalar_type_fp(weld_type_str: str = None, weld_type: WeldType = None) -> bool:
@@ -37,3 +14,21 @@ def weld_scalar_type_fp(weld_type_str: str = None, weld_type: WeldType = None) -
         if isinstance(weld_type, WeldFloat) or isinstance(weld_type, WeldDouble):
             return True
     return False
+
+
+def numpy_type_to_weld_type(numpy_array_dtype) -> WeldType:
+    if numpy_array_dtype == numpy.int8:
+        return WeldChar()
+    elif numpy_array_dtype == numpy.int16:
+        return WeldInt16()
+    elif numpy_array_dtype == numpy.int32:
+        return WeldInt()
+    elif numpy_array_dtype == numpy.int64:
+        return WeldLong()
+    elif numpy_array_dtype == numpy.float32:
+        return WeldFloat()
+    elif numpy_array_dtype == numpy.float64:
+        return WeldDouble()
+    else:
+        panic("Unrecognized Numpy Type %s" % numpy_array_dtype)
+        return WeldType()
