@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import time
 import gc
+import willump.evaluation.willump_executor
 
 # LATENT VECTOR SIZES
 UF_SIZE = 32
@@ -23,8 +24,9 @@ def load_combi_prep(folder='data_new/', split=None):
     return combi
 
 
+@willump.evaluation.willump_executor.willump_execute
 def do_merge(combi, features, how, on):
-    combi = combi.merge(features, how=how, on=on)
+    combi = combi.merge(features, how='inner', on='msno')
     return combi
 
 
@@ -49,16 +51,20 @@ def add_als(folder, combi, size, user=True, pos=False, postfix='', artist=False)
     for i in range(size):
         features[key + str(i)] = features[key + str(i)].astype(np.float32)
 
+    num_rows = len(combi)
     oncol = 'msno' if user else 'song_id' if not artist else 'artist_name'
+    compile_one = do_merge(combi.copy(), features, 'inner', oncol)
+    compile_two = do_merge(combi.copy(), features, 'inner', oncol)
+    compile_three = do_merge(combi.copy(), features, 'inner', oncol)
+
     start = time.time()
     combi = do_merge(combi, features, 'inner', oncol)
     elapsed_time = time.time() - start
 
     del features
     gc.collect()
-
     print('Latent feature %s join in %f seconds rows %d throughput %f: ' % (
-        name, elapsed_time, len(combi), len(combi) / elapsed_time))
+        name, elapsed_time, num_rows, num_rows / elapsed_time))
 
     return combi
 

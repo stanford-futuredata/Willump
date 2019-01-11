@@ -1,6 +1,7 @@
 import ast
 
 from willump import *
+from willump.willump_utilities import *
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
@@ -13,6 +14,7 @@ from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.logistic_regression_node import LogisticRegressionNode
 from willump.graph.array_append_node import ArrayAppendNode
 from willump.graph.array_binop_node import ArrayBinopNode
+from willump.graph.willump_hash_join_node import WillumpHashJoinNode
 from willump.graph.willump_python_node import WillumpPythonNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
@@ -205,6 +207,31 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     ngram_range=self._static_vars[WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE]
                 )
                 return output_var_name, array_cv_node
+            elif ".merge" in called_function:
+                if self._static_vars[WILLUMP_JOIN_HOW] is not 'inner':
+                    return self._create_py_node(node)
+                join_col: str = self._static_vars[WILLUMP_JOIN_COL]
+                left_df_input_var: str = value.func.value.id
+                right_df = self._static_vars[WILLUMP_JOIN_RIGHT_DATAFRAME]
+                left_join_col_name = "%s__willump_joincol" % left_df_input_var
+                # TODO:  Proper typing for join_column.
+                self._type_map[left_join_col_name] = WeldVec(WeldLong())
+                merge_glue_python = "%s = %s['%s'].values" % (left_join_col_name, left_df_input_var, join_col)
+                merge_glue_ast: ast.Module = \
+                    ast.parse(merge_glue_python, "exec")
+                _, merge_glue_node = self._create_py_node(merge_glue_ast.body[0])
+                willump_hash_join_node = WillumpHashJoinNode(input_node=merge_glue_node, output_name=output_var_name,
+                                                             join_col_name=join_col,
+                                                             right_dataframe=right_df, aux_data=self.aux_data)
+                # The merge output type will be the same as the type of the right dataframe
+                # Update the type map accordingly, removing the placeholder.
+                right_dataframe_types = []
+                for column in right_df:
+                    if column != join_col:
+                        col_weld_type: WeldType = numpy_type_to_weld_type(right_df[column].values.dtype)
+                        right_dataframe_types.append(WeldVec(col_weld_type))
+                self._type_map[output_var_name] = WeldStruct(right_dataframe_types)
+                return output_var_name, willump_hash_join_node
             # TODO:  What to do with these?
             elif "reshape" in called_function:
                 return output_var_name, None

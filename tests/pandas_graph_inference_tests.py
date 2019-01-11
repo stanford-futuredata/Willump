@@ -64,6 +64,11 @@ def sample_pandas_count_vectorizer(array_one, input_vect):
     return transformed_result
 
 
+def sample_pandas_merge(left, right):
+    new = left.merge(right, how="inner", on="join_column")
+    return new
+
+
 class PandasGraphInferenceTests(unittest.TestCase):
     def setUp(self):
         global willump_typing_map, willump_static_vars
@@ -156,3 +161,30 @@ class PandasGraphInferenceTests(unittest.TestCase):
         numpy.testing.assert_almost_equal(weld_output[0], numpy.array([0, 0, 0, 0, 1]))
         numpy.testing.assert_almost_equal(weld_output[1], numpy.array([0, 4, 3, 5, 0]))
         numpy.testing.assert_almost_equal(weld_output[2], numpy.array([1, 1, 1, 1, 1]))
+
+    def test_pandas_join(self):
+        print("\ntest_pandas_join")
+        left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv")
+        right_table = pd.read_csv("tests/test_resources/toy_metadata_csv.csv")
+        sample_python: str = inspect.getsource(sample_pandas_merge)
+        self.set_typing_map(sample_python, "sample_pandas_merge", [left_table, right_table])
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                                       graph_builder.get_aux_data(),
+                                                                                       willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_pandas_merge"](left_table, right_table)
+        numpy.testing.assert_equal(
+            weld_output[0], numpy.array([1.2, 2.2, 2.2, 3.2, 1.2], dtype=numpy.float64))
+        numpy.testing.assert_equal(
+            weld_output[1], numpy.array([1.3, 2.3, 2.3, 3.3, 1.3], dtype=numpy.float64))

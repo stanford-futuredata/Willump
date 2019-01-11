@@ -10,6 +10,9 @@ WILLUMP_COUNT_VECTORIZER_VOCAB = "willump_cv_vocab"
 WILLUMP_COUNT_VECTORIZER_ANALYZER = "willump_cv_analyzer"
 WILLUMP_COUNT_VECTORIZER_LOWERCASE = "willump_cv_lowercase"
 WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE = "willump_cv_ngram_range"
+WILLUMP_JOIN_RIGHT_DATAFRAME = "willump_join_right_dataframe"
+WILLUMP_JOIN_HOW = "willump_join_how"
+WILLUMP_JOIN_COL = "willump_join_col"
 
 
 def panic(error: str):

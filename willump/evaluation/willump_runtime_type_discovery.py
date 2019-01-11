@@ -2,6 +2,7 @@ import ast
 import copy
 import numpy
 from typing import List, Optional
+import pandas.core.frame
 
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 from willump import *
@@ -106,6 +107,20 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                     ast.parse(static_variable_extraction_code, "exec")
                 count_vectorizer_instrumentation_statements: List[ast.stmt] = count_vectorizer_instrumentation_ast.body
                 return_statements += count_vectorizer_instrumentation_statements
+            elif "merge" in called_function_name:
+                # TODO:  More robust extraction.
+                static_variable_extraction_code = \
+                    """willump_static_vars["{0}"] = {1}\n""" \
+                        .format(WILLUMP_JOIN_RIGHT_DATAFRAME, value.args[0].id) + \
+                    """willump_static_vars["{0}"] = "{1}"\n""" \
+                        .format(WILLUMP_JOIN_HOW, value.keywords[0].value.s) + \
+                    """willump_static_vars["{0}"] = "{1}"\n""" \
+                        .format(WILLUMP_JOIN_COL, value.keywords[1].value.s)
+                join_instrumentation_ast: ast.Module = \
+                    ast.parse(static_variable_extraction_code, "exec")
+                join_instrumentation_statements: List[ast.stmt] = join_instrumentation_ast.body
+                return_statements += join_instrumentation_statements
+
         return return_statements
 
     @staticmethod
@@ -155,6 +170,9 @@ def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
         else:
             panic("Unrecognized ndarray type {0}".format(py_var.dtype.__str__()))
             return None
+    # This type is a placeholder, during graph inference it will be replaced by the real type.
+    elif isinstance(py_var, pandas.core.frame.DataFrame):
+        return WeldType()
     # TODO:  Handle multidimensional arrays
     elif isinstance(py_var, numpy.ndarray):
         if py_var.dtype == numpy.int8:
