@@ -18,7 +18,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
     _input_nodes: List[WillumpGraphNode]
 
     def __init__(self, input_node: WillumpGraphNode, output_name: str, join_col_name: str,
-                 right_dataframe, aux_data: List[Tuple[int, WeldType]]) -> None:
+                 right_dataframe, aux_data: List[Tuple[int, WeldType]], batch=True) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
@@ -30,6 +30,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
         self._input_nodes = []
         self._input_nodes.append(input_node)
         self._input_nodes.append(WillumpInputNode(self._right_dataframe_name))
+        self.batch = batch
         for entry in self._process_aux_data(right_dataframe):
             aux_data.append(entry)
 
@@ -88,37 +89,46 @@ class WillumpHashJoinNode(WillumpGraphNode):
         return [(indexed_right_dataframe, WeldDict(WeldLong(), WeldStruct(types_list)))]
 
     def get_node_weld(self) -> str:
-        struct_builder_statement = "{"
-        merge_statement = "{"
-        result_statement = "{"
-        switch = 0
-        for i, column in enumerate(self._right_dataframe):
-            if column != self._join_col_name:
-                col_type = str(numpy_type_to_weld_type(self._right_dataframe[column].values.dtype))
-                struct_builder_statement += "appender[%s]," % col_type
-                merge_statement += "merge(bs.$%d, right_dataframe_row.$%d)," % (i - switch, i - switch)
-                result_statement += "result(pre_output.$%d)," % (i - switch)
-            else:
-                switch = 1
-        struct_builder_statement = struct_builder_statement[:-1] + "}"
-        merge_statement = merge_statement[:-1] + "}"
-        result_statement = result_statement[:-1] + "}"
-        weld_program = \
-            """
-            let pre_output = (for(INPUT_NAME,
-                STRUCT_BUILDER,
-                |bs, i: i64, x: i64 |
-                    let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, x);
-                    MERGE_STATEMENT
-            ));
-            let OUTPUT_NAME = RESULT_STATEMENT;
-            """
-        weld_program = weld_program.replace("STRUCT_BUILDER", struct_builder_statement)
-        weld_program = weld_program.replace("MERGE_STATEMENT", merge_statement)
-        weld_program = weld_program.replace("RESULT_STATEMENT", result_statement)
-        weld_program = weld_program.replace("RIGHT_DATAFRAME_NAME", self._right_dataframe_name)
-        weld_program = weld_program.replace("INPUT_NAME", self._input_array_string_name)
-        weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
+        if self.batch:
+            struct_builder_statement = "{"
+            merge_statement = "{"
+            result_statement = "{"
+            switch = 0
+            for i, column in enumerate(self._right_dataframe):
+                if column != self._join_col_name:
+                    col_type = str(numpy_type_to_weld_type(self._right_dataframe[column].values.dtype))
+                    struct_builder_statement += "appender[%s]," % col_type
+                    merge_statement += "merge(bs.$%d, right_dataframe_row.$%d)," % (i - switch, i - switch)
+                    result_statement += "result(pre_output.$%d)," % (i - switch)
+                else:
+                    switch = 1
+            struct_builder_statement = struct_builder_statement[:-1] + "}"
+            merge_statement = merge_statement[:-1] + "}"
+            result_statement = result_statement[:-1] + "}"
+            weld_program = \
+                """
+                let pre_output = (for(INPUT_NAME,
+                    STRUCT_BUILDER,
+                    |bs, i: i64, x: i64 |
+                        let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, x);
+                        MERGE_STATEMENT
+                ));
+                let OUTPUT_NAME = RESULT_STATEMENT;
+                """
+            weld_program = weld_program.replace("STRUCT_BUILDER", struct_builder_statement)
+            weld_program = weld_program.replace("MERGE_STATEMENT", merge_statement)
+            weld_program = weld_program.replace("RESULT_STATEMENT", result_statement)
+            weld_program = weld_program.replace("RIGHT_DATAFRAME_NAME", self._right_dataframe_name)
+            weld_program = weld_program.replace("INPUT_NAME", self._input_array_string_name)
+            weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
+        else:
+            weld_program = \
+                """
+                    let OUTPUT_NAME = lookup(RIGHT_DATAFRAME_NAME, lookup(INPUT_NAME, 0L));
+                """
+            weld_program = weld_program.replace("RIGHT_DATAFRAME_NAME", self._right_dataframe_name)
+            weld_program = weld_program.replace("INPUT_NAME", self._input_array_string_name)
+            weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         return weld_program
 
     def get_output_name(self) -> str:

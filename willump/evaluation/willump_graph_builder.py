@@ -55,6 +55,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         self.arg_list = []
         self.aux_data = []
         self._temp_var_counter = 0
+        self.batch = True
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """
@@ -222,14 +223,18 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 _, merge_glue_node = self._create_py_node(merge_glue_ast.body[0])
                 willump_hash_join_node = WillumpHashJoinNode(input_node=merge_glue_node, output_name=output_var_name,
                                                              join_col_name=join_col,
-                                                             right_dataframe=right_df, aux_data=self.aux_data)
+                                                             right_dataframe=right_df, aux_data=self.aux_data,
+                                                             batch=self.batch)
                 # The merge output type will be the same as the type of the right dataframe
                 # Update the type map accordingly, removing the placeholder.
                 right_dataframe_types = []
                 for column in right_df:
                     if column != join_col:
                         col_weld_type: WeldType = numpy_type_to_weld_type(right_df[column].values.dtype)
-                        right_dataframe_types.append(WeldVec(col_weld_type))
+                        if self.batch:
+                            right_dataframe_types.append(WeldVec(col_weld_type))
+                        else:
+                            right_dataframe_types.append(col_weld_type)
                 self._type_map[output_var_name] = WeldStruct(right_dataframe_types)
                 return output_var_name, willump_hash_join_node
             # TODO:  What to do with these?

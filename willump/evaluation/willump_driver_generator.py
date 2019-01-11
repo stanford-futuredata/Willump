@@ -2,6 +2,7 @@ import os
 
 from weld.types import *
 from willump import panic
+from willump.willump_utilities import weld_scalar_type_fp
 
 from typing import Mapping, List, Tuple
 
@@ -144,17 +145,35 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                 buffer += \
                     """
                     PyObject *ret = PyTuple_New(%d);
-                    PyArrayObject* ret_entry;
+                    PyObject* ret_entry;
                     """ % len(field_types)
                 for inner_i, field_type in enumerate(field_types):
-                    assert(isinstance(field_type, WeldVec))
-                    buffer += \
-                        """
-                        ret_entry = (PyArrayObject*) 
-                            PyArray_SimpleNewFromData(1, &curr_output._%d.size, %s, curr_output._%d.ptr);
-                        PyArray_ENABLEFLAGS(ret_entry, NPY_ARRAY_OWNDATA);
-                        PyTuple_SetItem(ret, %d, (PyObject*) ret_entry);
-                        """ % (inner_i, weld_type_to_numpy_macro(field_type), inner_i, inner_i)
+                    if isinstance(field_type, WeldVec):
+                        buffer += \
+                            """
+                            ret_entry = (PyObject*) 
+                                PyArray_SimpleNewFromData(1, &curr_output._%d.size, %s, curr_output._%d.ptr);
+                            PyArray_ENABLEFLAGS((PyArrayObject*) ret_entry, NPY_ARRAY_OWNDATA);
+                            PyTuple_SetItem(ret, %d, ret_entry);
+                            """ % (inner_i, weld_type_to_numpy_macro(field_type), inner_i, inner_i)
+                    elif wtype_is_scalar(field_type):
+                        if weld_scalar_type_fp(weld_type=field_type):
+                            buffer += \
+                                """
+                                ret_entry =
+                                    PyFloat_FromDouble(curr_output._%d);
+                                PyTuple_SetItem(ret, %d, ret_entry);
+                                """ % (inner_i, inner_i)
+                        else:
+                            buffer += \
+                                """
+                                ret_entry =
+                                    PyLongFromLong((long) curr_output._%d);
+                                PyTuple_SetItem(ret, %d, ret_entry);
+                                """ % (inner_i, inner_i)
+                    else:
+                        panic("Unrecognized struct field type %s" % str(field_type))
+
             elif isinstance(output_type, WeldCSR):
                 buffer += \
                     """
