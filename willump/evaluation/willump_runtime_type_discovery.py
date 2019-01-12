@@ -112,6 +112,10 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 static_variable_extraction_code = \
                     """willump_static_vars["{0}"] = {1}\n""" \
                         .format(WILLUMP_JOIN_RIGHT_DATAFRAME, value.args[0].id) + \
+                    """willump_static_vars["{0}"] = {1}.columns\n""" \
+                        .format(WILLUMP_JOIN_LEFT_COLUMNS, value.func.value.id) + \
+                    """willump_static_vars["{0}"] = {1}.dtypes\n""" \
+                        .format(WILLUMP_JOIN_LEFT_DTYPES, value.func.value.id) + \
                     """willump_static_vars["{0}"] = "{1}"\n""" \
                         .format(WILLUMP_JOIN_HOW, value.keywords[0].value.s) + \
                     """willump_static_vars["{0}"] = "{1}"\n""" \

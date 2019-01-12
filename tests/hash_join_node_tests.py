@@ -34,8 +34,9 @@ class HashJoinNodeTests(unittest.TestCase):
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func((left_table["join_column"].values,
                                                     left_table["data1"].values, left_table["data2"].values))
-        print(weld_output)
-        # numpy.testing.assert_equal(
-        #     weld_output[0], numpy.array([1.2, 2.2, 2.2, 3.2, 1.2], dtype=numpy.float64))
-        # numpy.testing.assert_equal(
-        #     weld_output[1], numpy.array([1.3, 2.3, 2.3, 3.3, 1.3], dtype=numpy.float64))
+        numpy.testing.assert_equal(
+            weld_output[1], numpy.array([4, 5, 2, 5, 3], dtype=numpy.int64))
+        numpy.testing.assert_equal(
+            weld_output[3], numpy.array([1.2, 2.2, 2.2, 3.2, 1.2], dtype=numpy.float64))
+        numpy.testing.assert_equal(
+            weld_output[4], numpy.array([1.3, 2.3, 2.3, 3.3, 1.3], dtype=numpy.float64))

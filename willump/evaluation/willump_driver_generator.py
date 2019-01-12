@@ -436,6 +436,10 @@ def weld_type_to_numpy_macro(wtype: WeldType) -> str:
             return "NPY_FLOAT64"
         elif isinstance(wtype.elemType, WeldFloat):
             return "NPY_FLOAT32"
+        elif isinstance(wtype.elemType, WeldChar):
+            return "NPY_INT8"
+        elif isinstance(wtype.elemType, WeldInt16):
+            return "NPY_INT16"
         elif isinstance(wtype.elemType, WeldInt):
             return "NPY_INT32"
         elif isinstance(wtype.elemType, WeldLong):

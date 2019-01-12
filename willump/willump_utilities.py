@@ -25,6 +25,8 @@ def numpy_type_to_weld_type(numpy_array_dtype) -> WeldType:
         return WeldInt()
     elif numpy_array_dtype == numpy.int64:
         return WeldLong()
+    elif numpy_array_dtype == numpy.float16:
+        return WeldFloat()
     elif numpy_array_dtype == numpy.float32:
         return WeldFloat()
     elif numpy_array_dtype == numpy.float64:

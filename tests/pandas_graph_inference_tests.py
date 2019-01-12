@@ -185,6 +185,8 @@ class PandasGraphInferenceTests(unittest.TestCase):
              local_namespace)
         weld_output = local_namespace["sample_pandas_merge"](left_table, right_table)
         numpy.testing.assert_equal(
-            weld_output[0], numpy.array([1.2, 2.2, 2.2, 3.2, 1.2], dtype=numpy.float64))
+            weld_output[1], numpy.array([4, 5, 2, 5, 3], dtype=numpy.int64))
         numpy.testing.assert_equal(
-            weld_output[1], numpy.array([1.3, 2.3, 2.3, 3.3, 1.3], dtype=numpy.float64))
+            weld_output[3], numpy.array([1.2, 2.2, 2.2, 3.2, 1.2], dtype=numpy.float64))
+        numpy.testing.assert_equal(
+            weld_output[4], numpy.array([1.3, 2.3, 2.3, 3.3, 1.3], dtype=numpy.float64))

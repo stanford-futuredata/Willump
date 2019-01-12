@@ -115,8 +115,8 @@ class WillumpHashJoinNode(WillumpGraphNode):
                 """
                 let pre_output = (for(INPUT_NAME.$JOIN_COL_LEFT_INDEX,
                     STRUCT_BUILDER,
-                    |bs, i: i64, x: i64 |
-                        let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, x);
+                    |bs, i: i64, x |
+                        let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, i64(x));
                         MERGE_STATEMENT
                 ));
                 let OUTPUT_NAME = RESULT_STATEMENT;
