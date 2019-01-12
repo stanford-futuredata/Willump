@@ -44,7 +44,19 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
         # Define the Weld input struct and output struct.
         input_struct = ""
         for i, input_type in enumerate(input_types):
-            input_struct += "{0} _{1};\n".format(wtype_to_c_type(input_type), i)
+            if isinstance(input_type, WeldStruct):
+                inner_struct = ""
+                for inner_i, inner_type in enumerate(input_type.field_types):
+                    inner_struct += "{0} _{1};\n".format(wtype_to_c_type(inner_type), inner_i)
+                buffer += \
+                    """
+                    struct struct_in_%d {
+                      %s
+                    };
+                    """ % (i, inner_struct)
+                input_struct += "struct struct_in_{0} _{1};\n".format(i, i)
+            else:
+                input_struct += "{0} _{1};\n".format(wtype_to_c_type(input_type), i)
         for (i, (_, input_type)) in enumerate(aux_data):
             input_struct += "{0} _{1};\n".format(wtype_to_c_type(input_type), i + len(input_types))
         output_struct = ""
@@ -153,7 +165,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                             """
                             ret_entry = (PyObject*) 
                                 PyArray_SimpleNewFromData(1, &curr_output._%d.size, %s, curr_output._%d.ptr);
-                            PyArray_ENABLEFLAGS((PyArrayObject*) ret_entry, NPY_ARRAY_OWNDATA);
+                            //PyArray_ENABLEFLAGS((PyArrayObject*) ret_entry, NPY_ARRAY_OWNDATA);
                             PyTuple_SetItem(ret, %d, ret_entry);
                             """ % (inner_i, weld_type_to_numpy_macro(field_type), inner_i, inner_i)
                     elif wtype_is_scalar(field_type):
@@ -247,6 +259,8 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                 buffer += "PyObject* %s = NULL;\n" % input_name
             else:
                 panic("Unsupported input type {0}".format(str(input_type)))
+        elif isinstance(input_type, WeldStruct):
+            buffer += "PyObject* {0} = NULL;\n".format(input_name)
         elif wtype_is_scalar(input_type):
             buffer += "%s %s;\n" % (str(input_type), input_name)
         else:
@@ -261,6 +275,8 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                 format_string += "O!"
             else:
                 format_string += "O"
+        elif isinstance(input_type, WeldStruct):
+            format_string += "O"
         elif isinstance(input_type, WeldLong) or isinstance(input_type, WeldInt) or \
                 isinstance(input_type, WeldInt16) or isinstance(input_type, WeldChar):
             format_string += "l"
@@ -269,7 +285,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
     acceptor_string = ""
     for i, input_type in enumerate(input_types):
         input_name = "driver_input{0}".format(i)
-        if isinstance(input_type, WeldStr) or wtype_is_scalar(input_type):
+        if isinstance(input_type, WeldStr) or wtype_is_scalar(input_type) or isinstance(input_type, WeldStruct):
             acceptor_string += ", &{0}".format(input_name)
         elif isinstance(input_type, WeldVec):
             if wtype_is_scalar(input_type.elemType):
@@ -338,6 +354,33 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                     }
                     """ % (weld_input_name, weld_input_name, input_name, weld_input_name, weld_input_name,
                            weld_input_name, input_name, weld_input_name, weld_input_name)
+        elif isinstance(input_type, WeldStruct):
+            buffer += \
+                """
+                struct struct_in_%d %s;
+                """ % (i, weld_input_name)
+            for inner_i, field_type in enumerate(input_type.field_types):
+                if isinstance(field_type, WeldVec):
+                    buffer += \
+                        """
+                        PyObject* weld_entry{0} = PyTuple_GetItem({1}, {0});
+                        """.format(inner_i, input_name)
+                    buffer += \
+                        """
+                        PyArrayObject* weld_numpy_entry%d;
+                        if ((weld_numpy_entry%d = (PyArrayObject *) PyArray_FROM_OTF(weld_entry%d , %s, 
+                            NPY_ARRAY_IN_ARRAY)) == NULL) {
+                            return NULL;
+                        }
+                        """ % (inner_i, inner_i, inner_i, weld_type_to_numpy_macro(field_type))
+                    buffer += \
+                        """
+                        {0}._{1}.size = PyArray_DIMS(weld_numpy_entry{1})[0];
+                        {0}._{1}.ptr = ({2}*) PyArray_DATA(weld_numpy_entry{1});
+                        """.format(weld_input_name,
+                                   inner_i, wtype_to_c_type(field_type.elemType))
+                else:
+                    panic("Unrecognized struct field type %s" % str(field_type))
         elif wtype_is_scalar(input_type):
             buffer += "%s %s = %s;\n" % (wtype_to_c_type(input_type), weld_input_name, input_name)
         buffer += "weld_input._%d = %s;\n" % (i, weld_input_name)

@@ -214,7 +214,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 join_col: str = self._static_vars[WILLUMP_JOIN_COL]
                 left_df_input_var: str = value.func.value.id
                 right_df = self._static_vars[WILLUMP_JOIN_RIGHT_DATAFRAME]
-                left_join_col_name = "%s__willump_joincol" % left_df_input_var
+                left_join_col_name = "%s__willump_join_col" % left_df_input_var
                 # TODO:  Proper typing for join_column.
                 self._type_map[left_join_col_name] = WeldVec(WeldLong())
                 merge_glue_python = "%s = %s['%s'].values" % (left_join_col_name, left_df_input_var, join_col)
