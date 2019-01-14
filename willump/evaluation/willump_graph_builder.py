@@ -100,21 +100,20 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         if isinstance(value, ast.BinOp):
             if not isinstance(output_type, WeldVec):
                 return self._create_py_node(node)
-            # TODO:  This is a hacky way to get around the bad type system for intermediates.
             if isinstance(target, ast.Subscript):
                 return self._create_py_node(node)
             if isinstance(value.left, ast.Name) and value.left.id in self._node_dict:
                 left_name: str = value.left.id
                 left_node: WillumpGraphNode = self._node_dict[left_name]
             else:
-                # TODO Handle typing properly.
+                # TODO:  Type the new node properly.
                 left_name, left_node = self._create_temp_var_from_node(value.left, output_type)
                 self._node_dict[left_name] = left_node
             if isinstance(value.right, ast.Name) and value.right.id in self._node_dict:
                 right_name: str = value.right.id
                 right_node: WillumpGraphNode = self._node_dict[right_name]
             else:
-                # TODO:  Handle typing properly.
+                # TODO:  Type the new node properly.
                 right_name, right_node = self._create_temp_var_from_node(value.right, output_type)
                 self._node_dict[right_name] = right_node
             if isinstance(value.op, ast.Add):
@@ -135,21 +134,21 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             called_function: Optional[str] = self._get_function_name(value)
             if called_function is None:
                 return self._create_py_node(node)
-            # TODO:  Recognize functions in attributes properly.
+            # TODO:  Update this for batched code.
             if "split" in called_function:
                 split_input_var: str = value.func.value.id
                 split_input_node: WillumpGraphNode = self._node_dict[split_input_var]
                 string_split_node: StringSplitNode = StringSplitNode(input_node=split_input_node,
                                                                      output_name=output_var_name)
                 return output_var_name, string_split_node
-            # TODO:  Recognize when this is being called in a loop, don't just assume it is.
+            # TODO:  Update this for batched code.
             elif "lower" in called_function:
                 lower_input_var: str = value.func.value.value.id
                 lower_input_node: WillumpGraphNode = self._node_dict[lower_input_var]
                 string_lower_node: StringLowerNode = StringLowerNode(input_node=lower_input_node,
                                                                      output_name=output_var_name)
                 return output_var_name, string_lower_node
-            # TODO:  Recognize replaces that do more than remove one character.
+            # TODO:  Update this for batched code.
             elif "replace" in called_function:
                 replace_input_var: str = value.func.value.value.id
                 replace_input_node: WillumpGraphNode = self._node_dict[replace_input_var]
@@ -160,7 +159,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     StringRemoveCharNode(input_node=replace_input_node,
                                          target_char=target_char, output_name=output_var_name)
                 return output_var_name, string_remove_char_node
-            # TODO:  Find a real function to use here.
+            # TODO:  Remove this, CountVectorizer has replaced it.
             elif "willump_frequency_count" in called_function:
                 freq_count_input_var: str = value.args[0].id
                 vocab_dict = self._static_vars[WILLUMP_FREQUENCY_COUNT_VOCAB]
@@ -182,7 +181,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     logit_intercept=logit_intercept, aux_data=self.aux_data
                 )
                 return output_var_name, logit_node
-            # TODO:  Support values that are not scalar variables.
+            # TODO:  Update this for batched code.
             elif "numpy.append" in called_function:
                 append_input_array: str = value.args[0].id
                 append_input_value: str = value.args[1].id
@@ -288,7 +287,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         entry_analyzer = ExpressionVariableAnalyzer()
         entry_analyzer.visit(entry)
         input_list, output_list = entry_analyzer.get_in_out_list()
-        # TODO:  Multiple outputs.
         assert (len(output_list) == 1)
         output_var_name = output_list[0]
         input_node_list = []

@@ -14,8 +14,6 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
     weld_llvm_caller, assume the driver already exists at
     WILLUMP_HOME/cppextensions/base_filename.cpp.  Otherwise, generate a driver using the
     Weld inputs and outputs in type_map.
-
-    TODO:  Support more input and output types.  Support multiple outputs (maybe).
     """
     willump_home: str = os.environ["WILLUMP_HOME"]
     if base_filename is not "weld_llvm_caller":

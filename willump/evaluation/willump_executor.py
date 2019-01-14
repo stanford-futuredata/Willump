@@ -62,7 +62,6 @@ def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType],
     driver_file = generate_cpp_driver(version_number, type_map, base_filename, aux_data)
     output_filename: str = os.path.join(willump_build_dir,
                                         "{0}{1}.so".format(base_filename, version_number))
-    # TODO:  Make this call more portable.
     subprocess.run(["clang++", "-fPIC", "--shared", "-lweld", "-g", "-std=c++11", "-O3",
                     "-I{0}".format(sysconfig.get_path("include")),
                     "-I{0}".format(numpy.get_include()),

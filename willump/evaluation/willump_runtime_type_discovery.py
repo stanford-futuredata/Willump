@@ -159,8 +159,7 @@ def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
         return WeldDouble()
     elif isinstance(py_var, str):
         return WeldStr()
-    # TODO:  Find a way around this ridiculous special-casing for lists.
-    # TODO:  This fails badly if a list (of strings) shows up empty (degenerate input).
+    # TODO:  Find a more robust way to handle list types, this fails badly if the input is degenerate.
     elif isinstance(py_var, list) and len(py_var) > 0 and isinstance(py_var[0], str):
         return WeldVec(WeldStr())
     # Sparse matrix type used by CountVectorizer
