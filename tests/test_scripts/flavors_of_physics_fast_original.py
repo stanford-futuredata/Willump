@@ -12,7 +12,6 @@ m_tau = 1776.82  # Tau mass (in MeV)
 
 
 # Function to add extra features:
-# @willump.evaluation.willump_executor.willump_execute
 def add_features(df):
     # Number of events:
     N = len(df)

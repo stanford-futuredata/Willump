@@ -24,7 +24,7 @@ def load_combi_prep(folder='data_new/', split=None):
     return combi
 
 
-@willump.evaluation.willump_executor.willump_execute
+@willump.evaluation.willump_executor.willump_execute(batch=False)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two):
     one_combi = combi.merge(features_one, how='inner', on=join_col_one)
     two_combi = one_combi.merge(features_two, how='inner', on=join_col_two)

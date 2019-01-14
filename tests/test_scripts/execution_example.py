@@ -4,7 +4,7 @@ from timeit import default_timer as timer
 import willump.evaluation.willump_executor
 
 
-@willump.evaluation.willump_executor.willump_execute
+@willump.evaluation.willump_executor.willump_execute()
 def process_row(input_numpy_array):
     return_numpy_array = numpy.zeros(516)
     return_numpy_array[0] = input_numpy_array[68] / math.sqrt(input_numpy_array[68])

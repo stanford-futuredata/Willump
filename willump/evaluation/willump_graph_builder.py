@@ -26,12 +26,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     Builds a Willump graph from the Python AST for a FunctionDef.  Typically called from a
     decorator around that function.  Makes the following assumptions:
 
-    1.  Input Python is the definition of a single function,
-        from which the graph shall be extracted.
+    1.  No variable ever changes its type.
 
-    2.  The function does not reference anything outside of its own scope.
+    2.  No control flow changes.
 
-    TODO:  Implement UDFs to weaken assumption 2 as well as deal with syntax we don't recognize.
+    # TODO:  Allow control flow changes.
     """
     willump_graph: WillumpGraph
     # A list of all argument names in the order they are passed in.

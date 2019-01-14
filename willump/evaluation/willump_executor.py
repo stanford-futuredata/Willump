@@ -126,78 +126,81 @@ def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
     return new_functiondef
 
 
-def willump_execute(func: Callable) -> Callable:
+def willump_execute(batch=True) -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
 
     Makes assumptions about the input Python outlined in WillumpGraphBuilder.
 
-    TODO:  Make those assumptions weaker.
+    Batch is true if batch-executing (multiple inputs and outputs per call) and
+    false if point-executing (one input and output per call).
     """
-    from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
-    from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
-    from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
-    llvm_runner_func: str = "llvm_runner_func{0}".format(version_number)
-    globals()[llvm_runner_func] = None
+    def willump_execute_inner(func: Callable) -> Callable:
+        from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
+        from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
+        from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
+        llvm_runner_func: str = "llvm_runner_func{0}".format(version_number)
+        globals()[llvm_runner_func] = None
 
-    def wrapper(*args):
-        if globals()[llvm_runner_func] is None:
-            if llvm_runner_func not in willump_typing_map_set:
-                # On the first run of the function, instrument it to construct a map from variables
-                # in the function to their types at runtime.
-                willump_typing_map_set[llvm_runner_func] = {}
-                willump_static_vars_set[llvm_runner_func] = {}
-                python_source = inspect.getsource(func)
-                python_ast: ast.AST = ast.parse(python_source)
-                function_name: str = python_ast.body[0].name
-                type_discover: WillumpRuntimeTypeDiscovery = WillumpRuntimeTypeDiscovery()
-                # Create an instrumented AST that will fill willump_typing_map with the Weld types
-                # of all variables in the function.
-                new_ast: ast.AST = type_discover.visit(python_ast)
-                new_ast = ast.fix_missing_locations(new_ast)
-                local_namespace = {}
-                # Create namespaces the instrumented function can run in containing both its
-                # original globals and the ones the instrumentation needs.
-                augmented_globals = copy.copy(func.__globals__)
-                augmented_globals["willump_typing_map"] = willump_typing_map_set[llvm_runner_func]
-                augmented_globals["willump_static_vars"] = willump_static_vars_set[llvm_runner_func]
-                augmented_globals["py_var_to_weld_type"] = py_var_to_weld_type
-                # Run the instrumented function.
-                exec(compile(new_ast, filename="<ast>", mode="exec"), augmented_globals,
-                     local_namespace)
-                return local_namespace[function_name](*args)
+        def wrapper(*args):
+            if globals()[llvm_runner_func] is None:
+                if llvm_runner_func not in willump_typing_map_set:
+                    # On the first run of the function, instrument it to construct a map from variables
+                    # in the function to their types at runtime.
+                    willump_typing_map_set[llvm_runner_func] = {}
+                    willump_static_vars_set[llvm_runner_func] = {}
+                    python_source = inspect.getsource(func)
+                    python_ast: ast.AST = ast.parse(python_source)
+                    function_name: str = python_ast.body[0].name
+                    type_discover: WillumpRuntimeTypeDiscovery = WillumpRuntimeTypeDiscovery()
+                    # Create an instrumented AST that will fill willump_typing_map with the Weld types
+                    # of all variables in the function.
+                    new_ast: ast.AST = type_discover.visit(python_ast)
+                    new_ast = ast.fix_missing_locations(new_ast)
+                    local_namespace = {}
+                    # Create namespaces the instrumented function can run in containing both its
+                    # original globals and the ones the instrumentation needs.
+                    augmented_globals = copy.copy(func.__globals__)
+                    augmented_globals["willump_typing_map"] = willump_typing_map_set[llvm_runner_func]
+                    augmented_globals["willump_static_vars"] = willump_static_vars_set[llvm_runner_func]
+                    augmented_globals["py_var_to_weld_type"] = py_var_to_weld_type
+                    # Run the instrumented function.
+                    exec(compile(new_ast, filename="<ast>", mode="exec"), augmented_globals,
+                         local_namespace)
+                    return local_namespace[function_name](*args)
+                else:
+                    # With the types of variables all known, we can compile the function.  First,
+                    # infer the Willump graph from the function's AST.
+                    willump_typing_map: Mapping[str, WeldType] = \
+                        willump_typing_map_set[llvm_runner_func]
+                    willump_static_vars: Mapping[str, object] = \
+                        willump_static_vars_set[llvm_runner_func]
+                    python_source = inspect.getsource(func)
+                    python_ast: ast.Module = ast.parse(python_source)
+                    function_name: str = python_ast.body[0].name
+                    graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars, batch=batch)
+                    graph_builder.visit(python_ast)
+                    python_graph: WillumpGraph = graph_builder.get_willump_graph()
+                    aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()
+                    # Transform the Willump graph into blocks of Weld and Python code.  Compile the Weld blocks.
+                    python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+                        willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
+                    python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
+                                                                                             aux_data, willump_typing_map)
+                    compiled_functiondef = py_weld_statements_to_ast(python_statement_list, python_ast)
+                    augmented_globals = copy.copy(func.__globals__)
+                    # Import all of the compiled Weld blocks called from the transformed function.
+                    for module in modules_to_import:
+                        augmented_globals[module] = importlib.import_module(module)
+                    local_namespace = {}
+                    # Call the transformed function with its original arguments.
+                    exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), augmented_globals,
+                         local_namespace)
+                    globals()[llvm_runner_func] = local_namespace[function_name]
+                    return globals()[llvm_runner_func](*args)
             else:
-                # With the types of variables all known, we can compile the function.  First,
-                # infer the Willump graph from the function's AST.
-                willump_typing_map: Mapping[str, WeldType] = \
-                    willump_typing_map_set[llvm_runner_func]
-                willump_static_vars: Mapping[str, object] = \
-                    willump_static_vars_set[llvm_runner_func]
-                python_source = inspect.getsource(func)
-                python_ast: ast.Module = ast.parse(python_source)
-                function_name: str = python_ast.body[0].name
-                graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars)
-                graph_builder.visit(python_ast)
-                python_graph: WillumpGraph = graph_builder.get_willump_graph()
-                # args_list: List[str] = graph_builder.get_args_list()
-                aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()
-                # Convert the Willump graph to a Weld program.
-                python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
-                    willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
-                python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
-                                                                                         aux_data, willump_typing_map)
-                compiled_functiondef = py_weld_statements_to_ast(python_statement_list, python_ast)
-                # Compile the Weld to a Python C extension, then call into the extension.
-                augmented_globals = copy.copy(func.__globals__)
-                for module in modules_to_import:
-                    augmented_globals[module] = importlib.import_module(module)
-                local_namespace = {}
-                exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), augmented_globals,
-                     local_namespace)
-                globals()[llvm_runner_func] = local_namespace[function_name]
+                # Run the compiled function.
                 return globals()[llvm_runner_func](*args)
-        else:
-            # Run the compiled function.
-            return globals()[llvm_runner_func](*args)
 
-    return wrapper
+        return wrapper
+    return willump_execute_inner

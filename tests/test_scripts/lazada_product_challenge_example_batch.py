@@ -5,7 +5,7 @@ import willump.evaluation.willump_executor
 import scipy.sparse.csr
 
 
-@willump.evaluation.willump_executor.willump_execute
+@willump.evaluation.willump_executor.willump_execute()
 def vectorizer_transform(input_vect, input_df):
     np_input = list(input_df.values)
     transformed_result = input_vect.transform(np_input)
