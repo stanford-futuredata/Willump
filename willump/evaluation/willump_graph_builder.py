@@ -48,14 +48,14 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     _temp_var_counter: int
 
     def __init__(self, type_map: MutableMapping[str, WeldType],
-                 static_vars: Mapping[str, object]) -> None:
+                 static_vars: Mapping[str, object], batch=True) -> None:
         self._node_dict = {}
         self._type_map = type_map
         self._static_vars = static_vars
         self.arg_list = []
         self.aux_data = []
         self._temp_var_counter = 0
-        self.batch = True
+        self.batch = batch
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """
@@ -209,11 +209,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 )
                 return output_var_name, array_cv_node
             elif ".merge" in called_function:
-                if self._static_vars[WILLUMP_JOIN_HOW] is not 'inner':
+                if self._static_vars[WILLUMP_JOIN_HOW + str(node.lineno)] is not 'inner':
                     return self._create_py_node(node)
-                join_col: str = self._static_vars[WILLUMP_JOIN_COL]
-                left_df_columns: List[str] = list(self._static_vars[WILLUMP_JOIN_LEFT_COLUMNS])
-                left_df_dtypes = self._static_vars[WILLUMP_JOIN_LEFT_DTYPES]
+                join_col: str = self._static_vars[WILLUMP_JOIN_COL + str(node.lineno)]
+                left_df_columns: List[str] = list(self._static_vars[WILLUMP_JOIN_LEFT_COLUMNS + str(node.lineno)])
+                left_df_dtypes = self._static_vars[WILLUMP_JOIN_LEFT_DTYPES + str(node.lineno)]
+                right_df = self._static_vars[WILLUMP_JOIN_RIGHT_DATAFRAME + str(node.lineno)]
                 left_df_weld_types = []
                 for column in left_df_columns:
                     col_weld_type: WeldType = numpy_type_to_weld_type(left_df_dtypes[column])
@@ -222,22 +223,26 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     else:
                         left_df_weld_types.append(col_weld_type)
                 left_df_input_var: str = value.func.value.id
-                right_df = self._static_vars[WILLUMP_JOIN_RIGHT_DATAFRAME]
-                left_df_weld_name = "%s__willump_join_col" % left_df_input_var
-                # TODO:  Proper typing for join_column.
-                self._type_map[left_df_weld_name] = WeldStruct(left_df_weld_types)
-                if self.batch:
-                    merge_glue_python_args = ""
-                    for column in left_df_columns:
-                        merge_glue_python_args += "%s['%s'].values," % (left_df_input_var, column)
-                    merge_glue_python = "%s = (%s)" % (left_df_weld_name, merge_glue_python_args)
+                left_df_input_node = self._node_dict[left_df_input_var]
+                # If the input comes from Python, convert it to a form Weld can understand.
+                if isinstance(left_df_input_node, WillumpPythonNode) or \
+                        isinstance(left_df_input_node, WillumpInputNode):
+                    left_df_weld_name = "%s__willump_join_col" % left_df_input_var
+                    self._type_map[left_df_weld_name] = WeldStruct(left_df_weld_types)
+                    if self.batch:
+                        merge_glue_python_args = ""
+                        for column in left_df_columns:
+                            merge_glue_python_args += "%s['%s'].values," % (left_df_input_var, column)
+                        merge_glue_python = "%s = (%s)" % (left_df_weld_name, merge_glue_python_args)
+                    else:
+                        merge_glue_python = "%s = tuple(%s.values[0])" % (left_df_weld_name, left_df_input_var)
+                    merge_glue_ast: ast.Module = \
+                        ast.parse(merge_glue_python, "exec")
+                    hash_join_input_node = WillumpPythonNode(merge_glue_ast.body[0], left_df_weld_name,
+                                                        [left_df_input_node])
                 else:
-                    merge_glue_python = "%s = tuple(%s.values[0])" % (left_df_weld_name, left_df_input_var)
-                merge_glue_ast: ast.Module = \
-                    ast.parse(merge_glue_python, "exec")
-                merge_glue_node = WillumpPythonNode(merge_glue_ast.body[0], left_df_weld_name,
-                                                    [self._node_dict[left_df_input_var]])
-                willump_hash_join_node = WillumpHashJoinNode(input_node=merge_glue_node, output_name=output_var_name,
+                    hash_join_input_node = left_df_input_node
+                willump_hash_join_node = WillumpHashJoinNode(input_node=hash_join_input_node, output_name=output_var_name,
                                                              join_col_name=join_col,
                                                              right_dataframe=right_df, aux_data=self.aux_data,
                                                              batch=self.batch, size_left_df=len(left_df_columns),

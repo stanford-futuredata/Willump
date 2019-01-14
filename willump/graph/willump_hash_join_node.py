@@ -14,6 +14,8 @@ class WillumpHashJoinNode(WillumpGraphNode):
     """
     Implements an inner join between two dataframes on a specific column, preserving the order of the keys in the
     left dataframe.
+
+    TODO:  Proper typing of join column instead of casting to i64.
     """
     _input_nodes: List[WillumpGraphNode]
 

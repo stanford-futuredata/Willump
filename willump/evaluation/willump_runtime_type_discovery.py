@@ -111,15 +111,21 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 # TODO:  More robust extraction.
                 static_variable_extraction_code = \
                     """willump_static_vars["{0}"] = {1}\n""" \
-                        .format(WILLUMP_JOIN_RIGHT_DATAFRAME, value.args[0].id) + \
+                        .format(WILLUMP_JOIN_RIGHT_DATAFRAME + str(value.lineno), value.args[0].id) + \
                     """willump_static_vars["{0}"] = {1}.columns\n""" \
-                        .format(WILLUMP_JOIN_LEFT_COLUMNS, value.func.value.id) + \
+                        .format(WILLUMP_JOIN_LEFT_COLUMNS + str(value.lineno), value.func.value.id) + \
                     """willump_static_vars["{0}"] = {1}.dtypes\n""" \
-                        .format(WILLUMP_JOIN_LEFT_DTYPES, value.func.value.id) + \
+                        .format(WILLUMP_JOIN_LEFT_DTYPES + str(value.lineno), value.func.value.id) + \
                     """willump_static_vars["{0}"] = "{1}"\n""" \
-                        .format(WILLUMP_JOIN_HOW, value.keywords[0].value.s) + \
-                    """willump_static_vars["{0}"] = "{1}"\n""" \
-                        .format(WILLUMP_JOIN_COL, value.keywords[1].value.s)
+                        .format(WILLUMP_JOIN_HOW + str(value.lineno), value.keywords[0].value.s)
+                if isinstance(value.keywords[1].value, ast.Name):
+                    static_variable_extraction_code += \
+                        """willump_static_vars["{0}"] = {1}\n""" \
+                            .format(WILLUMP_JOIN_COL + str(value.lineno), value.keywords[1].value.id)
+                else:
+                    static_variable_extraction_code += \
+                        """willump_static_vars["{0}"] = "{1}"\n""" \
+                            .format(WILLUMP_JOIN_COL + str(value.lineno), value.keywords[1].value.s)
                 join_instrumentation_ast: ast.Module = \
                     ast.parse(static_variable_extraction_code, "exec")
                 join_instrumentation_statements: List[ast.stmt] = join_instrumentation_ast.body
