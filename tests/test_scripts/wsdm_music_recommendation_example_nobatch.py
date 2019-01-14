@@ -26,8 +26,8 @@ def load_combi_prep(folder='data_new/', split=None):
 
 @willump.evaluation.willump_executor.willump_execute
 def do_merge(combi, features, how, on):
-    combi = combi.merge(features, how='inner', on='msno')
-    return combi
+    new_combi = combi.merge(features, how='inner', on='msno')
+    return new_combi
 
 
 def add_als(folder, combi, size, user=True, pos=False, postfix='', artist=False):
@@ -78,8 +78,8 @@ def create_featureset(folder):
     combi = load_combi_prep(folder=folder, split=None)
 
     # partition data by time
-    combi['time_bin10'] = pd.cut(combi['time'], 10, labels=range(10))
-    combi['time_bin5'] = pd.cut(combi['time'], 5, labels=range(5))
+    # combi['time_bin10'] = pd.cut(combi['time'], 10, labels=range(10))
+    # combi['time_bin5'] = pd.cut(combi['time'], 5, labels=range(5))
 
     # add latent features
     combi = add_als(folder, combi, UF_SIZE, user=True, postfix='', artist=False)

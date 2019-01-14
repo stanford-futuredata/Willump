@@ -180,7 +180,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                             buffer += \
                                 """
                                 ret_entry =
-                                    PyLongFromLong((long) curr_output._%d);
+                                    PyLong_FromLong((long) curr_output._%d);
                                 PyTuple_SetItem(ret, %d, ret_entry);
                                 """ % (inner_i, inner_i)
                     else:
@@ -360,11 +360,11 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                 struct struct_in_%d %s;
                 """ % (i, weld_input_name)
             for inner_i, field_type in enumerate(input_type.field_types):
+                buffer += \
+                    """
+                    PyObject* weld_entry{0} = PyTuple_GetItem({1}, {0});
+                    """.format(inner_i, input_name)
                 if isinstance(field_type, WeldVec):
-                    buffer += \
-                        """
-                        PyObject* weld_entry{0} = PyTuple_GetItem({1}, {0});
-                        """.format(inner_i, input_name)
                     buffer += \
                         """
                         PyArrayObject* weld_numpy_entry%d;
@@ -379,6 +379,17 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                         {0}._{1}.ptr = ({2}*) PyArray_DATA(weld_numpy_entry{1});
                         """.format(weld_input_name,
                                    inner_i, wtype_to_c_type(field_type.elemType))
+                elif wtype_is_scalar(field_type):
+                    if weld_scalar_type_fp(weld_type=field_type):
+                        buffer += \
+                            """
+                            %s._%d = PyFloat_AS_DOUBLE(weld_entry%d);
+                            """ % (weld_input_name, inner_i, inner_i)
+                    else:
+                        buffer += \
+                            """
+                            %s._%d = PyLong_AsLong(weld_entry%d);
+                            """ % (weld_input_name, inner_i, inner_i)
                 else:
                     panic("Unrecognized struct field type %s" % str(field_type))
         elif wtype_is_scalar(input_type):

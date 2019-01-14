@@ -129,11 +129,24 @@ class WillumpHashJoinNode(WillumpGraphNode):
             weld_program = weld_program.replace("INPUT_NAME", self._input_array_string_name)
             weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         else:
+            result_statement = "{"
+            switch = 0
+            for i in range(self._size_left_df):
+                result_statement += "%s.$%d," % (self._input_array_string_name, i)
+            for i, column in enumerate(self._right_dataframe):
+                if column != self._join_col_name:
+                    result_statement += "pre_output.$%d," % (i - switch)
+                else:
+                    switch = 1
+            result_statement += "}"
             weld_program = \
                 """
-                    let OUTPUT_NAME = lookup(RIGHT_DATAFRAME_NAME, lookup(INPUT_NAME, 0L));
+                    let pre_output = lookup(RIGHT_DATAFRAME_NAME, i64(INPUT_NAME.$JOIN_COL_LEFT_INDEX));
+                    let OUTPUT_NAME = RESULT_STATEMENT;
                 """
+            weld_program = weld_program.replace("JOIN_COL_LEFT_INDEX", str(self._join_col_left_index))
             weld_program = weld_program.replace("RIGHT_DATAFRAME_NAME", self._right_dataframe_name)
+            weld_program = weld_program.replace("RESULT_STATEMENT", result_statement)
             weld_program = weld_program.replace("INPUT_NAME", self._input_array_string_name)
             weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         return weld_program

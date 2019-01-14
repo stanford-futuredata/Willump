@@ -217,19 +217,26 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 left_df_weld_types = []
                 for column in left_df_columns:
                     col_weld_type: WeldType = numpy_type_to_weld_type(left_df_dtypes[column])
-                    left_df_weld_types.append(WeldVec(col_weld_type))
+                    if self.batch:
+                        left_df_weld_types.append(WeldVec(col_weld_type))
+                    else:
+                        left_df_weld_types.append(col_weld_type)
                 left_df_input_var: str = value.func.value.id
                 right_df = self._static_vars[WILLUMP_JOIN_RIGHT_DATAFRAME]
                 left_df_weld_name = "%s__willump_join_col" % left_df_input_var
                 # TODO:  Proper typing for join_column.
                 self._type_map[left_df_weld_name] = WeldStruct(left_df_weld_types)
-                merge_glue_python_args = ""
-                for column in left_df_columns:
-                    merge_glue_python_args += "%s['%s'].values," % (left_df_input_var, column)
-                merge_glue_python = "%s = (%s)" % (left_df_weld_name, merge_glue_python_args)
+                if self.batch:
+                    merge_glue_python_args = ""
+                    for column in left_df_columns:
+                        merge_glue_python_args += "%s['%s'].values," % (left_df_input_var, column)
+                    merge_glue_python = "%s = (%s)" % (left_df_weld_name, merge_glue_python_args)
+                else:
+                    merge_glue_python = "%s = tuple(%s.values[0])" % (left_df_weld_name, left_df_input_var)
                 merge_glue_ast: ast.Module = \
                     ast.parse(merge_glue_python, "exec")
-                _, merge_glue_node = self._create_py_node(merge_glue_ast.body[0])
+                merge_glue_node = WillumpPythonNode(merge_glue_ast.body[0], left_df_weld_name,
+                                                    [self._node_dict[left_df_input_var]])
                 willump_hash_join_node = WillumpHashJoinNode(input_node=merge_glue_node, output_name=output_var_name,
                                                              join_col_name=join_col,
                                                              right_dataframe=right_df, aux_data=self.aux_data,
