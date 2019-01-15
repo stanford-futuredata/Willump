@@ -21,7 +21,7 @@ class LogisticRegressionNode(WillumpGraphNode):
     _weights_data_name: str
     _intercept_data_name: str
 
-    def __init__(self, input_node: WillumpGraphNode, output_name: str,
+    def __init__(self, input_node: WillumpGraphNode, input_type: WeldType, output_name: str,
                  logit_weights, logit_intercept, aux_data: List[Tuple[int, WeldType]]) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
@@ -63,14 +63,17 @@ class LogisticRegressionNode(WillumpGraphNode):
     def get_node_weld(self) -> str:
         weld_program = \
             """
-            let output_float: f64 = result(for(zip(INPUT_NAME, WEIGHTS_NAME),
-                merger[f64, +],
-                | bs: merger[f64, +], i: i64, inp_weight: {i64, f64} |
-                    merge(bs, f64(inp_weight.$0) * inp_weight.$1)
+            let intercept: f64 = lookup(INTERCEPT_NAME, 0L);
+            let OUTPUT_NAME: vec[i64] = result(for(INPUT_NAME,
+                appender[i64],
+                | results: appender[i64], result_i: i64, row: vec[i64] |
+                    let sum: f64 = result(for(zip(row, WEIGHTS_NAME),
+                        merger[f64, +],
+                        | bs: merger[f64, +], i: i64, inp_weight: {i64, f64} |
+                            merge(bs, f64(inp_weight.$0) * inp_weight.$1)
+                    ));
+                    merge(results, select(sum + intercept > 0.0, 1L, 0L))
             ));
-            let output_float: f64 = output_float + lookup(INTERCEPT_NAME, 0L);
-            let output_int: i64 = select(output_float > 0.0, 1L, 0L);
-            let OUTPUT_NAME = result(merge(appender[i64], output_int));
             """
         weld_program = weld_program.replace("WEIGHTS_NAME", self._weights_data_name)
         weld_program = weld_program.replace("INTERCEPT_NAME", self._intercept_data_name)

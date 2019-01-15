@@ -176,7 +176,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 logit_intercept = self._static_vars[WILLUMP_LOGISTIC_REGRESSION_INTERCEPT]
                 logit_input_node: WillumpGraphNode = self._node_dict[logit_input_var]
                 logit_node: LogisticRegressionNode = LogisticRegressionNode(
-                    input_node=logit_input_node, output_name=output_var_name,
+                    input_node=logit_input_node, input_type=self._type_map[logit_input_var],
+                    output_name=output_var_name,
                     logit_weights=logit_weights,
                     logit_intercept=logit_intercept, aux_data=self.aux_data
                 )

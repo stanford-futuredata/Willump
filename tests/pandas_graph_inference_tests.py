@@ -5,6 +5,7 @@ import inspect
 import ast
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
+import sklearn.linear_model
 
 import willump.evaluation.willump_weld_generator
 from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
@@ -67,6 +68,17 @@ def sample_pandas_count_vectorizer(array_one, input_vect):
 def sample_pandas_merge(left, right):
     new = left.merge(right, how="inner", on="join_column")
     return new
+
+
+model = sklearn.linear_model.LogisticRegression(solver='lbfgs')
+model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
+model.intercept_ = numpy.array([0.001], dtype=numpy.float64)
+model.classes_ = numpy.array([0, 1], dtype=numpy.int64)
+
+
+def sample_logistic_regression_np_array(np_input):
+    predicted_result = model.predict(np_input)
+    return predicted_result
 
 
 class PandasGraphInferenceTests(unittest.TestCase):

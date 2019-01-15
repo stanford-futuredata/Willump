@@ -101,19 +101,6 @@ def sample_string_freq_count(input_string):
     return output_vec
 
 
-model = sklearn.linear_model.LogisticRegression(solver='lbfgs')
-model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
-model.intercept_ = numpy.array([0.001], dtype=numpy.float64)
-model.classes_ = numpy.array([0, 1], dtype=numpy.int64)
-
-
-def sample_logistic_regression(input_string):
-    output_strings = input_string.split()
-    output_vec = willump_frequency_count(output_strings, simple_vocab_dict)
-    predicted_result = model.predict(output_vec)
-    return predicted_result
-
-
 def sample_scalar_append(input_array, input_value):
     output_array = numpy.append(input_array, input_value)
     return output_array
@@ -317,28 +304,6 @@ class GraphInferenceTests(unittest.TestCase):
              local_namespace)
         weld_output = local_namespace["sample_string_freq_count"](sample_string)
         numpy.testing.assert_equal(weld_output, numpy.array([0, 0, 0, 1, 1, 0], dtype=numpy.int64))
-
-    def test_logistic_regression(self):
-        print("\ntest_logistic_regression")
-        sample_python: str = inspect.getsource(sample_logistic_regression)
-        sample_string: str = "cat dog elephant"
-        self.set_typing_map(sample_python, "sample_logistic_regression", [sample_string])
-        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
-                                                                 willump_static_vars)
-        graph_builder.visit(ast.parse(sample_python))
-        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]] = \
-            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
-        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
-                                                                    graph_builder.get_aux_data(), willump_typing_map)
-        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
-        for module in modules_to_import:
-            globals()[module] = importlib.import_module(module)
-        local_namespace = {}
-        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
-             local_namespace)
-        weld_output = local_namespace["sample_logistic_regression"](sample_string)
-        numpy.testing.assert_equal(weld_output, numpy.array([0], dtype=numpy.int64))
 
     def test_scalar_append(self):
         print("\ntest_scalar_append")

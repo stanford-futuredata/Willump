@@ -246,7 +246,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
         if isinstance(input_type, WeldStr):
             buffer += "char* {0} = NULL;\n".format(input_name)
         elif isinstance(input_type, WeldVec):
-            if wtype_is_scalar(input_type.elemType):
+            if wtype_is_scalar(input_type.elemType) or isinstance(input_type.elemType, WeldVec):
                 input_array_name = "driver_input_array{0}".format(i)
                 buffer += \
                     """
@@ -269,7 +269,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
         if isinstance(input_type, WeldStr):
             format_string += "s"
         elif isinstance(input_type, WeldVec):
-            if wtype_is_scalar(input_type.elemType):
+            if not isinstance(input_type.elemType, WeldStr):
                 format_string += "O!"
             else:
                 format_string += "O"
@@ -286,7 +286,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
         if isinstance(input_type, WeldStr) or wtype_is_scalar(input_type) or isinstance(input_type, WeldPandas):
             acceptor_string += ", &{0}".format(input_name)
         elif isinstance(input_type, WeldVec):
-            if wtype_is_scalar(input_type.elemType):
+            if not isinstance(input_type.elemType, WeldStr):
                 acceptor_string += ", &PyArray_Type, &{0}".format(input_name)
             else:
                 acceptor_string += ", &{0}".format(input_name)
@@ -298,7 +298,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
         """ % (format_string, acceptor_string)
     # Convert all input Numpy arrays into PyArrayObjects.
     for i, input_type in enumerate(input_types):
-        if isinstance(input_type, WeldVec) and wtype_is_scalar(input_type.elemType):
+        if isinstance(input_type, WeldVec) and not isinstance(input_type.elemType, WeldStr):
             input_name = "driver_input{0}".format(i)
             input_array_name = "driver_input_array{0}".format(i)
             buffer += \
@@ -313,7 +313,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
         if isinstance(input_type, WeldStr):
             input_name = "driver_input{0}".format(i)
             buffer += "int %s = strlen(%s);\n" % (input_len_name, input_name)
-        elif isinstance(input_type, WeldVec) and wtype_is_scalar(input_type.elemType):
+        elif isinstance(input_type, WeldVec) and not isinstance(input_type.elemType, WeldStr):
             input_array_name = "driver_input_array{0}".format(i)
             buffer += "int %s = PyArray_DIMS(%s)[0];\n" % (input_len_name, input_array_name)
     # Define all the entries of the weld input struct.
@@ -339,7 +339,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                     {0}.ptr = ({3}*) PyArray_DATA({2});
                     """.format(weld_input_name, input_len_name,
                                input_array_name, wtype_to_c_type(input_type.elemType))
-            else:
+            elif isinstance(input_type.elemType, WeldStr):
                 buffer += \
                     """
                     vec<vec<i8>> %s;
@@ -352,6 +352,21 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                     }
                     """ % (weld_input_name, weld_input_name, input_name, weld_input_name, weld_input_name,
                            weld_input_name, input_name, weld_input_name, weld_input_name)
+            elif isinstance(input_type.elemType, WeldVec):
+                buffer += \
+                    """
+                    vec<vec<{0}>> {1};
+                    {1}.size = {2};
+                    {1}.ptr = (vec<{0}>*) malloc(sizeof(vec<{0}>) * {2});
+                    int ele_size{3} = PyArray_DIMS({4})[1];
+                    for(int i = 0; i < {2}; i++) {{
+                        {1}.ptr[i].size = ele_size{3};
+                        {1}.ptr[i].ptr = (({0}*) PyArray_DATA({4})) + i * ele_size{3};
+                    }}
+                    """.format(wtype_to_c_type(input_type.elemType.elemType),
+                               weld_input_name, input_len_name, i, input_array_name)
+            else:
+                panic("Unrecognized elemType in input WeldVec %s" % str(input_type.elemType))
         elif isinstance(input_type, WeldPandas):
             buffer += \
                 """
@@ -453,6 +468,8 @@ def weld_type_to_numpy_macro(wtype: WeldType) -> str:
             return "NPY_INT32"
         elif isinstance(wtype.elemType, WeldLong):
             return "NPY_INT64"
+        elif isinstance(wtype, WeldVec):
+            return weld_type_to_numpy_macro(wtype.elemType)
         else:
             panic("Unrecognized IO type {0}".format(wtype.__str__()))
             return ""
