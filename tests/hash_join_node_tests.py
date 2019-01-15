@@ -28,8 +28,8 @@ class HashJoinNodeTests(unittest.TestCase):
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                                                                  ["input_table"], aux_data)
-        type_map = {"__willump_arg0": WeldStruct([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())]),
-                    "__willump_retval0": WeldStruct([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong()),
+        type_map = {"__willump_arg0": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())]),
+                    "__willump_retval0": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong()),
                                                      WeldVec(WeldDouble()), WeldVec(WeldDouble())])}
         module_name = wexec.compile_weld_program(weld_program, type_map, aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
@@ -56,8 +56,8 @@ class HashJoinNodeTests(unittest.TestCase):
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                                                                  ["input_table"], aux_data)
-        type_map = {"__willump_arg0": WeldStruct([WeldLong(), WeldLong(), WeldLong()]),
-                    "__willump_retval0": WeldStruct([WeldLong(), WeldLong(), WeldLong(), WeldDouble(), WeldDouble()])}
+        type_map = {"__willump_arg0": WeldPandas([WeldLong(), WeldLong(), WeldLong()]),
+                    "__willump_retval0": WeldPandas([WeldLong(), WeldLong(), WeldLong(), WeldDouble(), WeldDouble()])}
         module_name = wexec.compile_weld_program(weld_program, type_map, aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func((left_table["join_column"].values[0],

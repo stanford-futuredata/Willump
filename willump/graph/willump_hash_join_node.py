@@ -92,7 +92,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
         input_args = tuple(input_args)
 
         indexed_right_dataframe = hash_join_dataframe_indexer.caller_func(*input_args)
-        return [(indexed_right_dataframe, WeldDict(WeldLong(), WeldStruct(types_list)))]
+        return [(indexed_right_dataframe, WeldDict(WeldLong(), WeldPandas(types_list)))]
 
     def get_node_weld(self) -> str:
         if self.batch:

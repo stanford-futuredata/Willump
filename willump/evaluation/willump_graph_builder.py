@@ -226,7 +226,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 if isinstance(left_df_input_node, WillumpPythonNode) or \
                         isinstance(left_df_input_node, WillumpInputNode):
                     left_df_weld_name = "%s__willump_join_col" % left_df_input_var
-                    self._type_map[left_df_weld_name] = WeldStruct(left_df_weld_types)
+                    self._type_map[left_df_weld_name] = WeldPandas(left_df_weld_types)
                     if self.batch:
                         merge_glue_python_args = ""
                         for column in left_df_columns:
@@ -255,7 +255,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                             out_dataframe_types.append(WeldVec(col_weld_type))
                         else:
                             out_dataframe_types.append(col_weld_type)
-                self._type_map[output_var_name] = WeldStruct(out_dataframe_types)
+                self._type_map[output_var_name] = WeldPandas(out_dataframe_types)
                 return output_var_name, willump_hash_join_node
             # TODO:  What to do with these?
             elif "reshape" in called_function:

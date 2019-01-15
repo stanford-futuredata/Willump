@@ -42,7 +42,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
         # Define the Weld input struct and output struct.
         input_struct = ""
         for i, input_type in enumerate(input_types):
-            if isinstance(input_type, WeldStruct):
+            if isinstance(input_type, WeldPandas):
                 inner_struct = ""
                 for inner_i, inner_type in enumerate(input_type.field_types):
                     inner_struct += "{0} _{1};\n".format(wtype_to_c_type(inner_type), inner_i)
@@ -59,7 +59,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             input_struct += "{0} _{1};\n".format(wtype_to_c_type(input_type), i + len(input_types))
         output_struct = ""
         for i, output_type in enumerate(output_types):
-            if isinstance(output_type, WeldStruct):
+            if isinstance(output_type, WeldPandas):
                 inner_struct = ""
                 for inner_i, inner_type in enumerate(output_type.field_types):
                     inner_struct += "{0} _{1};\n".format(wtype_to_c_type(inner_type), inner_i)
@@ -115,7 +115,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                     """
                     {
                     """
-            if isinstance(output_type, WeldStruct):
+            if isinstance(output_type, WeldPandas):
                 buffer += "struct struct%d curr_output = weld_output->_%d;\n" % (i, i)
             else:
                 buffer += "%s curr_output = weld_output->_%d;\n" % (wtype_to_c_type(output_type), i)
@@ -150,7 +150,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                         (PyArrayObject*) PyArray_SimpleNewFromData(1, &curr_output.size, %s, curr_output.ptr);
                     PyArray_ENABLEFLAGS(ret, NPY_ARRAY_OWNDATA);
                     """ % weld_type_to_numpy_macro(output_type)
-            elif isinstance(output_type, WeldStruct):
+            elif isinstance(output_type, WeldPandas):
                 field_types = output_type.field_types
                 buffer += \
                     """
@@ -257,7 +257,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                 buffer += "PyObject* %s = NULL;\n" % input_name
             else:
                 panic("Unsupported input type {0}".format(str(input_type)))
-        elif isinstance(input_type, WeldStruct):
+        elif isinstance(input_type, WeldPandas):
             buffer += "PyObject* {0} = NULL;\n".format(input_name)
         elif wtype_is_scalar(input_type):
             buffer += "%s %s;\n" % (str(input_type), input_name)
@@ -273,7 +273,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                 format_string += "O!"
             else:
                 format_string += "O"
-        elif isinstance(input_type, WeldStruct):
+        elif isinstance(input_type, WeldPandas):
             format_string += "O"
         elif isinstance(input_type, WeldLong) or isinstance(input_type, WeldInt) or \
                 isinstance(input_type, WeldInt16) or isinstance(input_type, WeldChar):
@@ -283,7 +283,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
     acceptor_string = ""
     for i, input_type in enumerate(input_types):
         input_name = "driver_input{0}".format(i)
-        if isinstance(input_type, WeldStr) or wtype_is_scalar(input_type) or isinstance(input_type, WeldStruct):
+        if isinstance(input_type, WeldStr) or wtype_is_scalar(input_type) or isinstance(input_type, WeldPandas):
             acceptor_string += ", &{0}".format(input_name)
         elif isinstance(input_type, WeldVec):
             if wtype_is_scalar(input_type.elemType):
@@ -352,7 +352,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                     }
                     """ % (weld_input_name, weld_input_name, input_name, weld_input_name, weld_input_name,
                            weld_input_name, input_name, weld_input_name, weld_input_name)
-        elif isinstance(input_type, WeldStruct):
+        elif isinstance(input_type, WeldPandas):
             buffer += \
                 """
                 struct struct_in_%d %s;
