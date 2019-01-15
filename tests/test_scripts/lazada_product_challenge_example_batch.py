@@ -12,7 +12,7 @@ def vectorizer_transform(input_vect, input_df):
     return transformed_result
 
 
-df = pd.read_csv("tests/test_resources/lazada_data_train.csv", header=None,
+df = pd.read_csv("tests/test_resources/lazada_challenge_features/lazada_data_train.csv", header=None,
                  names=['country', 'sku_id', 'title', 'category_lvl_1', 'category_lvl_2', 'category_lvl_3',
                         'short_description', 'price', 'product_type'])
 

@@ -1,11 +1,18 @@
 from sklearn.feature_extraction.text import CountVectorizer
 import time
 import pandas as pd
+import numpy
+import pickle
 import willump.evaluation.willump_executor
 import scipy.sparse.csr
+from sklearn.linear_model import SGDClassifier
+from sklearn.metrics import mean_squared_error
 
 
-@willump.evaluation.willump_executor.willump_execute()
+def rmse_score(y, pred):
+    return numpy.sqrt(mean_squared_error(y, pred))
+
+# @willump.evaluation.willump_executor.willump_execute()
 def vectorizer_transform(input_vect, input_df):
     np_input = list(input_df.values)
     transformed_result = input_vect.transform(np_input)
@@ -22,16 +29,23 @@ vect.fit(df["title"].tolist())
 print("Vocabulary has length %d" % len(vect.vocabulary_))
 
 set_size = len(df)
-mini_df = df.loc[0:0].copy()["title"]
+mini_df = df.head(2).copy()["title"]
 vectorizer_transform(vect, mini_df)
 vectorizer_transform(vect, mini_df)
 vectorizer_transform(vect, mini_df)
-entry_list = []
-for i in range(set_size):
-    entry_list.append(df.loc[i:i]["title"])
 t0 = time.time()
-for entry in entry_list:
-    X_title = vectorizer_transform(vect, entry)
+X_title = vectorizer_transform(vect, df["title"])
 time_elapsed = time.time() - t0
 print("Title Processing Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
+
+model = SGDClassifier(loss='log', penalty='l1', max_iter=1000, verbose=0, tol=0.0001)
+y = numpy.loadtxt("tests/test_resources/lazada_challenge_features/conciseness_train.labels", dtype=int)
+
+model.fit(X_title, y)
+
+preds = model.predict(X_title)
+
+print("RMSE Score: %f" % rmse_score(preds, y))
+
+pickle.dump(model, open("tests/test_resources/lazada_challenge_features/lazada_model.pk", "wb"))
