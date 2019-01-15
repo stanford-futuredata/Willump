@@ -81,6 +81,15 @@ def sample_logistic_regression_np_array(np_input):
     return predicted_result
 
 
+def sample_logistic_regression_cv(array_one, input_vect):
+    df = pd.DataFrame()
+    df["strings"] = array_one
+    np_input = list(df["strings"].values)
+    transformed_result = input_vect.transform(np_input)
+    predicted_result = model.predict(transformed_result)
+    return predicted_result
+
+
 class PandasGraphInferenceTests(unittest.TestCase):
     def setUp(self):
         global willump_typing_map, willump_static_vars
@@ -226,3 +235,27 @@ class PandasGraphInferenceTests(unittest.TestCase):
         weld_output = local_namespace["sample_logistic_regression_np_array"](input_vec)
         numpy.testing.assert_equal(
             weld_output, numpy.array([1, 0], dtype=numpy.int64))
+
+    def test_logistic_regression_cv(self):
+        print("\ntest_logistic_regression_cv")
+        sample_python: str = inspect.getsource(sample_logistic_regression_cv)
+        string_array = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dog the the the the"]
+        self.set_typing_map(sample_python, "sample_logistic_regression_cv", [string_array, vectorizer])
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                                       graph_builder.get_aux_data(),
+                                                                                       willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_logistic_regression_cv"](string_array, vectorizer)
+        numpy.testing.assert_equal(
+            weld_output, numpy.array([0, 1, 0, 1], dtype=numpy.int64))

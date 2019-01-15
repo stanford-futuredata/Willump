@@ -89,10 +89,26 @@ class LogisticRegressionNode(WillumpGraphNode):
             elem_type = self._input_type.elemType
             weld_program = \
                 """
-                let row_numbers: vec[i64] = INPUT_NAME.$0
-                let index_numbers: vec[i64] = INPUT_NAME.$1
-                let data: vec[ELEM_TYPE] = INPUT_NAME.$2
+                let row_numbers: vec[i64] = INPUT_NAME.$0;
+                let index_numbers: vec[i64] = INPUT_NAME.$1;
+                let data: vec[ELEM_TYPE] = INPUT_NAME.$2;
+                let out_len: i64 = INPUT_NAME.$3;
                 let intercept: f64 = lookup(INTERCEPT_NAME, 0L);
+                let base_vector: vec[f64] = result(for(rangeiter(0L, out_len, 1L),
+                    appender[f64],
+                    | bs, i, x|
+                        merge(bs, intercept)
+                ));
+                let output_probs: vec[f64] = result(for(zip(row_numbers, index_numbers, data),
+                    vecmerger[f64,+](base_vector),
+                    | bs, i, x: {i64, i64, ELEM_TYPE} |
+                        merge(bs, {x.$0, lookup(WEIGHTS_NAME, x.$1) * f64(x.$2)})
+                ));
+                let OUTPUT_NAME: vec[i64] = result(for(output_probs,
+                    appender[i64],
+                    | bs, i, x |
+                    merge(bs, select(x > 0.0, 1L, 0L))
+                ));
                 """
             weld_program = weld_program.replace("WEIGHTS_NAME", self._weights_data_name)
             weld_program = weld_program.replace("INTERCEPT_NAME", self._intercept_data_name)
