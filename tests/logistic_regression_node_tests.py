@@ -8,8 +8,6 @@ import willump.evaluation.willump_weld_generator
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
-from willump.graph.string_split_node import StringSplitNode
-from willump.graph.vocabulary_frequency_count_node import VocabularyFrequencyCountNode
 from willump.graph.logistic_regression_node import LogisticRegressionNode
 from weld.types import *
 

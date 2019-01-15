@@ -9,7 +9,6 @@ from willump.graph.willump_output_node import WillumpOutputNode
 from willump.graph.string_split_node import StringSplitNode
 from willump.graph.string_lower_node import StringLowerNode
 from willump.graph.string_removechar_node import StringRemoveCharNode
-from willump.graph.vocabulary_frequency_count_node import VocabularyFrequencyCountNode
 from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.logistic_regression_node import LogisticRegressionNode
 from willump.graph.array_append_node import ArrayAppendNode
@@ -159,16 +158,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     StringRemoveCharNode(input_node=replace_input_node,
                                          target_char=target_char, output_name=output_var_name)
                 return output_var_name, string_remove_char_node
-            # TODO:  Remove this, CountVectorizer has replaced it.
-            elif "willump_frequency_count" in called_function:
-                freq_count_input_var: str = value.args[0].id
-                vocab_dict = self._static_vars[WILLUMP_FREQUENCY_COUNT_VOCAB]
-                freq_count_input_node: WillumpGraphNode = self._node_dict[freq_count_input_var]
-                vocab_freq_count_node: VocabularyFrequencyCountNode = VocabularyFrequencyCountNode(
-                    input_node=freq_count_input_node, output_name=output_var_name,
-                    input_vocab_dict=vocab_dict, aux_data=self.aux_data
-                )
-                return output_var_name, vocab_freq_count_node
             # TODO:  Lots of potential predictors, differentiate them!
             elif "predict" in called_function:
                 logit_input_var: str = value.args[0].id

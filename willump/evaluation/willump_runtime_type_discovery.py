@@ -182,8 +182,9 @@ def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
     # This type is a placeholder, during graph inference it will be replaced by the real type.
     elif isinstance(py_var, pandas.core.frame.DataFrame):
         return WeldType()
-    # TODO:  Handle multidimensional arrays
     elif isinstance(py_var, numpy.ndarray):
+        if py_var.ndim > 1:
+            return WeldVec(py_var_to_weld_type(py_var[0]))
         if py_var.dtype == numpy.int8:
             return WeldVec(WeldChar())
         elif py_var.dtype == numpy.int16:
