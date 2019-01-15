@@ -112,7 +112,7 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
             let ros: {vec[i64], vec[i64], vec[i64]} =
                 {result(out_struct.$0), result(out_struct.$1), result(out_struct.$2)};
                     
-            let OUTPUT_NAME: vec[vec[i64]] = [ros.$0, ros.$1, ros.$2];
+            let OUTPUT_NAME: {vec[i64], vec[i64], vec[i64], i64} = {ros.$0, ros.$1, ros.$2, len(INPUT_NAME)};
             """
         weld_program = weld_program.replace("VOCAB_DICT_NAME", self._vocab_dict_name)
         weld_program = weld_program.replace("BIG_ZEROS_VECTOR", self._big_zeros_vector_name)

@@ -59,7 +59,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             input_struct += "{0} _{1};\n".format(wtype_to_c_type(input_type), i + len(input_types))
         output_struct = ""
         for i, output_type in enumerate(output_types):
-            if isinstance(output_type, WeldPandas):
+            if isinstance(output_type, WeldPandas) or isinstance(output_type, WeldCSR):
                 inner_struct = ""
                 for inner_i, inner_type in enumerate(output_type.field_types):
                     inner_struct += "{0} _{1};\n".format(wtype_to_c_type(inner_type), inner_i)
@@ -115,7 +115,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                     """
                     {
                     """
-            if isinstance(output_type, WeldPandas):
+            if isinstance(output_type, WeldPandas) or isinstance(output_type, WeldCSR):
                 buffer += "struct struct%d curr_output = weld_output->_%d;\n" % (i, i)
             else:
                 buffer += "%s curr_output = weld_output->_%d;\n" % (wtype_to_c_type(output_type), i)
@@ -189,15 +189,15 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                     """
                     PyArrayObject* rowInd = 
                         (PyArrayObject*) PyArray_SimpleNewFromData(1, 
-                        &curr_output.ptr[0].size, %s, curr_output.ptr[0].ptr);
+                        &curr_output._0.size, %s, curr_output._0.ptr);
                     PyArray_ENABLEFLAGS(rowInd, NPY_ARRAY_OWNDATA);
                     PyArrayObject* colInd = 
                         (PyArrayObject*) PyArray_SimpleNewFromData(1, 
-                        &curr_output.ptr[1].size, %s, curr_output.ptr[1].ptr);
+                        &curr_output._1.size, %s, curr_output._1.ptr);
                     PyArray_ENABLEFLAGS(colInd, NPY_ARRAY_OWNDATA);
                     PyArrayObject* retData = 
                         (PyArrayObject*) PyArray_SimpleNewFromData(1, 
-                        &curr_output.ptr[2].size, %s, curr_output.ptr[2].ptr);
+                        &curr_output._2.size, %s, curr_output._2.ptr);
                     PyArray_ENABLEFLAGS(retData, NPY_ARRAY_OWNDATA);
                     PyObject* ret = PyTuple_New(3);
                     PyTuple_SetItem(ret, 0, (PyObject*) rowInd);
@@ -442,8 +442,6 @@ def wtype_to_c_type(wtype: WeldType) -> str:
         return "vec<{0}>".format(wtype_to_c_type(wtype.elemType))
     elif isinstance(wtype, WeldDict):
         return "void*"
-    elif isinstance(wtype, WeldCSR):
-        return "vec<vec<{0}>>".format(wtype_to_c_type(wtype.elemType))
     else:
         return str(wtype)
 
