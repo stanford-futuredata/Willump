@@ -10,7 +10,7 @@ from willump.graph.string_split_node import StringSplitNode
 from willump.graph.string_lower_node import StringLowerNode
 from willump.graph.string_removechar_node import StringRemoveCharNode
 from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
-from willump.graph.logistic_regression_node import LogisticRegressionNode
+from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.array_append_node import ArrayAppendNode
 from willump.graph.array_binop_node import ArrayBinopNode
 from willump.graph.willump_hash_join_node import WillumpHashJoinNode
@@ -161,14 +161,14 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             # TODO:  Lots of potential predictors, differentiate them!
             elif "predict" in called_function:
                 logit_input_var: str = value.args[0].id
-                logit_weights = self._static_vars[WILLUMP_LOGISTIC_REGRESSION_WEIGHTS]
-                logit_intercept = self._static_vars[WILLUMP_LOGISTIC_REGRESSION_INTERCEPT]
+                logit_weights = self._static_vars[WILLUMP_LINEAR_REGRESSION_WEIGHTS]
+                logit_intercept = self._static_vars[WILLUMP_LINEAR_REGRESSION_INTERCEPT]
                 logit_input_node: WillumpGraphNode = self._node_dict[logit_input_var]
-                logit_node: LogisticRegressionNode = LogisticRegressionNode(
+                logit_node: LinearRegressionNode = LinearRegressionNode(
                     input_node=logit_input_node, input_type=self._type_map[logit_input_var],
                     output_name=output_var_name,
                     logit_weights=logit_weights,
-                    logit_intercept=logit_intercept, aux_data=self.aux_data
+                    logit_intercept=logit_intercept, aux_data=self.aux_data, batch=self.batch
                 )
                 return output_var_name, logit_node
             # TODO:  Update this for batched code.

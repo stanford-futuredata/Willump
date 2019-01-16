@@ -39,5 +39,5 @@ t0 = time.time()
 for entry in entry_list:
     preds = vectorizer_transform(vect, entry)
 time_elapsed = time.time() - t0
-print("Title Processing Time %fs Num Rows %d Throughput %f rows/sec" %
-      (time_elapsed, set_size, set_size / time_elapsed))
+print("Title Processing Time %fs Num Rows %d Latency %f sec/row" %
+      (time_elapsed, set_size, time_elapsed / set_size))

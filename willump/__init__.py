@@ -3,8 +3,8 @@ import re
 import os
 
 # Static variable names
-WILLUMP_LOGISTIC_REGRESSION_WEIGHTS = "willump_logistic_regression_weights"
-WILLUMP_LOGISTIC_REGRESSION_INTERCEPT = "willump_logistic_regression_intercept"
+WILLUMP_LINEAR_REGRESSION_WEIGHTS = "willump_linear_regression_weights"
+WILLUMP_LINEAR_REGRESSION_INTERCEPT = "willump_linear_regression_intercept"
 WILLUMP_FREQUENCY_COUNT_VOCAB = "willump_frequency_count_vocab"
 WILLUMP_COUNT_VECTORIZER_VOCAB = "willump_cv_vocab"
 WILLUMP_COUNT_VECTORIZER_ANALYZER = "willump_cv_analyzer"

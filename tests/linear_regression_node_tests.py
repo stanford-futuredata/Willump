@@ -8,7 +8,7 @@ import willump.evaluation.willump_weld_generator
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
-from willump.graph.logistic_regression_node import LogisticRegressionNode
+from willump.graph.linear_regression_node import LinearRegressionNode
 from weld.types import *
 
 
@@ -22,9 +22,9 @@ class StringSplitNodeTests(unittest.TestCase):
                                                   dtype=numpy.float64)
         logistic_regression_intercept = numpy.array([1.0],
                                                   dtype=numpy.float64)
-        logistic_regression_node: LogisticRegressionNode = \
-            LogisticRegressionNode(input_node, WeldVec(WeldVec(WeldLong())), "logit_output",
-            logistic_regression_weights, logistic_regression_intercept, aux_data)
+        logistic_regression_node: LinearRegressionNode = \
+            LinearRegressionNode(input_node, WeldVec(WeldVec(WeldLong())), "logit_output",
+                                 logistic_regression_weights, logistic_regression_intercept, aux_data)
         output_node: WillumpOutputNode = WillumpOutputNode(logistic_regression_node)
         graph: WillumpGraph = WillumpGraph(output_node)
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]

@@ -86,9 +86,9 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             elif "predict" in called_function_name:
                 static_variable_extraction_code = \
                     """willump_static_vars["{0}"] = {1}\n""" \
-                        .format(WILLUMP_LOGISTIC_REGRESSION_WEIGHTS, "model.coef_") + \
+                        .format(WILLUMP_LINEAR_REGRESSION_WEIGHTS, "model.coef_") + \
                     """willump_static_vars["{0}"] = {1}\n""" \
-                        .format(WILLUMP_LOGISTIC_REGRESSION_INTERCEPT, "model.intercept_")
+                        .format(WILLUMP_LINEAR_REGRESSION_INTERCEPT, "model.intercept_")
                 logit_instrumentation_ast: ast.Module = \
                     ast.parse(static_variable_extraction_code, "exec")
                 logit_instrumentation_statements: List[ast.stmt] = logit_instrumentation_ast.body

@@ -9,9 +9,9 @@ import importlib
 import numpy
 
 
-class LogisticRegressionNode(WillumpGraphNode):
+class LinearRegressionNode(WillumpGraphNode):
     """
-    Willump Logistic Regression node.  Evaluates a logistic regression model on an input.
+    Willump Linear Regression node.  Evaluates a logistic regression model on an input.
 
     TODO:  Allow multi-class classification, not just binary.
     """
@@ -23,7 +23,7 @@ class LogisticRegressionNode(WillumpGraphNode):
     _intercept_data_name: str
 
     def __init__(self, input_node: WillumpGraphNode, input_type: WeldType, output_name: str,
-                 logit_weights, logit_intercept, aux_data: List[Tuple[int, WeldType]]) -> None:
+                 logit_weights, logit_intercept, aux_data: List[Tuple[int, WeldType]], batch=True) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
@@ -36,6 +36,7 @@ class LogisticRegressionNode(WillumpGraphNode):
         self._input_nodes.append(WillumpInputNode(self._weights_data_name))
         self._input_nodes.append(WillumpInputNode(self._intercept_data_name))
         self._input_type = input_type
+        self.batch = batch
         for entry in self._process_aux_data(logit_weights, logit_intercept):
             aux_data.append(entry)
 
@@ -121,5 +122,5 @@ class LogisticRegressionNode(WillumpGraphNode):
         return self._output_name
 
     def __repr__(self):
-        return "Logistic regression node for input {0} output {1}\n"\
+        return "Linear regression node for input {0} output {1}\n"\
             .format(self._input_string_name, self._output_name)

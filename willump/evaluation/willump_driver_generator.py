@@ -150,7 +150,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                         (PyArrayObject*) PyArray_SimpleNewFromData(1, &curr_output.size, %s, curr_output.ptr);
                     PyArray_ENABLEFLAGS(ret, NPY_ARRAY_OWNDATA);
                     """ % weld_type_to_numpy_macro(output_type)
-            elif isinstance(output_type, WeldPandas):
+            elif isinstance(output_type, WeldPandas) or isinstance(output_type, WeldCSR):
                 field_types = output_type.field_types
                 buffer += \
                     """
@@ -183,28 +183,6 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                                 """ % (inner_i, inner_i)
                     else:
                         panic("Unrecognized struct field type %s" % str(field_type))
-
-            elif isinstance(output_type, WeldCSR):
-                buffer += \
-                    """
-                    PyArrayObject* rowInd = 
-                        (PyArrayObject*) PyArray_SimpleNewFromData(1, 
-                        &curr_output._0.size, %s, curr_output._0.ptr);
-                    PyArray_ENABLEFLAGS(rowInd, NPY_ARRAY_OWNDATA);
-                    PyArrayObject* colInd = 
-                        (PyArrayObject*) PyArray_SimpleNewFromData(1, 
-                        &curr_output._1.size, %s, curr_output._1.ptr);
-                    PyArray_ENABLEFLAGS(colInd, NPY_ARRAY_OWNDATA);
-                    PyArrayObject* retData = 
-                        (PyArrayObject*) PyArray_SimpleNewFromData(1, 
-                        &curr_output._2.size, %s, curr_output._2.ptr);
-                    PyArray_ENABLEFLAGS(retData, NPY_ARRAY_OWNDATA);
-                    PyObject* ret = PyTuple_New(3);
-                    PyTuple_SetItem(ret, 0, (PyObject*) rowInd);
-                    PyTuple_SetItem(ret, 1, (PyObject*) colInd);
-                    PyTuple_SetItem(ret, 2, (PyObject*) retData);
-                    """ % (weld_type_to_numpy_macro(output_type),
-                           weld_type_to_numpy_macro(output_type), weld_type_to_numpy_macro(output_type))
             else:
                 panic("Unrecognized output type %s" % str(output_type))
             if len(output_types) > 1:
