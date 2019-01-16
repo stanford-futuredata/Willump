@@ -52,7 +52,7 @@ def sample_pandas_unpacked_nested_ops(array_one, array_two, array_three):
 with open("tests/test_resources/simple_vocabulary.txt") as simple_vocab:
     simple_vocab_dict = {word: index for index, word in
                          enumerate(simple_vocab.read().splitlines())}
-vectorizer = CountVectorizer(analyzer='char', ngram_range=(3, 6), min_df=0.005, max_df=1.0,
+vectorizer = CountVectorizer(analyzer='char', ngram_range=(3, 5), min_df=0.005, max_df=1.0,
                        lowercase=False, stop_words=None, binary=False, decode_error='replace',
                        vocabulary=simple_vocab_dict)
 

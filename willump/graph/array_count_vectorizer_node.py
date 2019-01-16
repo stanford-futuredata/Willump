@@ -80,7 +80,7 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
                     let string_dict: dict[i64, i64] = result(for(string,
                         dictmerger[i64, i64, +],
                         | count_dict:  dictmerger[i64, i64, +], i_string: i64, char: i8 |
-                        for(rangeiter(NGRAM_MINL, NGRAM_MAXL, 1L),
+                        for(rangeiter(NGRAM_MINL, NGRAM_MAXL + 1L, 1L),
                             count_dict,
                             | count_dict_inner: dictmerger[i64, i64, +], num_iter, iter_value |
                                 if(i_string + iter_value <= string_len,
