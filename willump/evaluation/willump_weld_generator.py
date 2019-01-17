@@ -11,6 +11,8 @@ from willump.graph.willump_python_node import WillumpPythonNode
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
 from willump.graph.willump_multioutput_node import WillumpMultiOutputNode
+from willump.graph.linear_regression_node import LinearRegressionNode
+from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 
 
 def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
@@ -51,6 +53,27 @@ def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
     return sorted_nodes
 
 
+def pushing_model_pass(weld_block_node_list, weld_block_output_set) -> List[WillumpGraphNode]:
+    """
+    Optimization pass that pushes a linear model into its input nodes in a block when possible.  Assumes block contains
+    at most one model node, which must be the last node in the block.
+
+    # TODO:  Support more classes of models.
+    # TODO:  Support pushing through joins, etc.
+    """
+    model_node = weld_block_node_list[-1]
+    if not isinstance(model_node, LinearRegressionNode):
+        return weld_block_node_list
+    input_node = model_node.get_in_nodes()[0]
+    if isinstance(input_node, ArrayCountVectorizerNode) \
+            and input_node in weld_block_node_list \
+            and input_node.get_output_name() not in weld_block_output_set:
+        input_node.push_model("linear", (model_node.weights_data_name, model_node.intercept_data_name),
+                              model_node.get_output_name())
+        weld_block_node_list.remove(model_node)
+    return weld_block_node_list
+
+
 def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_block_output_set, weld_block_node_list,
                        future_nodes)\
         -> Tuple[str, List[str], List[str]]:
@@ -72,6 +95,9 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
                     appears_later = True
         if not appears_later:
             weld_block_output_set.remove(entry)
+    # Do optimization passes over the block.
+    weld_block_node_list = pushing_model_pass(weld_block_node_list, weld_block_output_set)
+    # Construct the Willump statements from the nodes.
     weld_block_node_list.append(WillumpMultiOutputNode(list(weld_block_output_set)))
     weld_str = ""
     for weld_node in weld_block_node_list:

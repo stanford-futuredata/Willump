@@ -1,6 +1,5 @@
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
-import willump.evaluation.willump_executor as wexec
 
 from weld.types import *
 
@@ -19,8 +18,8 @@ class LinearRegressionNode(WillumpGraphNode):
     _input_string_name: str
     _output_name: str
     _input_type: WeldType
-    _weights_data_name: str
-    _intercept_data_name: str
+    weights_data_name: str
+    intercept_data_name: str
 
     def __init__(self, input_node: WillumpGraphNode, input_type: WeldType, output_name: str,
                  logit_weights, logit_intercept, aux_data: List[Tuple[int, WeldType]], batch=True) -> None:
@@ -29,12 +28,12 @@ class LinearRegressionNode(WillumpGraphNode):
         """
         self._input_string_name = input_node.get_output_name()
         self._output_name = output_name
-        self._weights_data_name = "AUX_DATA_{0}".format(len(aux_data))
-        self._intercept_data_name = "AUX_DATA_{0}".format(len(aux_data) + 1)
+        self.weights_data_name = "AUX_DATA_{0}".format(len(aux_data))
+        self.intercept_data_name = "AUX_DATA_{0}".format(len(aux_data) + 1)
         self._input_nodes = []
         self._input_nodes.append(input_node)
-        self._input_nodes.append(WillumpInputNode(self._weights_data_name))
-        self._input_nodes.append(WillumpInputNode(self._intercept_data_name))
+        self._input_nodes.append(WillumpInputNode(self.weights_data_name))
+        self._input_nodes.append(WillumpInputNode(self.intercept_data_name))
         self._input_type = input_type
         self.batch = batch
         for entry in self._process_aux_data(logit_weights, logit_intercept):
@@ -56,6 +55,7 @@ class LinearRegressionNode(WillumpGraphNode):
             """
             true
             """
+        import willump.evaluation.willump_executor as wexec
         module_name = wexec.compile_weld_program(weld_program, {},
                                                  base_filename="encode_logistic_regression_model")
         encode_logit_model = importlib.import_module(module_name)
@@ -80,8 +80,8 @@ class LinearRegressionNode(WillumpGraphNode):
                         merge(results, select(sum + intercept > 0.0, 1L, 0L))
                 ));
                 """
-            weld_program = weld_program.replace("WEIGHTS_NAME", self._weights_data_name)
-            weld_program = weld_program.replace("INTERCEPT_NAME", self._intercept_data_name)
+            weld_program = weld_program.replace("WEIGHTS_NAME", self.weights_data_name)
+            weld_program = weld_program.replace("INTERCEPT_NAME", self.intercept_data_name)
             weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
             weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
             weld_program = weld_program.replace("ELEM_TYPE", str(elem_type))
@@ -111,8 +111,8 @@ class LinearRegressionNode(WillumpGraphNode):
                     merge(bs, select(x > 0.0, 1L, 0L))
                 ));
                 """
-            weld_program = weld_program.replace("WEIGHTS_NAME", self._weights_data_name)
-            weld_program = weld_program.replace("INTERCEPT_NAME", self._intercept_data_name)
+            weld_program = weld_program.replace("WEIGHTS_NAME", self.weights_data_name)
+            weld_program = weld_program.replace("INTERCEPT_NAME", self.intercept_data_name)
             weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
             weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
             weld_program = weld_program.replace("ELEM_TYPE", str(elem_type))
