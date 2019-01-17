@@ -57,7 +57,7 @@ class WillumpPythonUDFTests(unittest.TestCase):
         graph_builder.visit(ast.parse(sample_python))
         willump_graph: WillumpGraph = graph_builder.get_willump_graph()
         python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
-            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph)
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
         python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
                                                                     graph_builder.get_aux_data(), willump_typing_map)
         compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))

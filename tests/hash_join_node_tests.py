@@ -25,12 +25,16 @@ class HashJoinNodeTests(unittest.TestCase):
                                 size_left_df=3, join_col_left_index=0, batch=True)
         output_node: WillumpOutputNode = WillumpOutputNode(hash_join_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
+        type_map = {"__willump_arg0": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
+                                                 ["join_column", "data1", "data2"]),
+                    "input_table": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
+                                              ["join_column", "data1", "data2"]),
+                    "__willump_retval0": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong()),
+                                                     WeldVec(WeldDouble()), WeldVec(WeldDouble())],
+                                                    ["join_column", "data1", "data2", "metadata1", "metadata2"])}
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                                                                  ["input_table"], aux_data)
-        type_map = {"__willump_arg0": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())]),
-                    "__willump_retval0": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong()),
-                                                     WeldVec(WeldDouble()), WeldVec(WeldDouble())])}
         module_name = wexec.compile_weld_program(weld_program, type_map, aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func((left_table["join_column"].values,
@@ -53,11 +57,15 @@ class HashJoinNodeTests(unittest.TestCase):
                                 size_left_df=3, join_col_left_index=0, batch=False)
         output_node: WillumpOutputNode = WillumpOutputNode(hash_join_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
+        type_map = {"__willump_arg0": WeldPandas([WeldLong(), WeldLong(), WeldLong()],
+                                                 ["join_column", "data1", "data2"]),
+                    "input_table": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
+                                              ["join_column", "data1", "data2"]),
+                    "__willump_retval0": WeldPandas([WeldLong(), WeldLong(), WeldLong(), WeldDouble(), WeldDouble()],
+                                                    ["join_column", "data1", "data2", "metadata1", "metadata2"])}
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                                                                  ["input_table"], aux_data)
-        type_map = {"__willump_arg0": WeldPandas([WeldLong(), WeldLong(), WeldLong()]),
-                    "__willump_retval0": WeldPandas([WeldLong(), WeldLong(), WeldLong(), WeldDouble(), WeldDouble()])}
         module_name = wexec.compile_weld_program(weld_program, type_map, aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func((left_table["join_column"].values[0],

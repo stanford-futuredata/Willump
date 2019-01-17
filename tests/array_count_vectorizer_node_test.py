@@ -27,11 +27,12 @@ class ArrayCountVectorizerNodeTests(unittest.TestCase):
                                      aux_data=aux_data, ngram_range=(2, 5))
         output_node: WillumpOutputNode = WillumpOutputNode(array_cv_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
+        type_map = {"__willump_arg0": WeldVec(WeldStr()),
+                    "input_str": WeldVec(WeldStr()),
+                    "__willump_retval0": WeldCSR((WeldLong()))}
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                                                                  ["input_str"], aux_data)
-        type_map = {"__willump_arg0": WeldVec(WeldStr()),
-                    "__willump_retval0": WeldCSR((WeldLong()))}
         module_name = wexec.compile_weld_program(weld_program, type_map, aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(input_str)

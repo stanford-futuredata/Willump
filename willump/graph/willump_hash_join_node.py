@@ -30,9 +30,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
         self._right_dataframe = right_dataframe
         self._right_dataframe_name = "AUX_DATA_{0}".format(len(aux_data))
         self._join_col_name = join_col_name
-        self._input_nodes = []
-        self._input_nodes.append(input_node)
-        self._input_nodes.append(WillumpInputNode(self._right_dataframe_name))
+        self._input_nodes = [input_node, WillumpInputNode(self._right_dataframe_name)]
         self._size_left_df = size_left_df
         self._join_col_left_index = join_col_left_index
         self.batch = batch
@@ -54,11 +52,13 @@ class WillumpHashJoinNode(WillumpGraphNode):
 
         types_string = "{"
         types_list = []
+        right_df_column_names = []
         for column in right_dataframe:
             if column != self._join_col_name:
                 col_weld_type: WeldType = numpy_type_to_weld_type(right_dataframe[column].values.dtype)
                 types_string += str(col_weld_type) + ","
                 types_list.append(col_weld_type)
+                right_df_column_names.append(column)
         types_string = types_string[:-1] + "}"
 
         values_string = "{"
@@ -92,7 +92,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
         input_args = tuple(input_args)
 
         indexed_right_dataframe = hash_join_dataframe_indexer.caller_func(*input_args)
-        return [(indexed_right_dataframe, WeldDict(WeldLong(), WeldPandas(types_list)))]
+        return [(indexed_right_dataframe, WeldDict(WeldLong(), WeldPandas(types_list, right_df_column_names)))]
 
     def get_node_weld(self) -> str:
         if self.batch:

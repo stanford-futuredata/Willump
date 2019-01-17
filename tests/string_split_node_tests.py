@@ -20,11 +20,12 @@ class StringSplitNodeTests(unittest.TestCase):
         string_split_node: StringSplitNode = StringSplitNode(input_node, "output_words")
         output_node: WillumpOutputNode = WillumpOutputNode(string_split_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
+        type_map = {"__willump_arg0": WeldStr(),
+                    "input_str": WeldStr(),
+                    "__willump_retval0": WeldVec(WeldStr())}
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_str"], [])
-        type_map = {"__willump_arg0": WeldStr(),
-                    "__willump_retval0": WeldVec(WeldStr())}
         module_name = wexec.compile_weld_program(weld_program, type_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(input_str)
@@ -37,11 +38,12 @@ class StringSplitNodeTests(unittest.TestCase):
         string_split_node: StringSplitNode = StringSplitNode(input_node, "output_words")
         output_node: WillumpOutputNode = WillumpOutputNode(string_split_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
+        type_map = {"__willump_arg0": WeldStr(),
+                    "input_str": WeldStr(),
+                    "__willump_retval0": WeldVec(WeldStr())}
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_str"], [])
-        type_map = {"__willump_arg0": WeldStr(),
-                    "__willump_retval0": WeldVec(WeldStr())}
         module_name = wexec.compile_weld_program(weld_program, type_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(input_str)
@@ -54,11 +56,12 @@ class StringSplitNodeTests(unittest.TestCase):
         string_split_node: StringSplitNode = StringSplitNode(input_node, "output_words")
         output_node: WillumpOutputNode = WillumpOutputNode(string_split_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph)[0]
+        type_map = {"__willump_arg0": WeldStr(),
+                    "input_str": WeldStr(),
+                    "__willump_retval0": WeldVec(WeldStr())}
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_str"], [])
-        type_map = {"__willump_arg0": WeldStr(),
-                    "__willump_retval0": WeldVec(WeldStr())}
         module_name = wexec.compile_weld_program(weld_program, type_map)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(input_str)

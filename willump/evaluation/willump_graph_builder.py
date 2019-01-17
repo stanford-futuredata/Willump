@@ -212,25 +212,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         left_df_weld_types.append(col_weld_type)
                 left_df_input_var: str = value.func.value.id
                 left_df_input_node = self._node_dict[left_df_input_var]
-                # If the input comes from Python, convert it to a form Weld can understand.
-                if isinstance(left_df_input_node, WillumpPythonNode) or \
-                        isinstance(left_df_input_node, WillumpInputNode):
-                    left_df_weld_name = "%s__willump_join_col" % left_df_input_var
-                    self._type_map[left_df_weld_name] = WeldPandas(left_df_weld_types)
-                    if self.batch:
-                        merge_glue_python_args = ""
-                        for column in left_df_columns:
-                            merge_glue_python_args += "%s['%s'].values," % (left_df_input_var, column)
-                        merge_glue_python = "%s = (%s)" % (left_df_weld_name, merge_glue_python_args)
-                    else:
-                        merge_glue_python = "%s = tuple(%s.values[0])" % (left_df_weld_name, left_df_input_var)
-                    merge_glue_ast: ast.Module = \
-                        ast.parse(merge_glue_python, "exec")
-                    hash_join_input_node = WillumpPythonNode(merge_glue_ast.body[0], left_df_weld_name,
-                                                        [left_df_input_node])
-                else:
-                    hash_join_input_node = left_df_input_node
-                willump_hash_join_node = WillumpHashJoinNode(input_node=hash_join_input_node, output_name=output_var_name,
+                self._type_map[left_df_input_var] = WeldPandas(left_df_weld_types, left_df_columns)
+                willump_hash_join_node = WillumpHashJoinNode(input_node=left_df_input_node, output_name=output_var_name,
                                                              join_col_name=join_col,
                                                              right_dataframe=right_df, aux_data=self.aux_data,
                                                              batch=self.batch, size_left_df=len(left_df_columns),
@@ -238,6 +221,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 # The merge output type will be the same as the type of the right dataframe
                 # Update the type map accordingly, removing the placeholder.
                 out_dataframe_types = left_df_weld_types.copy()
+                out_dataframe_names = left_df_columns.copy()
                 for column in right_df:
                     if column != join_col:
                         col_weld_type: WeldType = numpy_type_to_weld_type(right_df[column].values.dtype)
@@ -245,7 +229,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                             out_dataframe_types.append(WeldVec(col_weld_type))
                         else:
                             out_dataframe_types.append(col_weld_type)
-                self._type_map[output_var_name] = WeldPandas(out_dataframe_types)
+                        out_dataframe_names.append(column)
+                self._type_map[output_var_name] = WeldPandas(out_dataframe_types, out_dataframe_names)
                 return output_var_name, willump_hash_join_node
             # TODO:  What to do with these?
             elif "reshape" in called_function:

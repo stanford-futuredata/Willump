@@ -183,9 +183,10 @@ def willump_execute(batch=True) -> Callable:
                     aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()
                     # Transform the Willump graph into blocks of Weld and Python code.  Compile the Weld blocks.
                     python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
-                        willump.evaluation.willump_weld_generator.graph_to_weld(python_graph)
+                        willump.evaluation.willump_weld_generator.graph_to_weld(python_graph, willump_typing_map,
+                                                                                batch=batch)
                     python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
-                                                                                             aux_data, willump_typing_map)
+                                                                                        aux_data, willump_typing_map)
                     compiled_functiondef = py_weld_statements_to_ast(python_statement_list, python_ast)
                     augmented_globals = copy.copy(func.__globals__)
                     # Import all of the compiled Weld blocks called from the transformed function.

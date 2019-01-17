@@ -1,4 +1,4 @@
-from typing import MutableMapping, List, Set, Tuple
+from typing import MutableMapping, List, Set, Tuple, Mapping
 import typing
 import ast
 import copy
@@ -76,12 +76,40 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set) -> List[Will
     return weld_block_node_list
 
 
+def weld_pandas_marshalling_pass(weld_block_input_set: Set[str],
+                                 typing_map: Mapping[str, WeldType], batch: bool) \
+        -> Tuple[List[WillumpPythonNode], List[WillumpPythonNode]]:
+    """
+    Processing pass creating Python code to marshall Pandas into a representation (struct of vec columns) Welc can
+    understand, then convert that struct back to Pandas.
+    """
+    pandas_input_processing_nodes: List[WillumpPythonNode] = []
+    pandas_post_processing_nodes: List[WillumpPythonNode] = []
+    for input_name in weld_block_input_set:
+        input_type = typing_map[input_name]
+        if isinstance(input_type, WeldPandas):
+            df_temp_name = "%s__df_temp" % input_name
+            if batch:
+                pandas_glue_python_args = ""
+                for column in input_type.column_names:
+                    pandas_glue_python_args += "%s['%s'].values," % (input_name, column)
+                pandas_glue_python = "%s = (%s)" % (input_name, pandas_glue_python_args)
+            else:
+                pandas_glue_python = "%s = tuple(%s.values[0])" % (input_name, input_name)
+            merge_glue_ast: ast.Module = \
+                ast.parse(pandas_glue_python, "exec")
+            pandas_input_node = WillumpPythonNode(merge_glue_ast.body[0], input_name, [])
+            pandas_input_processing_nodes.append(pandas_input_node)
+    return pandas_input_processing_nodes, pandas_post_processing_nodes
+
+
 def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_block_output_set, weld_block_node_list,
-                       future_nodes)\
-        -> Tuple[str, List[str], List[str]]:
+                       future_nodes, typing_map, batch) \
+        -> Tuple[Tuple[str, List[str], List[str]], List[WillumpPythonNode], List[WillumpPythonNode]]:
     """
     Helper function for graph_to_weld.  Creates a Willump statement for a block of Weld code given information about
-    the code, its inputs, and its outputs.
+    the code, its inputs, and its outputs.  Returns the Willump statement as well as Python code to be run before
+    and after it.
     """
     for entry in weld_block_input_set:
         weld_block_node_list.insert(0, WillumpInputNode(entry))
@@ -99,15 +127,17 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
             weld_block_output_set.remove(entry)
     # Do optimization passes over the block.
     weld_block_node_list = pushing_model_pass(weld_block_node_list, weld_block_output_set)
+    prepend_nodes, post_process_nodes = weld_pandas_marshalling_pass(weld_block_input_set, typing_map, batch)
     # Construct the Willump statements from the nodes.
     weld_block_node_list.append(WillumpMultiOutputNode(list(weld_block_output_set)))
     weld_str = ""
     for weld_node in weld_block_node_list:
         weld_str += weld_node.get_node_weld()
-    return weld_str, list(weld_block_input_set), list(weld_block_output_set)
+    return (weld_str, list(weld_block_input_set), list(weld_block_output_set)), prepend_nodes, post_process_nodes
 
 
-def graph_to_weld(graph: WillumpGraph) -> List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]]:
+def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch: bool = True) ->\
+        List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]]:
     """
     Convert a Willump graph into a sequence of Willump statements.
 
@@ -126,9 +156,14 @@ def graph_to_weld(graph: WillumpGraph) -> List[typing.Union[ast.AST, Tuple[str, 
     for i, node in enumerate(sorted_nodes):
         if isinstance(node, WillumpPythonNode):
             if len(weld_block_node_list) > 0:
-                processed_block_tuple = process_weld_block(weld_block_input_set, weld_block_aux_input_set,
-                                                        weld_block_output_set, weld_block_node_list, sorted_nodes[i:])
+                processed_block_tuple, prepend_nodes_list, append_nodes_list = \
+                    process_weld_block(weld_block_input_set, weld_block_aux_input_set,
+                                       weld_block_output_set, weld_block_node_list, sorted_nodes[i:], typing_map, batch)
+                for pre_node in prepend_nodes_list:
+                    weld_python_list.append(pre_node.get_python())
                 weld_python_list.append(processed_block_tuple)
+                for post_node in append_nodes_list:
+                    weld_python_list.append(post_node.get_python())
                 weld_block_input_set = set()
                 weld_block_aux_input_set = set()
                 weld_block_output_set = set()
@@ -146,8 +181,9 @@ def graph_to_weld(graph: WillumpGraph) -> List[typing.Union[ast.AST, Tuple[str, 
             weld_block_output_set.add(node.get_output_name())
             weld_block_node_list.append(node)
     if len(weld_block_node_list) > 0:
-        processed_block_tuple = process_weld_block(weld_block_input_set, weld_block_aux_input_set,
-                                                   weld_block_output_set, weld_block_node_list, [sorted_nodes[-1]])
+        processed_block_tuple, _, _ = process_weld_block(weld_block_input_set, weld_block_aux_input_set,
+                                                         weld_block_output_set, weld_block_node_list,
+                                                         [sorted_nodes[-1]], typing_map, batch)
         weld_python_list.append(processed_block_tuple)
     return weld_python_list
 
