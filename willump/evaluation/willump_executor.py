@@ -151,7 +151,7 @@ def willump_execute(batch=True) -> Callable:
                     python_source = inspect.getsource(func)
                     python_ast: ast.AST = ast.parse(python_source)
                     function_name: str = python_ast.body[0].name
-                    type_discover: WillumpRuntimeTypeDiscovery = WillumpRuntimeTypeDiscovery()
+                    type_discover: WillumpRuntimeTypeDiscovery = WillumpRuntimeTypeDiscovery(batch=batch)
                     # Create an instrumented AST that will fill willump_typing_map with the Weld types
                     # of all variables in the function.
                     new_ast: ast.AST = type_discover.visit(python_ast)

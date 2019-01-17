@@ -201,36 +201,14 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     return self._create_py_node(node)
                 join_col: str = self._static_vars[WILLUMP_JOIN_COL + str(node.lineno)]
                 left_df_columns: List[str] = list(self._static_vars[WILLUMP_JOIN_LEFT_COLUMNS + str(node.lineno)])
-                left_df_dtypes = self._static_vars[WILLUMP_JOIN_LEFT_DTYPES + str(node.lineno)]
                 right_df = self._static_vars[WILLUMP_JOIN_RIGHT_DATAFRAME + str(node.lineno)]
-                left_df_weld_types = []
-                for column in left_df_columns:
-                    col_weld_type: WeldType = numpy_type_to_weld_type(left_df_dtypes[column])
-                    if self.batch:
-                        left_df_weld_types.append(WeldVec(col_weld_type))
-                    else:
-                        left_df_weld_types.append(col_weld_type)
                 left_df_input_var: str = value.func.value.id
                 left_df_input_node = self._node_dict[left_df_input_var]
-                self._type_map[left_df_input_var] = WeldPandas(left_df_weld_types, left_df_columns)
                 willump_hash_join_node = WillumpHashJoinNode(input_node=left_df_input_node, output_name=output_var_name,
                                                              join_col_name=join_col,
                                                              right_dataframe=right_df, aux_data=self.aux_data,
                                                              batch=self.batch, size_left_df=len(left_df_columns),
                                                              join_col_left_index=left_df_columns.index(join_col))
-                # The merge output type will be the same as the type of the right dataframe
-                # Update the type map accordingly, removing the placeholder.
-                out_dataframe_types = left_df_weld_types.copy()
-                out_dataframe_names = left_df_columns.copy()
-                for column in right_df:
-                    if column != join_col:
-                        col_weld_type: WeldType = numpy_type_to_weld_type(right_df[column].values.dtype)
-                        if self.batch:
-                            out_dataframe_types.append(WeldVec(col_weld_type))
-                        else:
-                            out_dataframe_types.append(col_weld_type)
-                        out_dataframe_names.append(column)
-                self._type_map[output_var_name] = WeldPandas(out_dataframe_types, out_dataframe_names)
                 return output_var_name, willump_hash_join_node
             # TODO:  What to do with these?
             elif "reshape" in called_function:

@@ -7,6 +7,7 @@ import pandas.core.frame
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 from willump import *
 import scipy.sparse.csr
+from willump.willump_utilities import *
 
 from weld.types import *
 
@@ -23,6 +24,11 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
     TODO:  Add support for control flow changes inside the function body.
     """
 
+    batch: bool
+
+    def __init__(self, batch: bool = True):
+        self.batch = batch
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
         new_node = copy.deepcopy(node)
         new_body: List[ast.stmt] = []
@@ -31,10 +37,10 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             argument_name: str = arg.arg
             argument_internal_name = "__willump_arg{0}".format(i)
             argument_instrumentation_code: str = \
-                """willump_typing_map["{0}"] = py_var_to_weld_type({0})\n""" \
-                    .format(argument_name) + \
-                """willump_typing_map["{0}"] = py_var_to_weld_type({1})""" \
-                    .format(argument_internal_name, argument_name)
+                """willump_typing_map["{0}"] = py_var_to_weld_type({0}, {1})\n""" \
+                    .format(argument_name, self.batch) + \
+                """willump_typing_map["{0}"] = py_var_to_weld_type({1}, {2})""" \
+                    .format(argument_internal_name, argument_name, self.batch)
             instrumentation_ast: ast.Module = ast.parse(argument_instrumentation_code, "exec")
             instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
             new_body = new_body + instrumentation_statements
@@ -133,21 +139,20 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
 
         return return_statements
 
-    @staticmethod
-    def _analyze_target_type(target: ast.expr) -> List[ast.stmt]:
+    def _analyze_target_type(self, target: ast.expr) -> List[ast.stmt]:
         """
         Create a statement from the target of an assignment that will insert into a global
         dict the type of the target.
         """
         target_name: str = WillumpGraphBuilder.get_assignment_target_name(target)
         target_analysis_instrumentation_code: str = \
-            """willump_typing_map["{0}"] = py_var_to_weld_type({0})""".format(target_name)
+            """willump_typing_map["{0}"] = py_var_to_weld_type({0}, {1})""".format(target_name, self.batch)
         instrumentation_ast: ast.Module = ast.parse(target_analysis_instrumentation_code, "exec")
         instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
         return instrumentation_statements
 
 
-def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
+def py_var_to_weld_type(py_var: object, batch) -> Optional[WeldType]:
     """
     Get the Weld type of a Python variable.
 
@@ -179,12 +184,18 @@ def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
         else:
             panic("Unrecognized ndarray type {0}".format(py_var.dtype.__str__()))
             return None
-    # This type is a placeholder, during graph inference it will be replaced by the real type.
     elif isinstance(py_var, pandas.core.frame.DataFrame):
-        return WeldType()
+        df_col_weld_types = []
+        for dtype in py_var.dtypes:
+            col_weld_type: WeldType = numpy_type_to_weld_type(dtype)
+            if batch:
+                df_col_weld_types.append(WeldVec(col_weld_type))
+            else:
+                df_col_weld_types.append(col_weld_type)
+        return WeldPandas(df_col_weld_types, list(py_var.columns))
     elif isinstance(py_var, numpy.ndarray):
         if py_var.ndim > 1:
-            return WeldVec(py_var_to_weld_type(py_var[0]))
+            return WeldVec(py_var_to_weld_type(py_var[0], batch))
         if py_var.dtype == numpy.int8:
             return WeldVec(WeldChar())
         elif py_var.dtype == numpy.int16:
