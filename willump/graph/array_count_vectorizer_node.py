@@ -68,10 +68,9 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
         vocab_dict, _ = vocab_to_dict.caller_func(vocabulary_list)
         return [(vocab_dict, WeldDict(WeldVec(WeldChar()), WeldLong()))]
 
-    def push_model(self, model_type: str, model_parameters: Tuple, output_name: str) -> None:
+    def push_model(self, model_type: str, model_parameters: Tuple) -> None:
         self._model_type = model_type
         self._model_parameters = model_parameters
-        self._output_name = output_name
 
     def get_node_weld(self) -> str:
         if self._model_type is None:
@@ -120,13 +119,12 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
                 """
         else:
             assert(self._model_type == "linear")
-            weights_data_name, intercept_data_name = self._model_parameters
+            weights_data_name, = self._model_parameters
             weld_program = \
                 """
-                let intercept: f64 = lookup(INTERCEPT_NAME, 0L);
-                let OUTPUT_NAME: vec[i64] = result(for(INPUT_NAME,
-                    appender[i64],
-                    | results:  appender[i64], i_out: i64, string: vec[i8] |
+                let OUTPUT_NAME: vec[f64] = result(for(INPUT_NAME,
+                    appender[f64],
+                    | results:  appender[f64], i_out: i64, string: vec[i8] |
                         let string_len: i64 = len(string);
                         let lin_reg_sum: f64 = result(for(string,
                             merger[f64, +],
@@ -145,11 +143,10 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
                                     )
                             )
                         ));
-                        merge(results, select(lin_reg_sum + intercept > 0.0, 1L, 0L))
+                        merge(results, lin_reg_sum)
                 ));
                 """
             weld_program = weld_program.replace("WEIGHTS_NAME", weights_data_name)
-            weld_program = weld_program.replace("INTERCEPT_NAME", intercept_data_name)
         weld_program = weld_program.replace("VOCAB_DICT_NAME", self._vocab_dict_name)
         weld_program = weld_program.replace("INPUT_NAME", self._input_array_string_name)
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)

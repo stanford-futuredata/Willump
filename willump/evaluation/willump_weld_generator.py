@@ -13,6 +13,7 @@ from willump.graph.willump_output_node import WillumpOutputNode
 from willump.graph.willump_multioutput_node import WillumpMultiOutputNode
 from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
+from willump.graph.combine_linear_regression_node import CombineLinearRegressionNode
 
 
 def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
@@ -68,9 +69,10 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set) -> List[Will
     if isinstance(input_node, ArrayCountVectorizerNode) \
             and input_node in weld_block_node_list \
             and input_node.get_output_name() not in weld_block_output_set:
-        input_node.push_model("linear", (model_node.weights_data_name, model_node.intercept_data_name),
-                              model_node.get_output_name())
+        input_node.push_model("linear", (model_node.weights_data_name,))
         weld_block_node_list.remove(model_node)
+        weld_block_node_list.append(CombineLinearRegressionNode([input_node], model_node.get_output_name(),
+                                                                model_node.intercept_data_name))
     return weld_block_node_list
 
 
