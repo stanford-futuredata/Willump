@@ -77,7 +77,18 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
     @staticmethod
     def _maybe_extract_static_variables(value: ast.expr) -> List[ast.stmt]:
         return_statements: List[ast.stmt] = []
-        if isinstance(value, ast.Call):
+        if isinstance(value, ast.Subscript):
+            if isinstance(value.slice.value, ast.Name):
+                index_name = value.slice.value.id
+                static_variable_extraction_code = \
+                    """willump_static_vars["{0}"] = {1}""" \
+                        .format(WILLUMP_SUBSCRIPT_INDEX_NAME + str(value.lineno), index_name)
+                index_name_instrumentation_ast: ast.Module = \
+                    ast.parse(static_variable_extraction_code, "exec")
+                index_name_instrumentation_statements: List[ast.stmt] = \
+                    index_name_instrumentation_ast.body
+                return_statements += index_name_instrumentation_statements
+        elif isinstance(value, ast.Call):
             called_function_name: str = WillumpGraphBuilder._get_function_name(value)
             if "willump_frequency_count" in called_function_name:
                 vocab_dict_name: str = value.args[1].id

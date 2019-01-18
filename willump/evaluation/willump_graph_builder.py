@@ -15,6 +15,7 @@ from willump.graph.array_append_node import ArrayAppendNode
 from willump.graph.array_binop_node import ArrayBinopNode
 from willump.graph.willump_hash_join_node import WillumpHashJoinNode
 from willump.graph.willump_python_node import WillumpPythonNode
+from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 from weld.types import *
@@ -129,6 +130,21 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 return output_var_name, array_binop_node
             else:
                 return self._create_py_node(node)
+        elif isinstance(value, ast.Subscript):
+            if isinstance(value.slice.value, ast.Name) and isinstance(value.value, ast.Name):
+                input_var_name = value.value.id
+                column_names = self._static_vars[WILLUMP_SUBSCRIPT_INDEX_NAME + str(value.lineno)]
+                if isinstance(self._type_map[input_var_name], WeldPandas) and isinstance(column_names, list):
+                    pandas_column_selection_node = \
+                        PandasColumnSelectionNode(input_node=self._node_dict[input_var_name],
+                                                  output_name=output_var_name,
+                                                  input_type=self._type_map[input_var_name],
+                                                  selected_columns=column_names)
+                    return output_var_name, pandas_column_selection_node
+                else:
+                    return self._create_py_node(node)
+            else:
+                return self._create_py_node(node)
         elif isinstance(value, ast.Call):
             called_function: Optional[str] = self._get_function_name(value)
             if called_function is None:
@@ -167,7 +183,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 logit_node: LinearRegressionNode = LinearRegressionNode(
                     input_node=logit_input_node, input_type=self._type_map[logit_input_var],
                     output_name=output_var_name,
-                    output_type = self._type_map[output_var_name],
+                    output_type=self._type_map[output_var_name],
                     logit_weights=logit_weights,
                     logit_intercept=logit_intercept, aux_data=self.aux_data, batch=self.batch
                 )

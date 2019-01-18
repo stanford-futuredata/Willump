@@ -15,6 +15,7 @@ WILLUMP_JOIN_LEFT_COLUMNS = "willump_join_left_columns"
 WILLUMP_JOIN_LEFT_DTYPES = "willump_join_left_dtypes"
 WILLUMP_JOIN_HOW = "willump_join_how"
 WILLUMP_JOIN_COL = "willump_join_col"
+WILLUMP_SUBSCRIPT_INDEX_NAME = "willump_subscript_index"
 
 
 def panic(error: str):
