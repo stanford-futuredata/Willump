@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import time
 import gc
+import pickle
 import willump.evaluation.willump_executor
 
 # LATENT VECTOR SIZES
@@ -9,6 +10,9 @@ UF_SIZE = 32
 UF2_SIZE = 32
 SF_SIZE = 32
 AF_SIZE = 32
+LATENT_USER_FEATURES = ['uf_' + str(i) for i in range(UF_SIZE)]
+LATENT_SONG_FEATURES = ['sf_' + str(i) for i in range(SF_SIZE)]
+FEATURES = LATENT_SONG_FEATURES + LATENT_USER_FEATURES
 
 
 def load_combi_prep(folder='data_new/', split=None):
@@ -24,11 +28,17 @@ def load_combi_prep(folder='data_new/', split=None):
     return combi
 
 
+model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
+
+
 @willump.evaluation.willump_executor.willump_execute(batch=False)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two):
-    one_combi = combi.merge(features_one, how='inner', on=join_col_one)
-    two_combi = one_combi.merge(features_two, how='inner', on=join_col_two)
-    return two_combi
+    one_combi = combi.merge(features_one, how='left', on=join_col_one)
+    two_combi = one_combi.merge(features_two, how='left', on=join_col_two)
+    two_combi_features = two_combi[FEATURES]
+    two_combi_matrix = two_combi_features.values
+    preds = model.predict(two_combi_matrix)
+    return preds
 
 
 def load_als_dataframe(folder, size, user, artist):
@@ -66,11 +76,11 @@ def add_als(folder, combi):
     set_size = len(combi)
     entry_list = []
     for i in range(set_size):
-        entry_list.append(combi.iloc[i:i+1])
+        entry_list.append(combi.iloc[i:i + 1])
     print("Copies created")
     start = time.time()
     for entry in entry_list:
-        entry = do_merge(entry, features_uf, join_col_uf, features_sf, join_col_sf)
+        pred = do_merge(entry, features_uf, join_col_uf, features_sf, join_col_sf)
     elapsed_time = time.time() - start
 
     print('Latent feature join in %f seconds rows %d throughput %f: ' % (
@@ -81,6 +91,7 @@ def add_als(folder, combi):
 
 def create_featureset(folder):
     combi = load_combi_prep(folder=folder, split=None)
+    combi = combi.dropna(subset=["target"])
 
     # partition data by time
     # combi['time_bin10'] = pd.cut(combi['time'], 10, labels=range(10))

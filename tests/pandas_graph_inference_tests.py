@@ -66,7 +66,7 @@ def sample_pandas_count_vectorizer(array_one, input_vect):
 
 
 def sample_pandas_merge(left, right):
-    new = left.merge(right, how="inner", on="join_column")
+    new = left.merge(right, how="left", on="join_column")
     return new
 
 
@@ -98,7 +98,7 @@ model2.classes_ = numpy.array([0, 1], dtype=numpy.int64)
 
 
 def sample_merge_linear_regression(left, right):
-    new = left.merge(right, how="inner", on="join_column")
+    new = left.merge(right, how="left", on="join_column")
     feature_columns = new[FEATURES]
     feature_matrix = feature_columns.values
     predicted_result = model2.predict(feature_matrix)

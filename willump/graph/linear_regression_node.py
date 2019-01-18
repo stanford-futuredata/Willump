@@ -21,7 +21,7 @@ class LinearRegressionNode(WillumpGraphNode):
     weights_data_name: str
     intercept_data_name: str
 
-    def __init__(self, input_node: WillumpGraphNode, input_type: WeldType, output_name: str,
+    def __init__(self, input_node: WillumpGraphNode, input_type: WeldType, output_name: str, output_type: WeldType,
                  logit_weights, logit_intercept, aux_data: List[Tuple[int, WeldType]], batch=True) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
@@ -35,6 +35,7 @@ class LinearRegressionNode(WillumpGraphNode):
         self._input_nodes.append(WillumpInputNode(self.weights_data_name))
         self._input_nodes.append(WillumpInputNode(self.intercept_data_name))
         self._input_type = input_type
+        self._output_type = output_type
         self.batch = batch
         for entry in self._process_aux_data(logit_weights, logit_intercept):
             aux_data.append(entry)
@@ -64,22 +65,25 @@ class LinearRegressionNode(WillumpGraphNode):
         return [(weld_weights, WeldVec(WeldDouble())), (weld_intercept, WeldVec(WeldDouble()))]
 
     def get_node_weld(self) -> str:
+        assert(isinstance(self._output_type, WeldVec))
+        output_elem_type_str = str(self._output_type.elemType)
         if isinstance(self._input_type, WeldVec):
             elem_type = self._input_type.elemType.elemType
             weld_program = \
                 """
                 let intercept: f64 = lookup(INTERCEPT_NAME, 0L);
-                let OUTPUT_NAME: vec[i64] = result(for(INPUT_NAME,
-                    appender[i64],
-                    | results: appender[i64], result_i: i64, row: vec[ELEM_TYPE] |
+                let OUTPUT_NAME: vec[OUTPUT_TYPE] = result(for(INPUT_NAME,
+                    appender[OUTPUT_TYPE],
+                    | results: appender[OUTPUT_TYPE], result_i: i64, row: vec[ELEM_TYPE] |
                         let sum: f64 = result(for(zip(row, WEIGHTS_NAME),
                             merger[f64, +],
                             | bs: merger[f64, +], i: i64, inp_weight: {ELEM_TYPE, f64} |
                                 merge(bs, f64(inp_weight.$0) * inp_weight.$1)
                         ));
-                        merge(results, select(sum + intercept > 0.0, 1L, 0L))
+                        merge(results, select(sum + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0)))
                 ));
                 """
+            weld_program = weld_program.replace("OUTPUT_TYPE", output_elem_type_str)
             weld_program = weld_program.replace("WEIGHTS_NAME", self.weights_data_name)
             weld_program = weld_program.replace("INTERCEPT_NAME", self.intercept_data_name)
             weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
@@ -105,12 +109,13 @@ class LinearRegressionNode(WillumpGraphNode):
                     | bs, i, x: {i64, i64, ELEM_TYPE} |
                         merge(bs, {x.$0, lookup(WEIGHTS_NAME, x.$1) * f64(x.$2)})
                 ));
-                let OUTPUT_NAME: vec[i64] = result(for(output_probs,
-                    appender[i64],
+                let OUTPUT_NAME: vec[OUTPUT_TYPE] = result(for(output_probs,
+                    appender[OUTPUT_TYPE],
                     | bs, i, x |
-                    merge(bs, select(x > 0.0, 1L, 0L))
+                    merge(bs, select(x > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0)))
                 ));
                 """
+            weld_program = weld_program.replace("OUTPUT_TYPE", output_elem_type_str)
             weld_program = weld_program.replace("WEIGHTS_NAME", self.weights_data_name)
             weld_program = weld_program.replace("INTERCEPT_NAME", self.intercept_data_name)
             weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)

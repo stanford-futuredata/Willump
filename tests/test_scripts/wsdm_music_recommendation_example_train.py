@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
 import time
-import gc
-import pickle
+from sklearn.linear_model import LogisticRegression
 from sklearn import metrics
+import pickle
 import willump.evaluation.willump_executor
 
 # LATENT VECTOR SIZES
@@ -35,17 +35,11 @@ def load_combi_prep(folder='data_new/', split=None):
     return combi
 
 
-model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
-
-
 @willump.evaluation.willump_executor.willump_execute(batch=True)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two):
-    one_combi = combi.merge(features_one, how='left', on=join_col_one)
-    two_combi = one_combi.merge(features_two, how='left', on=join_col_two)
-    two_combi_features = two_combi[FEATURES]
-    two_combi_matrix = two_combi_features.values
-    preds = model.predict(two_combi_matrix)
-    return preds
+    one_combi = combi.merge(features_one, how='inner', on=join_col_one)
+    two_combi = one_combi.merge(features_two, how='inner', on=join_col_two)
+    return two_combi
 
 
 def load_als_dataframe(folder, size, user, artist):
@@ -79,31 +73,37 @@ def add_als(folder, combi):
     num_rows = len(combi)
     compile_one = do_merge(combi.iloc[0:1].copy(), features_uf, join_col_uf, features_sf, join_col_sf)
     compile_two = do_merge(combi.iloc[0:1].copy(), features_uf, join_col_uf, features_sf, join_col_sf)
-    compile_three = do_merge(combi.iloc[2:3].copy(), features_uf, join_col_uf, features_sf, join_col_sf)
+    compile_three = do_merge(combi.iloc[0:1].copy(), features_uf, join_col_uf, features_sf, join_col_sf)
 
     start = time.time()
-    preds = do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf)
+    combi = do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf)
     elapsed_time = time.time() - start
 
     print('Latent feature join in %f seconds rows %d throughput %f: ' % (
         elapsed_time, num_rows, num_rows / elapsed_time))
 
-    return preds
+    return combi
 
 
 def create_featureset(folder):
     combi = load_combi_prep(folder=folder, split=None)
     combi = combi.dropna(subset=["target"])
-    y = combi["target"].values
 
     # partition data by time
     # combi['time_bin10'] = pd.cut(combi['time'], 10, labels=range(10))
     # combi['time_bin5'] = pd.cut(combi['time'], 5, labels=range(5))
 
     # add latent features
-    y_pred = add_als(folder, combi)
+    combi = add_als(folder, combi)
+    model = LogisticRegression(solver="lbfgs")
+    y = combi["target"].values
+    train_data = combi[FEATURES].values
+    model.fit(train_data, y)
+
+    y_pred = model.predict(train_data)
 
     print("Train AUC: %f" % auc_score(y, y_pred))
+    pickle.dump(model, open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "wb"))
 
 
 if __name__ == '__main__':

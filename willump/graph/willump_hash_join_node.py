@@ -12,10 +12,11 @@ import importlib
 
 class WillumpHashJoinNode(WillumpGraphNode):
     """
-    Implements an inner join between two dataframes on a specific column, preserving the order of the keys in the
-    left dataframe.
+    Implements a left join between two dataframes on a specific column.
 
     TODO:  Proper typing of join column instead of casting to i64.
+
+    TODO:  Handle case where entry is in left but not in right.
     """
     _input_nodes: List[WillumpGraphNode]
 

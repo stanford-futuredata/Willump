@@ -54,7 +54,7 @@ def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
     return sorted_nodes
 
 
-def pushing_model_pass(weld_block_node_list, weld_block_output_set) -> List[WillumpGraphNode]:
+def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) -> List[WillumpGraphNode]:
     """
     Optimization pass that pushes a linear model into its input nodes in a block when possible.  Assumes block contains
     at most one model node, which must be the last node in the block.
@@ -71,8 +71,10 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set) -> List[Will
             and input_node.get_output_name() not in weld_block_output_set:
         input_node.push_model("linear", (model_node.weights_data_name,))
         weld_block_node_list.remove(model_node)
-        weld_block_node_list.append(CombineLinearRegressionNode([input_node], model_node.get_output_name(),
-                                                                model_node.intercept_data_name))
+        weld_block_node_list.append(CombineLinearRegressionNode(input_nodes=[input_node],
+                                                                output_name=model_node.get_output_name(),
+                                                                intercept_data_name=model_node.intercept_data_name,
+                                                                output_type=typing_map[model_node.get_output_name()]))
     return weld_block_node_list
 
 
@@ -142,7 +144,7 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
         if not appears_later:
             weld_block_output_set.remove(entry)
     # Do optimization passes over the block.
-    weld_block_node_list = pushing_model_pass(weld_block_node_list, weld_block_output_set)
+    weld_block_node_list = pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map)
     prepend_nodes, post_process_nodes = weld_pandas_marshalling_pass(weld_block_input_set,
                                                                      weld_block_output_set, typing_map, batch)
     # Construct the Willump statements from the nodes.

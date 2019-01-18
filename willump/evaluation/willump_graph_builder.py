@@ -167,6 +167,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 logit_node: LinearRegressionNode = LinearRegressionNode(
                     input_node=logit_input_node, input_type=self._type_map[logit_input_var],
                     output_name=output_var_name,
+                    output_type = self._type_map[output_var_name],
                     logit_weights=logit_weights,
                     logit_intercept=logit_intercept, aux_data=self.aux_data, batch=self.batch
                 )
@@ -197,7 +198,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 )
                 return output_var_name, array_cv_node
             elif ".merge" in called_function:
-                if self._static_vars[WILLUMP_JOIN_HOW + str(node.lineno)] is not 'inner':
+                if self._static_vars[WILLUMP_JOIN_HOW + str(node.lineno)] is not 'left':
                     return self._create_py_node(node)
                 join_col: str = self._static_vars[WILLUMP_JOIN_COL + str(node.lineno)]
                 left_df_columns: List[str] = list(self._static_vars[WILLUMP_JOIN_LEFT_COLUMNS + str(node.lineno)])
