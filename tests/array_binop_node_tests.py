@@ -27,6 +27,7 @@ class ArrayAppendNodeTests(unittest.TestCase):
                     "__willump_arg1": WeldVec(WeldLong()),
                     "vec_1": WeldVec(WeldDouble()),
                     "vec_2": WeldVec(WeldLong()),
+                    "output": WeldVec(WeldDouble()),
                     "__willump_retval0":  WeldVec(WeldDouble())}
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,

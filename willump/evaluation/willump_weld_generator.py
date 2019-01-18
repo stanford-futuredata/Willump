@@ -76,12 +76,14 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set) -> List[Will
     return weld_block_node_list
 
 
-def weld_pandas_marshalling_pass(weld_block_input_set: Set[str],
+def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_set: Set[str],
                                  typing_map: Mapping[str, WeldType], batch: bool) \
         -> Tuple[List[WillumpPythonNode], List[WillumpPythonNode]]:
     """
-    Processing pass creating Python code to marshall Pandas into a representation (struct of vec columns) Welc can
+    Processing pass creating Python code to marshall Pandas into a representation (struct of vec columns) Weld can
     understand, then convert that struct back to Pandas.
+
+    # TODO:  Reconstruct the original index properly.
     """
     pandas_input_processing_nodes: List[WillumpPythonNode] = []
     pandas_post_processing_nodes: List[WillumpPythonNode] = []
@@ -96,10 +98,24 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str],
                 pandas_glue_python = "%s = (%s)" % (input_name, pandas_glue_python_args)
             else:
                 pandas_glue_python = "%s = tuple(%s.values[0])" % (input_name, input_name)
-            merge_glue_ast: ast.Module = \
+            pandas_glue_ast: ast.Module = \
                 ast.parse(pandas_glue_python, "exec")
-            pandas_input_node = WillumpPythonNode(merge_glue_ast.body[0], input_name, [])
+            pandas_input_node = WillumpPythonNode(pandas_glue_ast.body[0], input_name, [])
             pandas_input_processing_nodes.append(pandas_input_node)
+    for output_name in weld_block_output_set:
+        output_type = typing_map[output_name]
+        if isinstance(output_type, WeldPandas):
+            df_creation_arguments = ""
+            for i, column_name in enumerate(output_type.column_names):
+                if batch:
+                    df_creation_arguments += "'%s' : %s[%d]," % (column_name, output_name, i)
+                else:
+                    df_creation_arguments += "'%s' : [%s[%d]]," % (column_name, output_name, i)
+            df_creation_statement = "%s = pd.DataFrame({%s})" % (output_name, df_creation_arguments)
+            df_creation_ast: ast.Module = \
+                ast.parse(df_creation_statement, "exec")
+            df_creation_node = WillumpPythonNode(df_creation_ast.body[0], output_name, [])
+            pandas_post_processing_nodes.append(df_creation_node)
     return pandas_input_processing_nodes, pandas_post_processing_nodes
 
 
@@ -127,7 +143,8 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
             weld_block_output_set.remove(entry)
     # Do optimization passes over the block.
     weld_block_node_list = pushing_model_pass(weld_block_node_list, weld_block_output_set)
-    prepend_nodes, post_process_nodes = weld_pandas_marshalling_pass(weld_block_input_set, typing_map, batch)
+    prepend_nodes, post_process_nodes = weld_pandas_marshalling_pass(weld_block_input_set,
+                                                                     weld_block_output_set, typing_map, batch)
     # Construct the Willump statements from the nodes.
     weld_block_node_list.append(WillumpMultiOutputNode(list(weld_block_output_set)))
     weld_str = ""

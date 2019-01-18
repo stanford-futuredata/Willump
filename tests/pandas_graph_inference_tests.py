@@ -90,6 +90,21 @@ def sample_logistic_regression_cv(array_one, input_vect):
     return predicted_result
 
 
+FEATURES = ["data1", "data2", "metadata1", "metadata2"]
+model2 = sklearn.linear_model.LogisticRegression(solver='lbfgs')
+model2.coef_ = numpy.array([[0.1, 0.2, 0.3, -0.4]], dtype=numpy.float64)
+model2.intercept_ = numpy.array([0.2], dtype=numpy.float64)
+model2.classes_ = numpy.array([0, 1], dtype=numpy.int64)
+
+
+def sample_merge_linear_regression(left, right):
+    new = left.merge(right, how="inner", on="join_column")
+    feature_columns = new[FEATURES]
+    feature_matrix = feature_columns.values
+    predicted_result = model2.predict(feature_matrix)
+    return predicted_result
+
+
 class PandasGraphInferenceTests(unittest.TestCase):
     def setUp(self):
         global willump_typing_map, willump_static_vars
@@ -206,11 +221,13 @@ class PandasGraphInferenceTests(unittest.TestCase):
              local_namespace)
         weld_output = local_namespace["sample_pandas_merge"](left_table, right_table)
         numpy.testing.assert_equal(
-            weld_output[1], numpy.array([4, 5, 2, 5, 3], dtype=numpy.int64))
+            weld_output["join_column"].values, left_table["join_column"].values)
         numpy.testing.assert_equal(
-            weld_output[3], numpy.array([1.2, 2.2, 2.2, 3.2, 1.2], dtype=numpy.float64))
+            weld_output["data1"].values, numpy.array([4, 5, 2, 5, 3], dtype=numpy.int64))
         numpy.testing.assert_equal(
-            weld_output[4], numpy.array([1.3, 2.3, 2.3, 3.3, 1.3], dtype=numpy.float64))
+            weld_output["metadata1"].values, numpy.array([1.2, 2.2, 2.2, 3.2, 1.2], dtype=numpy.float64))
+        numpy.testing.assert_equal(
+            weld_output["metadata2"].values, numpy.array([1.3, 2.3, 2.3, 3.3, 1.3], dtype=numpy.float64))
 
     def test_pandas_regression_vec(self):
         print("\ntest_pandas_regression_vec")
@@ -259,3 +276,28 @@ class PandasGraphInferenceTests(unittest.TestCase):
         weld_output = local_namespace["sample_logistic_regression_cv"](string_array, vectorizer)
         numpy.testing.assert_equal(
             weld_output, numpy.array([0, 1, 0, 1], dtype=numpy.int64))
+
+    def test_simple_join_regression(self):
+        print("\ntest_simple_join_regression")
+        left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv")
+        right_table = pd.read_csv("tests/test_resources/toy_metadata_csv.csv")
+        sample_python: str = inspect.getsource(sample_merge_linear_regression)
+        self.set_typing_map(sample_python, "sample_merge_linear_regression", [left_table, right_table])
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                                       graph_builder.get_aux_data(),
+                                                                                       willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["sample_merge_linear_regression"](left_table, right_table)
+        numpy.testing.assert_equal(
+            weld_output, numpy.array([0, 1, 1, 1, 1], dtype=numpy.int64))

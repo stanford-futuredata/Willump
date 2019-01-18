@@ -29,6 +29,7 @@ class StringSplitNodeTests(unittest.TestCase):
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"__willump_arg0": WeldVec(WeldVec(WeldLong())),
                     "input_str": WeldVec(WeldVec(WeldLong())),
+                    "logit_output": WeldVec(WeldLong()),
                     "__willump_retval0": WeldVec(WeldLong())}
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,

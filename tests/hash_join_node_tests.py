@@ -29,6 +29,9 @@ class HashJoinNodeTests(unittest.TestCase):
                                                  ["join_column", "data1", "data2"]),
                     "input_table": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
                                               ["join_column", "data1", "data2"]),
+                    "output": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong()),
+                                                     WeldVec(WeldDouble()), WeldVec(WeldDouble())],
+                                                    ["join_column", "data1", "data2", "metadata1", "metadata2"]),
                     "__willump_retval0": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong()),
                                                      WeldVec(WeldDouble()), WeldVec(WeldDouble())],
                                                     ["join_column", "data1", "data2", "metadata1", "metadata2"])}
@@ -61,6 +64,8 @@ class HashJoinNodeTests(unittest.TestCase):
                                                  ["join_column", "data1", "data2"]),
                     "input_table": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
                                               ["join_column", "data1", "data2"]),
+                    "output": WeldPandas([WeldLong(), WeldLong(), WeldLong(), WeldDouble(), WeldDouble()],
+                                                    ["join_column", "data1", "data2", "metadata1", "metadata2"]),
                     "__willump_retval0": WeldPandas([WeldLong(), WeldLong(), WeldLong(), WeldDouble(), WeldDouble()],
                                                     ["join_column", "data1", "data2", "metadata1", "metadata2"])}
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
@@ -70,4 +75,4 @@ class HashJoinNodeTests(unittest.TestCase):
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func((left_table["join_column"].values[0],
                                                     left_table["data1"].values[0], left_table["data2"].values[0]))
-        self.assertEqual(weld_output, (1, 4, 5, 1.2, 1.3))
+        self.assertEqual(weld_output, (1, 4, -50, 1.2, 1.3))
