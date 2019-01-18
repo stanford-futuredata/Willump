@@ -21,8 +21,11 @@ class HashJoinNodeTests(unittest.TestCase):
         input_node: WillumpInputNode = WillumpInputNode("input_table")
         aux_data = []
         hash_join_node: WillumpHashJoinNode = \
-            WillumpHashJoinNode(input_node, "output", "join_column", right_table, aux_data,
-                                size_left_df=3, join_col_left_index=0, batch=True)
+            WillumpHashJoinNode(input_node=input_node, output_name="output", join_col_name="join_column",
+                                right_dataframe=right_table, aux_data=aux_data,
+                                left_input_type=WeldPandas(
+                                    [WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
+                                    ["join_column", "data1", "data2"]), batch=True)
         output_node: WillumpOutputNode = WillumpOutputNode(hash_join_node)
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"__willump_arg0": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
@@ -30,8 +33,8 @@ class HashJoinNodeTests(unittest.TestCase):
                     "input_table": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
                                               ["join_column", "data1", "data2"]),
                     "output": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong()),
-                                                     WeldVec(WeldDouble()), WeldVec(WeldDouble())],
-                                                    ["join_column", "data1", "data2", "metadata1", "metadata2"]),
+                                          WeldVec(WeldDouble()), WeldVec(WeldDouble())],
+                                         ["join_column", "data1", "data2", "metadata1", "metadata2"]),
                     "__willump_retval0": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong()),
                                                      WeldVec(WeldDouble()), WeldVec(WeldDouble())],
                                                     ["join_column", "data1", "data2", "metadata1", "metadata2"])}
@@ -56,8 +59,10 @@ class HashJoinNodeTests(unittest.TestCase):
         input_node: WillumpInputNode = WillumpInputNode("input_table")
         aux_data = []
         hash_join_node: WillumpHashJoinNode = \
-            WillumpHashJoinNode(input_node, "output", "join_column", right_table, aux_data,
-                                size_left_df=3, join_col_left_index=0, batch=False)
+            WillumpHashJoinNode(input_node=input_node, output_name="output", join_col_name="join_column",
+                                right_dataframe=right_table, aux_data=aux_data,
+                                left_input_type=WeldPandas([WeldLong(), WeldLong(), WeldLong()],
+                                                           ["join_column", "data1", "data2"]), batch=False)
         output_node: WillumpOutputNode = WillumpOutputNode(hash_join_node)
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"__willump_arg0": WeldPandas([WeldLong(), WeldLong(), WeldLong()],
@@ -65,7 +70,7 @@ class HashJoinNodeTests(unittest.TestCase):
                     "input_table": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
                                               ["join_column", "data1", "data2"]),
                     "output": WeldPandas([WeldLong(), WeldLong(), WeldLong(), WeldDouble(), WeldDouble()],
-                                                    ["join_column", "data1", "data2", "metadata1", "metadata2"]),
+                                         ["join_column", "data1", "data2", "metadata1", "metadata2"]),
                     "__willump_retval0": WeldPandas([WeldLong(), WeldLong(), WeldLong(), WeldDouble(), WeldDouble()],
                                                     ["join_column", "data1", "data2", "metadata1", "metadata2"])}
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]

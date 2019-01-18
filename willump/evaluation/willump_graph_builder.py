@@ -217,15 +217,14 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 if self._static_vars[WILLUMP_JOIN_HOW + str(node.lineno)] is not 'left':
                     return self._create_py_node(node)
                 join_col: str = self._static_vars[WILLUMP_JOIN_COL + str(node.lineno)]
-                left_df_columns: List[str] = list(self._static_vars[WILLUMP_JOIN_LEFT_COLUMNS + str(node.lineno)])
                 right_df = self._static_vars[WILLUMP_JOIN_RIGHT_DATAFRAME + str(node.lineno)]
                 left_df_input_var: str = value.func.value.id
                 left_df_input_node = self._node_dict[left_df_input_var]
                 willump_hash_join_node = WillumpHashJoinNode(input_node=left_df_input_node, output_name=output_var_name,
+                                                             left_input_type=self._type_map[left_df_input_var],
                                                              join_col_name=join_col,
                                                              right_dataframe=right_df, aux_data=self.aux_data,
-                                                             batch=self.batch, size_left_df=len(left_df_columns),
-                                                             join_col_left_index=left_df_columns.index(join_col))
+                                                             batch=self.batch)
                 return output_var_name, willump_hash_join_node
             # TODO:  What to do with these?
             elif "reshape" in called_function:

@@ -20,9 +20,8 @@ class WillumpHashJoinNode(WillumpGraphNode):
     """
     _input_nodes: List[WillumpGraphNode]
 
-    def __init__(self, input_node: WillumpGraphNode, output_name: str, join_col_name: str,
-                 right_dataframe, aux_data: List[Tuple[int, WeldType]], size_left_df: int,
-                 join_col_left_index: int, batch=True) -> None:
+    def __init__(self, input_node: WillumpGraphNode, left_input_type: WeldType, output_name: str, join_col_name: str,
+                 right_dataframe, aux_data: List[Tuple[int, WeldType]], batch=True) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
@@ -32,8 +31,10 @@ class WillumpHashJoinNode(WillumpGraphNode):
         self._right_dataframe_name = "AUX_DATA_{0}".format(len(aux_data))
         self._join_col_name = join_col_name
         self._input_nodes = [input_node, WillumpInputNode(self._right_dataframe_name)]
-        self._size_left_df = size_left_df
-        self._join_col_left_index = join_col_left_index
+        assert(isinstance(left_input_type, WeldPandas))
+        self._left_input_type = left_input_type
+        self._size_left_df = len(left_input_type.column_names)
+        self._join_col_left_index = list(left_input_type.column_names).index(join_col_name)
         self.batch = batch
         for entry in self._process_aux_data(right_dataframe):
             aux_data.append(entry)
