@@ -36,8 +36,7 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two):
     one_combi = combi.merge(features_one, how='left', on=join_col_one)
     two_combi = one_combi.merge(features_two, how='left', on=join_col_two)
     two_combi_features = two_combi[FEATURES]
-    two_combi_matrix = two_combi_features.values
-    preds = model.predict(two_combi_matrix)
+    preds = model.predict(two_combi_features)
     return preds
 
 
