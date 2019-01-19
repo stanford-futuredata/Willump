@@ -71,7 +71,6 @@ def sample_pandas_merge(left, right):
 
 
 model = sklearn.linear_model.LogisticRegression(solver='lbfgs')
-model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
 model.intercept_ = numpy.array([0.2], dtype=numpy.float64)
 model.classes_ = numpy.array([0, 1], dtype=numpy.int64)
 
@@ -91,16 +90,11 @@ def sample_logistic_regression_cv(array_one, input_vect):
 
 
 FEATURES = ["data1", "data2", "metadata1", "metadata2"]
-model2 = sklearn.linear_model.LogisticRegression(solver='lbfgs')
-model2.coef_ = numpy.array([[0.1, 0.2, 0.3, -0.4]], dtype=numpy.float64)
-model2.intercept_ = numpy.array([0.2], dtype=numpy.float64)
-model2.classes_ = numpy.array([0, 1], dtype=numpy.int64)
-
 
 def sample_merge_linear_regression(left, right):
     new = left.merge(right, how="left", on="join_column")
     feature_columns = new[FEATURES]
-    predicted_result = model2.predict(feature_columns)
+    predicted_result = model.predict(feature_columns)
     return predicted_result
 
 
@@ -238,6 +232,7 @@ class PandasGraphInferenceTests(unittest.TestCase):
 
     def test_pandas_regression_vec(self):
         print("\ntest_pandas_regression_vec")
+        model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
         sample_python: str = inspect.getsource(sample_logistic_regression_np_array)
         input_vec = numpy.array([[0, 0, 0, 1, 1, 0], [0, 0, 0, 0, 3, 0]], dtype=numpy.int64)
         self.set_typing_map(sample_python, "sample_logistic_regression_np_array", [input_vec])
@@ -262,6 +257,7 @@ class PandasGraphInferenceTests(unittest.TestCase):
 
     def test_logistic_regression_cv(self):
         print("\ntest_logistic_regression_cv")
+        model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
         sample_python: str = inspect.getsource(sample_logistic_regression_cv)
         string_array = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dog the the the the"]
         self.set_typing_map(sample_python, "sample_logistic_regression_cv", [string_array, vectorizer])
@@ -284,8 +280,9 @@ class PandasGraphInferenceTests(unittest.TestCase):
         numpy.testing.assert_equal(
             weld_output, numpy.array([0, 1, 0, 1], dtype=numpy.int64))
 
-    def test_simple_join_regression(self):
-        print("\ntest_simple_join_regression")
+    def test_simple_join_regression_batch(self):
+        print("\ntest_simple_join_regression_batch")
+        model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4]], dtype=numpy.float64)
         left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv")
         right_table = pd.read_csv("tests/test_resources/toy_metadata_csv.csv")
         sample_python: str = inspect.getsource(sample_merge_linear_regression)
@@ -309,8 +306,9 @@ class PandasGraphInferenceTests(unittest.TestCase):
         numpy.testing.assert_equal(
             weld_output, numpy.array([0, 1, 1, 1, 1], dtype=numpy.int64))
 
-    def test_simple_join_regression_batch(self):
-        print("\ntest_simple_join_regression_batch")
+    def test_simple_join_regression_nobatch(self):
+        print("\ntest_simple_join_regression_nobatch")
+        model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4]], dtype=numpy.float64)
         left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv").iloc[0:1].copy()
         right_table = pd.read_csv("tests/test_resources/toy_metadata_csv.csv")
         sample_python: str = inspect.getsource(sample_merge_linear_regression)

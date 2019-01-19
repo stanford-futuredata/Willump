@@ -1,19 +1,15 @@
 from willump.graph.willump_graph_node import WillumpGraphNode
-from willump.graph.willump_input_node import WillumpInputNode
-import willump.evaluation.willump_executor as wexec
-from willump.willump_utilities import *
 
 from weld.types import *
 
-import pandas as pd
-from typing import List, Tuple, Mapping
-import importlib
+from typing import List
 
 
 class PandasColumnSelectionNode(WillumpGraphNode):
     """
     Returns a dataframe containing a selection of columns from another dataframe.
     """
+    selected_columns: List[str]
 
     def __init__(self, input_node: WillumpGraphNode, output_name: str,
                  input_type: WeldType, selected_columns: List[str]) -> None:
@@ -24,7 +20,7 @@ class PandasColumnSelectionNode(WillumpGraphNode):
         self._output_name = output_name
         self._input_nodes = [input_node]
         self._input_type = input_type
-        self._selected_columns = selected_columns
+        self.selected_columns = selected_columns
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
@@ -36,7 +32,7 @@ class PandasColumnSelectionNode(WillumpGraphNode):
         assert(isinstance(self._input_type, WeldPandas))
         selection_string = ""
         input_columns = self._input_type.column_names
-        for column in self._selected_columns:
+        for column in self.selected_columns:
             selection_string += "INPUT_NAME.$%d," % input_columns.index(column)
         weld_program = "let OUTPUT_NAME = {%s};" % selection_string
         weld_program = weld_program.replace("INPUT_NAME", self._input_array_string_name)

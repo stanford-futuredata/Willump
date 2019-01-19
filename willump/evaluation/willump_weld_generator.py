@@ -1,9 +1,10 @@
-from typing import MutableMapping, List, Set, Tuple, Mapping
+from typing import MutableMapping, List, Set, Tuple, Mapping, Optional
 import typing
 import ast
 import copy
 
 from weld.types import *
+from willump import panic
 
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
@@ -14,6 +15,8 @@ from willump.graph.willump_multioutput_node import WillumpMultiOutputNode
 from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.combine_linear_regression_node import CombineLinearRegressionNode
+from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
+from willump.graph.willump_hash_join_node import WillumpHashJoinNode
 
 
 def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
@@ -60,18 +63,70 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
     at most one model node, which must be the last node in the block.
 
     # TODO:  Support more classes of models.
-    # TODO:  Support pushing through joins, etc.
     """
+
+    def node_is_transformable(node):
+        """
+        This node can be freely transformed.
+        """
+        return node in weld_block_node_list and node.get_output_name() not in weld_block_output_set
+
     model_node = weld_block_node_list[-1]
     if not isinstance(model_node, LinearRegressionNode):
         return weld_block_node_list
-    input_node = model_node.get_in_nodes()[0]
-    if isinstance(input_node, ArrayCountVectorizerNode) \
-            and input_node in weld_block_node_list \
-            and input_node.get_output_name() not in weld_block_output_set:
-        input_node.push_model("linear", (model_node.weights_data_name,))
+    # A stack containing the next nodes we want to push the model through and what their indices are in the model.
+    current_node_stack: List[Tuple[WillumpGraphNode, Tuple[int, int], Optional[Mapping[str, int]]]] = \
+        [(model_node.get_in_nodes()[0], (0, model_node.input_width), None)]
+    # Nodes through which the model has been pushed which are providing output.
+    nodes_to_sum: List[WillumpGraphNode] = []
+    while len(current_node_stack) > 0:
+        input_node, (index_start, index_end), curr_selection_map = current_node_stack.pop()
+        if node_is_transformable(input_node):
+            if isinstance(input_node, ArrayCountVectorizerNode):
+                input_node.push_model("linear", (model_node.weights_data_name,))
+                nodes_to_sum.append(input_node)
+            elif isinstance(input_node, PandasColumnSelectionNode):
+                selected_columns: List[str] = input_node.selected_columns
+                assert (len(selected_columns) == index_end - index_start)
+                selection_map: Mapping[str, int] = {col: index_start + i for i, col in enumerate(selected_columns)}
+                selection_input = input_node.get_in_nodes()[0]
+                if node_is_transformable(selection_input):
+                    current_node_stack.append((selection_input, (index_start, index_end), selection_map))
+                    weld_block_node_list.remove(input_node)
+                # TODO:  Push directly onto the selection node
+                else:
+                    panic("Pushing onto selection node not implemented")
+            elif isinstance(input_node, WillumpHashJoinNode):
+                join_left_columns = input_node.left_df_type.column_names
+                join_right_columns = input_node.right_df_type.column_names
+                output_columns = join_left_columns + join_right_columns
+                if curr_selection_map is None:
+                    curr_selection_map = {col: index_start + i for i, col in enumerate(output_columns)}
+                join_left_input = input_node.get_in_nodes()[0]
+                if node_is_transformable(join_left_input) and not (isinstance(join_left_input,
+                            WillumpHashJoinNode) and input_node.join_col_name in
+                                                                   join_left_input.right_df_type.column_names):
+                    pushed_map = {}
+                    next_map = {}
+                    for col in curr_selection_map.keys():
+                        if col in join_right_columns:
+                            pushed_map[col] = curr_selection_map[col]
+                        else:
+                            next_map[col] = curr_selection_map[col]
+                    current_node_stack.append((join_left_input, (index_start, index_end), next_map))
+                    new_input_name = join_left_input.input_array_string_name
+                else:
+                    pushed_map = {}
+                    for col in curr_selection_map.keys():
+                        if col in output_columns:
+                            pushed_map[col] = curr_selection_map[col]
+                    new_input_name = input_node.input_array_string_name
+                input_node.push_model("linear", (model_node.weights_data_name,), pushed_map,
+                                      new_input_name)
+                nodes_to_sum.append(input_node)
+    if len(nodes_to_sum) > 0:
         weld_block_node_list.remove(model_node)
-        weld_block_node_list.append(CombineLinearRegressionNode(input_nodes=[input_node],
+        weld_block_node_list.append(CombineLinearRegressionNode(input_nodes=nodes_to_sum,
                                                                 output_name=model_node.get_output_name(),
                                                                 intercept_data_name=model_node.intercept_data_name,
                                                                 output_type=typing_map[model_node.get_output_name()]))
@@ -155,7 +210,7 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
     return (weld_str, list(weld_block_input_set), list(weld_block_output_set)), prepend_nodes, post_process_nodes
 
 
-def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch: bool = True) ->\
+def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch: bool = True) -> \
         List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]]:
     """
     Convert a Willump graph into a sequence of Willump statements.

@@ -52,7 +52,7 @@ class CombineLinearRegressionNode(WillumpGraphNode):
             let intercept: f64 = lookup(INTERCEPT_NAME, 0L);
             let OUTPUT_NAME: vec[OUTPUT_TYPE] = result(for(zip(ZIP_STRING),
                 appender[OUTPUT_TYPE],
-                | bs: appender[i64], i: i64, x |
+                | bs: appender[OUTPUT_TYPE], i: i64, x |
                 merge(bs, select(SUM_STRING + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0)))
             ));
             """

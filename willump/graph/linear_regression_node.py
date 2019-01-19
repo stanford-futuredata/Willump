@@ -14,12 +14,10 @@ class LinearRegressionNode(WillumpGraphNode):
 
     TODO:  Allow multi-class classification, not just binary.
     """
-    _input_nodes: List[WillumpGraphNode]
-    _input_string_name: str
-    _output_name: str
-    _input_type: WeldType
     weights_data_name: str
     intercept_data_name: str
+    input_width: int
+    batch: bool
 
     def __init__(self, input_node: WillumpGraphNode, input_type: WeldType, output_name: str, output_type: WeldType,
                  logit_weights, logit_intercept, aux_data: List[Tuple[int, WeldType]], batch=True) -> None:
@@ -37,6 +35,7 @@ class LinearRegressionNode(WillumpGraphNode):
         self._input_type = input_type
         self._output_type = output_type
         self.batch = batch
+        self.input_width = len(logit_weights[0])
         for entry in self._process_aux_data(logit_weights, logit_intercept):
             aux_data.append(entry)
 
