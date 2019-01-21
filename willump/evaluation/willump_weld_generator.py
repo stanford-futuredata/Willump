@@ -114,6 +114,7 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
                         else:
                             next_map[col] = curr_selection_map[col]
                     current_node_stack.append((join_left_input, (index_start, index_end), next_map))
+                    # TODO:  Make this input name discovery recurse for arbitrarily deep joins.
                     new_input_name = join_left_input.input_array_string_name
                 else:
                     pushed_map = {}

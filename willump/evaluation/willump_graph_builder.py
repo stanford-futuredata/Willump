@@ -16,6 +16,7 @@ from willump.graph.array_binop_node import ArrayBinopNode
 from willump.graph.willump_hash_join_node import WillumpHashJoinNode
 from willump.graph.willump_python_node import WillumpPythonNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
+from willump.graph.stack_sparse_node import StackSparseNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 from weld.types import *
@@ -226,6 +227,14 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                              right_dataframe=right_df, aux_data=self.aux_data,
                                                              batch=self.batch)
                 return output_var_name, willump_hash_join_node
+            elif "sparse.hstack" in called_function:
+                if not isinstance(value.args[0], ast.List) or \
+                        not all(isinstance(ele, ast.Name) for ele in value.args[0].elts):
+                    return self._create_py_node(node)
+                input_nodes = [self._node_dict[arg_node.id] for arg_node in value.args[0].elts]
+                output_type = self._type_map[output_var_name]
+                stack_sparse_node = StackSparseNode(input_nodes, output_var_name, output_type)
+                return output_var_name, stack_sparse_node
             # TODO:  What to do with these?
             elif "reshape" in called_function:
                 return output_var_name, None
