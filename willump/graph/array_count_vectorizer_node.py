@@ -12,16 +12,13 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
     Willump Array Count Vectorizer node.  Take in a list of strings and an ordered vocabulary
     and return vectors of how many times each word in the vocabulary occurred in each string in the list.
     """
-    _input_nodes: List[WillumpGraphNode]
-    _input_array_string_name: str
-    _output_name: str
-    _vocab_dict_name: str
-    _vocab_size: int
-    _min_gram: int
-    _max_gram: int
-    _vocabulary_list: List[str]
+    # Public variables.
+    output_width: int
+
+    # Protected Model-Pushing Variables
     _model_type: Optional[str] = None
     _model_parameters: Tuple
+    _start_index: int
 
     def __init__(self, input_node: WillumpGraphNode, output_name: str,
                  input_vocab_dict: Mapping[str, int], aux_data: List[Tuple[int, WeldType]],
@@ -33,6 +30,7 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
         self._output_name = output_name
         vocabulary_list = sorted(input_vocab_dict.keys(), key=lambda x: input_vocab_dict[x])
         self._vocab_size = len(vocabulary_list)
+        self.output_width = self._vocab_size
         self._vocab_dict_name = "AUX_DATA_{0}".format(len(aux_data))
         self._input_nodes = []
         self._input_nodes.append(input_node)
@@ -68,9 +66,10 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
         vocab_dict, _ = vocab_to_dict.caller_func(vocabulary_list)
         return [(vocab_dict, WeldDict(WeldVec(WeldChar()), WeldLong()))]
 
-    def push_model(self, model_type: str, model_parameters: Tuple) -> None:
+    def push_model(self, model_type: str, model_parameters: Tuple, start_index) -> None:
         self._model_type = model_type
         self._model_parameters = model_parameters
+        self._start_index = start_index
 
     def get_node_weld(self) -> str:
         if self._model_type is None:
@@ -137,7 +136,8 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
                                         let word: vec[i8] = slice(string, i_string, iter_value);
                                         let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
                                         if(exists_and_key.$0,
-                                            merge(count_sum_inner, lookup(WEIGHTS_NAME, exists_and_key.$1)),
+                                            merge(count_sum_inner, lookup(WEIGHTS_NAME, START_INDEXl
+                                              + exists_and_key.$1)),
                                             count_sum_inner
                                         ),
                                         count_sum_inner
@@ -147,6 +147,7 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
                         merge(results, lin_reg_sum)
                 ));
                 """
+            weld_program = weld_program.replace("START_INDEX", str(self._start_index))
             weld_program = weld_program.replace("WEIGHTS_NAME", weights_data_name)
         weld_program = weld_program.replace("VOCAB_DICT_NAME", self._vocab_dict_name)
         weld_program = weld_program.replace("INPUT_NAME", self._input_array_string_name)

@@ -41,7 +41,20 @@ def sample_stack_sparse(array_one, input_vect):
     return transformed_result
 
 
-class PandasGraphInferenceTests(unittest.TestCase):
+model = sklearn.linear_model.LogisticRegression(solver='lbfgs')
+model.intercept_ = numpy.array([0.2], dtype=numpy.float64)
+model.classes_ = numpy.array([0, 1], dtype=numpy.int64)
+
+
+def stack_sparse_then_linear_regression(array_one, array_two, input_vect):
+    transformed_result_one = input_vect.transform(array_one)
+    transformed_result_two = input_vect.transform(array_two)
+    combined_result = scipy.sparse.hstack([transformed_result_one, transformed_result_two], format="csr")
+    predicted_result = model.predict(combined_result)
+    return predicted_result
+
+
+class StackingNodeTests(unittest.TestCase):
     def setUp(self):
         global willump_typing_map, willump_static_vars
         willump_typing_map = {}
@@ -60,8 +73,8 @@ class PandasGraphInferenceTests(unittest.TestCase):
              local_namespace)
         result = local_namespace[func_name](*basic_vec)
 
-    def test_pandas_count_vectorizer(self):
-        print("\ntest_pandas_count_vectorizer")
+    def test_sparse_stacking(self):
+        print("\ntest_sparse_stacking")
         sample_python: str = inspect.getsource(sample_stack_sparse)
         string_array = ["theaancatdog house", "bobthe builder"]
         self.set_typing_map(sample_python, "sample_stack_sparse", [string_array, vectorizer])
@@ -84,3 +97,30 @@ class PandasGraphInferenceTests(unittest.TestCase):
         numpy.testing.assert_almost_equal(weld_output[0], numpy.array([0, 0, 0, 0, 1, 0, 0, 0, 0, 1]))
         numpy.testing.assert_almost_equal(weld_output[1], numpy.array([0, 4, 3, 5, 0, 6, 10, 9, 11, 6]))
         numpy.testing.assert_almost_equal(weld_output[2], numpy.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]))
+
+    def test_sparse_stacking_linear_model(self):
+        print("\ntest_sparse_stacking_linear_model")
+        model.coef_ = numpy.array([[0, 0.2, 0.3, 0.4, -0.5, 0.6, 0.2, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
+        sample_python: str = inspect.getsource(stack_sparse_then_linear_regression)
+        array_one = ["dogdogdogdog house", "bobthe builder", "dog the the the the", "dog"]
+        array_two = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dogthethe the the the the the"]
+        self.set_typing_map(sample_python, "stack_sparse_then_linear_regression", [array_one, array_two, vectorizer])
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                                       graph_builder.get_aux_data(),
+                                                                                       willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output = local_namespace["stack_sparse_then_linear_regression"](array_one, array_two, vectorizer)
+        print(weld_output)
+        numpy.testing.assert_equal(
+            weld_output, numpy.array([0, 1, 0, 1], dtype=numpy.int64))

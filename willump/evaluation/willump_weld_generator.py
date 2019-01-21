@@ -17,6 +17,7 @@ from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.combine_linear_regression_node import CombineLinearRegressionNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.willump_hash_join_node import WillumpHashJoinNode
+from willump.graph.stack_sparse_node import StackSparseNode
 
 
 def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
@@ -83,8 +84,20 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
         input_node, (index_start, index_end), curr_selection_map = current_node_stack.pop()
         if node_is_transformable(input_node):
             if isinstance(input_node, ArrayCountVectorizerNode):
-                input_node.push_model("linear", (model_node.weights_data_name,))
+                input_node.push_model("linear", (model_node.weights_data_name,), index_start)
                 nodes_to_sum.append(input_node)
+            elif isinstance(input_node, StackSparseNode):
+                if all(node_is_transformable(stacked_node) for stacked_node in input_node.get_in_nodes()):
+                    stack_start_index = index_start
+                    for stacked_node in input_node.get_in_nodes():
+                        output_width = stacked_node.output_width
+                        current_node_stack.append(
+                            (stacked_node, (stack_start_index, stack_start_index + output_width), curr_selection_map))
+                        stack_start_index += output_width
+                    weld_block_node_list.remove(input_node)
+                else:
+                    # TODO:  Push directly onto the stacking node.
+                    panic("Pushing onto stacking node not implemented")
             elif isinstance(input_node, PandasColumnSelectionNode):
                 selected_columns: List[str] = input_node.selected_columns
                 assert (len(selected_columns) == index_end - index_start)
@@ -93,8 +106,8 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
                 if node_is_transformable(selection_input):
                     current_node_stack.append((selection_input, (index_start, index_end), selection_map))
                     weld_block_node_list.remove(input_node)
-                # TODO:  Push directly onto the selection node
                 else:
+                    # TODO:  Push directly onto the selection node.
                     panic("Pushing onto selection node not implemented")
             elif isinstance(input_node, WillumpHashJoinNode):
                 join_left_columns = input_node.left_df_type.column_names
@@ -104,7 +117,7 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
                     curr_selection_map = {col: index_start + i for i, col in enumerate(output_columns)}
                 join_left_input = input_node.get_in_nodes()[0]
                 if node_is_transformable(join_left_input) and not (isinstance(join_left_input,
-                            WillumpHashJoinNode) and input_node.join_col_name in
+                                                                              WillumpHashJoinNode) and input_node.join_col_name in
                                                                    join_left_input.right_df_type.column_names):
                     pushed_map = {}
                     next_map = {}
