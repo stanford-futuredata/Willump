@@ -11,6 +11,7 @@ import re
 import willump.evaluation.willump_weld_generator
 from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
 from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
+from sklearn.feature_extraction.text import TfidfVectorizer
 from willump import pprint_weld
 from willump.graph.willump_graph import WillumpGraph
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
@@ -55,6 +56,27 @@ def stack_sparse_then_linear_regression(array_one, array_two, input_vect):
     return predicted_result
 
 
+tf_idf_vec = \
+    TfidfVectorizer(analyzer='char', ngram_range=(2, 5), vocabulary=simple_vocab_dict,
+                    lowercase=False)
+tf_idf_vec.fit(["theaancatdog house", "bobthe builder", "dogisgooddog"])
+
+
+def stack_sparse_tfidf(array_one, array_two, input_vect, tf_idf_vect):
+    transformed_result_one = input_vect.transform(array_one)
+    transformed_result_two = tf_idf_vect.transform(array_two)
+    combined_result = scipy.sparse.hstack([transformed_result_one, transformed_result_two], format="csr")
+    return combined_result
+
+
+def stack_sparse_then_linear_regression_tfidf(array_one, array_two, input_vect, tf_idf_vect):
+    transformed_result_one = input_vect.transform(array_one)
+    transformed_result_two = tf_idf_vect.transform(array_two)
+    combined_result = scipy.sparse.hstack([transformed_result_one, transformed_result_two], format="csr")
+    predicted_result = model.predict(combined_result)
+    return predicted_result
+
+
 class StackingNodeTests(unittest.TestCase):
     def setUp(self):
         global willump_typing_map, willump_static_vars
@@ -78,6 +100,8 @@ class StackingNodeTests(unittest.TestCase):
         print("\ntest_sparse_stacking")
         sample_python: str = inspect.getsource(sample_stack_sparse)
         string_array = ["theaancatdog house", "bobthe builder"]
+        transformed_result = vectorizer.transform(string_array)
+        correct_result = scipy.sparse.hstack([transformed_result, transformed_result], format="csr").toarray()
         self.set_typing_map(sample_python, "sample_stack_sparse", [string_array, vectorizer])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
@@ -94,10 +118,9 @@ class StackingNodeTests(unittest.TestCase):
         local_namespace = {}
         exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
              local_namespace)
-        weld_output = local_namespace["sample_stack_sparse"](string_array, vectorizer)
-        numpy.testing.assert_almost_equal(weld_output[0], numpy.array([0, 0, 0, 0, 1, 0, 0, 0, 0, 1]))
-        numpy.testing.assert_almost_equal(weld_output[1], numpy.array([0, 4, 3, 5, 0, 6, 10, 9, 11, 6]))
-        numpy.testing.assert_almost_equal(weld_output[2], numpy.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]))
+        row, col, data, l, w = local_namespace["sample_stack_sparse"](string_array, vectorizer)
+        weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
+        numpy.testing.assert_almost_equal(weld_matrix, correct_result)
 
     def test_sparse_stacking_linear_model(self):
         print("\ntest_sparse_stacking_linear_model")
@@ -105,6 +128,9 @@ class StackingNodeTests(unittest.TestCase):
         sample_python: str = inspect.getsource(stack_sparse_then_linear_regression)
         array_one = ["dogdogdogdog house", "bobthe builder", "dog the the the the", "dog"]
         array_two = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dogthethe the the the the the"]
+        result_one = vectorizer.transform(array_one)
+        result_two = vectorizer.transform(array_two)
+        correct_result = model.predict(scipy.sparse.hstack([result_one, result_two], format="csr"))
         self.set_typing_map(sample_python, "stack_sparse_then_linear_regression", [array_one, array_two, vectorizer])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
@@ -122,5 +148,65 @@ class StackingNodeTests(unittest.TestCase):
         exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
              local_namespace)
         weld_output = local_namespace["stack_sparse_then_linear_regression"](array_one, array_two, vectorizer)
-        numpy.testing.assert_equal(
-            weld_output, numpy.array([0, 1, 0, 1], dtype=numpy.int64))
+        numpy.testing.assert_equal(weld_output, correct_result)
+
+    def test_sparse_stacking_tfidf(self):
+        print("\ntest_sparse_stacking_tfidf")
+        model.coef_ = numpy.array([[0, 0.2, 0.3, 0.4, -0.5, 0.6, 0.2, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
+        sample_python: str = inspect.getsource(stack_sparse_tfidf)
+        array_one = ["dogdogdogdog house", "bobthe builder", "dog the the the the", "dog"]
+        array_two = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dogthethe the the the the the"]
+        result_one = vectorizer.transform(array_one)
+        result_two = tf_idf_vec.transform(array_two)
+        correct_result = scipy.sparse.hstack([result_one, result_two], format="csr").toarray()
+        self.set_typing_map(sample_python, "stack_sparse_tfidf",
+                            [array_one, array_two, vectorizer, tf_idf_vec])
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                                       graph_builder.get_aux_data(),
+                                                                                       willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        row, col, data, l, w =\
+            local_namespace["stack_sparse_tfidf"](array_one, array_two, vectorizer, tf_idf_vec)
+        weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
+        numpy.testing.assert_almost_equal(weld_matrix, correct_result)
+
+    def test_sparse_stacking_linreg_tfidf(self):
+        print("\ntest_sparse_stacking_linreg_tfidf")
+        model.coef_ = numpy.array([[0, 0.2, 0.3, 0.4, -0.5, 0.6, 0.2, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
+        sample_python: str = inspect.getsource(stack_sparse_then_linear_regression_tfidf)
+        array_one = ["dogdogdogdog house", "bobthe builder", "dog the the the the", "dog"]
+        array_two = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dogthethe the the the the the"]
+        result_one = vectorizer.transform(array_one)
+        result_two = tf_idf_vec.transform(array_two)
+        correct_result = model.predict(scipy.sparse.hstack([result_one, result_two], format="csr"))
+        self.set_typing_map(sample_python, "stack_sparse_then_linear_regression_tfidf",
+                            [array_one, array_two, vectorizer, tf_idf_vec])
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                                       graph_builder.get_aux_data(),
+                                                                                       willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        weld_output =\
+            local_namespace["stack_sparse_then_linear_regression_tfidf"](array_one, array_two, vectorizer, tf_idf_vec)
+        numpy.testing.assert_equal(weld_output, correct_result)

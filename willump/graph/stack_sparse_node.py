@@ -39,7 +39,7 @@ class StackSparseNode(WillumpGraphNode):
                     | bs, i, x: i64 |
                     {merge(bs.$0, lookup(INPUT_NAME.$0, x)), 
                       merge(bs.$1, lookup(INPUT_NAME.$1, x) + stack_width), 
-                      merge(bs.$2, lookup(INPUT_NAME.$2, x))
+                      merge(bs.$2, ELEM_TYPE(lookup(INPUT_NAME.$2, x)))
                     }
                 );
                 let stack_height = INPUT_NAME.$3;

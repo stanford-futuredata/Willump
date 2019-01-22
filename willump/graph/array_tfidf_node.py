@@ -144,12 +144,12 @@ class ArrayTfIdfNode(WillumpGraphNode):
                     appender[f64],
                     | results:  appender[f64], i_out: i64, string: vec[i8] |
                         let string_len: i64 = len(string);
-                        let lin_reg_sum_norm_sum: {merger[f64, +], merger[f64, +]} = for(string,
-                            {merger[f64, +], merger[f64, +]},
-                            | count_sums: {merger[f64, +], merger[f64, +]}, i_string: i64, char: i8 |
+                        let lin_reg_sum_norm: {merger[f64, +], dictmerger[i64, f64, +]} = for(string,
+                            {merger[f64, +], dictmerger[i64, f64, +]},
+                            | count_sums, i_string: i64, char: i8 |
                             for(rangeiter(NGRAM_MINL, NGRAM_MAXL + 1L, 1L),
                                 count_sums,
-                                | count_sums_inner: {merger[f64, +], merger[f64, +]}, num_iter, iter_value |
+                                | count_sums_inner, num_iter, iter_value |
                                     if(i_string + iter_value <= string_len,
                                         let word: vec[i8] = slice(string, i_string, iter_value);
                                         let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
@@ -158,14 +158,19 @@ class ArrayTfIdfNode(WillumpGraphNode):
                                               + exists_and_key.$1);
                                             let idf = lookup(IDF_VEC_NAME, exists_and_key.$1);
                                             {merge(count_sums_inner.$0, weight * idf),
-                                            merge(count_sums_inner.$1, idf * idf)},
+                                            merge(count_sums_inner.$1, {exists_and_key.$1, idf})},
                                             count_sums_inner
                                         ),
                                         count_sums_inner
                                     )
                             )
                         );
-                        merge(results, result(lin_reg_sum_norm_sum.$0) / sqrt(result(lin_reg_sum_norm_sum.$1)))
+                        let normalization_num: f64 = result(for(tovec(result(lin_reg_sum_norm.$1)),
+                            merger[f64, +],
+                            |bs, i, x : {i64, f64}|
+                            merge(bs, x.$1 * x.$1)
+                        ));
+                        merge(results, result(lin_reg_sum_norm.$0) / sqrt(normalization_num))
                 ));
                 """
             weld_program = weld_program.replace("START_INDEX", str(self._start_index))
