@@ -18,6 +18,7 @@ from willump.graph.combine_linear_regression_node import CombineLinearRegression
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.willump_hash_join_node import WillumpHashJoinNode
 from willump.graph.stack_sparse_node import StackSparseNode
+from willump.graph.array_tfidf_node import ArrayTfIdfNode
 
 
 def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
@@ -103,7 +104,7 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
     while len(current_node_stack) > 0:
         input_node, (index_start, index_end), curr_selection_map = current_node_stack.pop()
         if node_is_transformable(input_node):
-            if isinstance(input_node, ArrayCountVectorizerNode):
+            if isinstance(input_node, ArrayCountVectorizerNode) or isinstance(input_node, ArrayTfIdfNode):
                 input_node.push_model("linear", (model_node.weights_data_name,), index_start)
                 nodes_to_sum.append(input_node)
             elif isinstance(input_node, StackSparseNode):

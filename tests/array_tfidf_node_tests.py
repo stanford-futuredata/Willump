@@ -20,6 +20,7 @@ from weld.types import *
 from typing import List, Tuple
 import typing
 import inspect
+import sklearn.linear_model
 import re
 
 with open("tests/test_resources/simple_vocabulary.txt") as simple_vocab:
@@ -36,6 +37,21 @@ def sample_tfidf_vectorizer(array_one, input_vect):
     np_input = list(df["strings"].values)
     transformed_result = input_vect.transform(np_input)
     return transformed_result
+
+
+model = sklearn.linear_model.LogisticRegression(solver='lbfgs')
+model.intercept_ = numpy.array([0.2], dtype=numpy.float64)
+model.classes_ = numpy.array([0, 1], dtype=numpy.int64)
+model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -1.5, 0.6]], dtype=numpy.float64)
+
+
+def tf_idf_vectorizer_then_regression(array_one, input_vect):
+    df = pd.DataFrame()
+    df["strings"] = array_one
+    np_input = list(df["strings"].values)
+    transformed_result = input_vect.transform(np_input)
+    prediction = model.predict(transformed_result)
+    return prediction
 
 
 class ArrayCountVectorizerNodeTests(unittest.TestCase):
@@ -106,3 +122,27 @@ class ArrayCountVectorizerNodeTests(unittest.TestCase):
         row, col, data, l, w = local_namespace["sample_tfidf_vectorizer"](self.input_str, tf_idf_vec)
         weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
         numpy.testing.assert_almost_equal(weld_matrix, self.correct_output)
+
+    def test_linear_model_tfidf_vectorizer(self):
+        print("\ntest_linear_model_tfidf_vectorizer")
+        sample_python: str = inspect.getsource(tf_idf_vectorizer_then_regression)
+        self.set_typing_map(sample_python, "tf_idf_vectorizer_then_regression", [self.input_str, tf_idf_vec])
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                                       graph_builder.get_aux_data(),
+                                                                                       willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        preds = local_namespace["tf_idf_vectorizer_then_regression"](self.input_str, tf_idf_vec)
+        correct_preds = model.predict(self.correct_output)
+        numpy.testing.assert_almost_equal(preds, correct_preds)
+

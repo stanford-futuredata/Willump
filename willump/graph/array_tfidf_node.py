@@ -137,7 +137,6 @@ class ArrayTfIdfNode(WillumpGraphNode):
                 """
         else:
             assert (self._model_type == "linear")
-            assert False
             weights_data_name, = self._model_parameters
             weld_program = \
                 """
@@ -145,25 +144,28 @@ class ArrayTfIdfNode(WillumpGraphNode):
                     appender[f64],
                     | results:  appender[f64], i_out: i64, string: vec[i8] |
                         let string_len: i64 = len(string);
-                        let lin_reg_sum: f64 = result(for(string,
-                            merger[f64, +],
-                            | count_sum:  merger[f64, +], i_string: i64, char: i8 |
+                        let lin_reg_sum_norm_sum: {merger[f64, +], merger[f64, +]} = for(string,
+                            {merger[f64, +], merger[f64, +]},
+                            | count_sums: {merger[f64, +], merger[f64, +]}, i_string: i64, char: i8 |
                             for(rangeiter(NGRAM_MINL, NGRAM_MAXL + 1L, 1L),
-                                count_sum,
-                                | count_sum_inner: merger[f64, +], num_iter, iter_value |
+                                count_sums,
+                                | count_sums_inner: {merger[f64, +], merger[f64, +]}, num_iter, iter_value |
                                     if(i_string + iter_value <= string_len,
                                         let word: vec[i8] = slice(string, i_string, iter_value);
                                         let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
                                         if(exists_and_key.$0,
-                                            merge(count_sum_inner, lookup(WEIGHTS_NAME, START_INDEXl
-                                              + exists_and_key.$1)),
-                                            count_sum_inner
+                                            let weight = lookup(WEIGHTS_NAME, START_INDEXl
+                                              + exists_and_key.$1);
+                                            let idf = lookup(IDF_VEC_NAME, exists_and_key.$1);
+                                            {merge(count_sums_inner.$0, weight * idf),
+                                            merge(count_sums_inner.$1, idf * idf)},
+                                            count_sums_inner
                                         ),
-                                        count_sum_inner
+                                        count_sums_inner
                                     )
                             )
-                        ));
-                        merge(results, lin_reg_sum)
+                        );
+                        merge(results, result(lin_reg_sum_norm_sum.$0) / sqrt(result(lin_reg_sum_norm_sum.$1)))
                 ));
                 """
             weld_program = weld_program.replace("START_INDEX", str(self._start_index))
