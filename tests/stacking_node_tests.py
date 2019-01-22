@@ -121,6 +121,5 @@ class StackingNodeTests(unittest.TestCase):
         exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
              local_namespace)
         weld_output = local_namespace["stack_sparse_then_linear_regression"](array_one, array_two, vectorizer)
-        print(weld_output)
         numpy.testing.assert_equal(
             weld_output, numpy.array([0, 1, 0, 1], dtype=numpy.int64))

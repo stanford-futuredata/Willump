@@ -17,6 +17,7 @@ from willump.graph.willump_hash_join_node import WillumpHashJoinNode
 from willump.graph.willump_python_node import WillumpPythonNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.stack_sparse_node import StackSparseNode
+from willump.graph.array_space_combiner_node import ArraySpaceCombinerNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 from weld.types import *
@@ -208,6 +209,10 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 freq_count_input_var: str = value.args[0].id
                 vocab_dict = self._static_vars[WILLUMP_COUNT_VECTORIZER_VOCAB]
                 array_cv_input_node: WillumpGraphNode = self._node_dict[freq_count_input_var]
+                # TODO:  Once the Weld compilation segfault is fixed, bring this back.
+                # array_space_combiner_output = output_var_name + "__weld_combined__"
+                # array_space_combiner_node: WillumpGraphNode = ArraySpaceCombinerNode(array_cv_input_node,
+                #                                                                      array_space_combiner_output)
                 array_cv_node: ArrayCountVectorizerNode = ArrayCountVectorizerNode(
                     input_node=array_cv_input_node, output_name=output_var_name,
                     input_vocab_dict=vocab_dict, aux_data=self.aux_data,
