@@ -17,7 +17,7 @@ from willump.graph.willump_hash_join_node import WillumpHashJoinNode
 from willump.graph.willump_python_node import WillumpPythonNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.stack_sparse_node import StackSparseNode
-from willump.graph.array_space_combiner_node import ArraySpaceCombinerNode
+from willump.graph.array_tfidf_node import ArrayTfIdfNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 from weld.types import *
@@ -207,27 +207,39 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             # TODO:  Don't assume name is input_vect.
             elif ".transform" in called_function:
                 lineno = str(node.lineno)
-                if WILLUMP_COUNT_VECTORIZER_VOCAB + lineno in self._static_vars and \
+                if WILLUMP_COUNT_VECTORIZER_VOCAB + lineno not in self._static_vars or \
                     self._static_vars[WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno] is True \
                         or self._static_vars[WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno] is not 'char':
                     return self._create_py_node(node)
-                freq_count_input_var: str = value.args[0].id
-                vocab_dict = self._static_vars[WILLUMP_COUNT_VECTORIZER_VOCAB + lineno]
-                array_cv_input_node: WillumpGraphNode = self._node_dict[freq_count_input_var]
+                vectorizer_input_var: str = value.args[0].id
+                vocab_dict: Mapping[str, int] = self._static_vars[WILLUMP_COUNT_VECTORIZER_VOCAB + lineno]
+                vectorizer_input_node: WillumpGraphNode = self._node_dict[vectorizer_input_var]
+                vectorizer_ngram_range: Tuple[int, int] = \
+                    self._static_vars[WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE + lineno]
                 # TODO:  Once the Weld compilation segfault is fixed, replace with Weld node.
                 array_space_combiner_output = output_var_name + "__weld_combined__"
                 array_space_combiner_python = "%s = list(map(lambda x: re.sub(r'\s+', ' ', x), %s))" \
-                                              % (array_space_combiner_output, freq_count_input_var)
+                                              % (array_space_combiner_output, vectorizer_input_var)
                 array_space_combiner_ast: ast.Module = ast.parse(array_space_combiner_python)
                 array_space_combiner_node: WillumpPythonNode = WillumpPythonNode(array_space_combiner_ast.body[0],
-                                                                    array_space_combiner_output, [array_cv_input_node])
-                self._type_map[array_space_combiner_output] = self._type_map[freq_count_input_var]
-                array_cv_node: ArrayCountVectorizerNode = ArrayCountVectorizerNode(
-                    input_node=array_space_combiner_node, output_name=output_var_name,
-                    input_vocab_dict=vocab_dict, aux_data=self.aux_data,
-                    ngram_range=self._static_vars[WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE + lineno]
-                )
-                return output_var_name, array_cv_node
+                                                                    array_space_combiner_output, [vectorizer_input_node])
+                self._type_map[array_space_combiner_output] = self._type_map[vectorizer_input_var]
+                if WILLUMP_TFIDF_IDF_VECTOR + lineno in self._static_vars:
+                    idf_vector = self._static_vars[WILLUMP_TFIDF_IDF_VECTOR + lineno]
+                    tfidf_node: ArrayTfIdfNode = ArrayTfIdfNode(
+                        input_node=array_space_combiner_node, output_name=output_var_name,
+                        input_idf_vector=idf_vector,
+                        input_vocab_dict=vocab_dict, aux_data=self.aux_data,
+                        ngram_range=vectorizer_ngram_range
+                    )
+                    return output_var_name, tfidf_node
+                else:
+                    array_cv_node: ArrayCountVectorizerNode = ArrayCountVectorizerNode(
+                        input_node=array_space_combiner_node, output_name=output_var_name,
+                        input_vocab_dict=vocab_dict, aux_data=self.aux_data,
+                        ngram_range=vectorizer_ngram_range
+                    )
+                    return output_var_name, array_cv_node
             elif ".merge" in called_function:
                 if self._static_vars[WILLUMP_JOIN_HOW + str(node.lineno)] is not 'left':
                     return self._create_py_node(node)

@@ -124,7 +124,10 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                         """willump_static_vars["{0}"] = {1}.{2}\n""" \
                             .format(WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE + lineno, transformer_name, "ngram_range") + \
                         """willump_static_vars["{0}"] = {1}.{2}\n""" \
-                            .format(WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno, transformer_name, "lowercase")
+                            .format(WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno, transformer_name, "lowercase") + \
+                        """if type({0}).__name__ == "TfidfVectorizer":\n""".format(transformer_name) + \
+                        """\twillump_static_vars["{0}"] = {1}.{2}\n"""\
+                            .format(WILLUMP_TFIDF_IDF_VECTOR + lineno, transformer_name, "idf_")
                     count_vectorizer_instrumentation_ast: ast.Module = \
                         ast.parse(static_variable_extraction_code, "exec")
                     count_vectorizer_instrumentation_statements: List[ast.stmt] = count_vectorizer_instrumentation_ast.body
