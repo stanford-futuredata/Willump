@@ -58,6 +58,26 @@ def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
     return sorted_nodes
 
 
+def push_back_python_nodes_pass(sorted_nodes: List[WillumpGraphNode]) -> List[WillumpGraphNode]:
+    """
+    Greedily push Python nodes and input nodes back towards the start of the sorted_nodes list while maintaining
+    topological sorting.  This maximizes the length of Weld blocks.
+    """
+    for i in range(len(sorted_nodes)):
+        if isinstance(sorted_nodes[i], WillumpPythonNode) or isinstance(sorted_nodes[i], WillumpInputNode):
+            python_node = sorted_nodes[i]
+            input_names: List[str] = list(map(lambda x: x.get_output_name(), python_node.get_in_nodes()))
+            good_index: int = i
+            for j in range(i - 1, 0 - 1, -1):
+                if sorted_nodes[j].get_output_name() in input_names:
+                    break
+                else:
+                    good_index = j
+            sorted_nodes.remove(python_node)
+            sorted_nodes.insert(good_index, python_node)
+    return sorted_nodes
+
+
 def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) -> List[WillumpGraphNode]:
     """
     Optimization pass that pushes a linear model into its input nodes in a block when possible.  Assumes block contains
@@ -236,6 +256,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch
     """
     # We must first topologically sort the graph so that all of a node's inputs are computed before the node runs.
     sorted_nodes = topological_sort_graph(graph)
+    sorted_nodes = push_back_python_nodes_pass(sorted_nodes)
     weld_python_list: List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]] = []
     weld_block_input_set: Set[str] = set()
     weld_block_aux_input_set: Set[str] = set()

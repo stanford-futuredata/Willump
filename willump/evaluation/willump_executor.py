@@ -192,6 +192,8 @@ def willump_execute(batch=True) -> Callable:
                     # Import all of the compiled Weld blocks called from the transformed function.
                     for module in modules_to_import:
                         augmented_globals[module] = importlib.import_module(module)
+                    # TODO:  Remove this once in-Weld whitespace consolidation works.
+                    augmented_globals["re"] = importlib.import_module("re")
                     local_namespace = {}
                     # Call the transformed function with its original arguments.
                     exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), augmented_globals,

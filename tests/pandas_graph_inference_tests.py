@@ -15,6 +15,7 @@ from willump.graph.willump_graph import WillumpGraph
 from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 import willump.evaluation.willump_executor as wexec
 import scipy.sparse.csr
+import re
 
 from typing import Mapping, MutableMapping, List, Tuple
 import typing
@@ -90,6 +91,7 @@ def sample_logistic_regression_cv(array_one, input_vect):
 
 
 FEATURES = ["data1", "data2", "metadata1", "metadata2"]
+
 
 def sample_merge_linear_regression(left, right):
     new = left.merge(right, how="left", on="join_column")
@@ -177,7 +179,7 @@ class PandasGraphInferenceTests(unittest.TestCase):
     def test_pandas_count_vectorizer(self):
         print("\ntest_pandas_count_vectorizer")
         sample_python: str = inspect.getsource(sample_pandas_count_vectorizer)
-        string_array = ["theaancatdog house", "bobthe builder"]
+        string_array = ["theaancatdog house", "bobthe builder", "an    \t   ox anox an ox"]
         self.set_typing_map(sample_python, "sample_pandas_count_vectorizer", [string_array, vectorizer])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
@@ -195,9 +197,9 @@ class PandasGraphInferenceTests(unittest.TestCase):
         exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
              local_namespace)
         weld_output = local_namespace["sample_pandas_count_vectorizer"](string_array, vectorizer)
-        numpy.testing.assert_almost_equal(weld_output[0], numpy.array([0, 0, 0, 0, 1]))
-        numpy.testing.assert_almost_equal(weld_output[1], numpy.array([0, 4, 3, 5, 0]))
-        numpy.testing.assert_almost_equal(weld_output[2], numpy.array([1, 1, 1, 1, 1]))
+        numpy.testing.assert_almost_equal(weld_output[0], numpy.array([0, 0, 0, 0, 1, 2]))
+        numpy.testing.assert_almost_equal(weld_output[1], numpy.array([0, 4, 3, 5, 0, 2]))
+        numpy.testing.assert_almost_equal(weld_output[2], numpy.array([1, 1, 1, 1, 1, 2]))
 
     def test_pandas_join(self):
         print("\ntest_pandas_join")

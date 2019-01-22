@@ -209,12 +209,16 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 freq_count_input_var: str = value.args[0].id
                 vocab_dict = self._static_vars[WILLUMP_COUNT_VECTORIZER_VOCAB]
                 array_cv_input_node: WillumpGraphNode = self._node_dict[freq_count_input_var]
-                # TODO:  Once the Weld compilation segfault is fixed, bring this back.
-                # array_space_combiner_output = output_var_name + "__weld_combined__"
-                # array_space_combiner_node: WillumpGraphNode = ArraySpaceCombinerNode(array_cv_input_node,
-                #                                                                      array_space_combiner_output)
+                # TODO:  Once the Weld compilation segfault is fixed, replace with Weld node.
+                array_space_combiner_output = output_var_name + "__weld_combined__"
+                array_space_combiner_python = "%s = list(map(lambda x: re.sub(r'\s+', ' ', x), %s))" \
+                                              % (array_space_combiner_output, freq_count_input_var)
+                array_space_combiner_ast: ast.Module = ast.parse(array_space_combiner_python)
+                array_space_combiner_node: WillumpPythonNode = WillumpPythonNode(array_space_combiner_ast.body[0],
+                                                                    array_space_combiner_output, [array_cv_input_node])
+                self._type_map[array_space_combiner_output] = self._type_map[freq_count_input_var]
                 array_cv_node: ArrayCountVectorizerNode = ArrayCountVectorizerNode(
-                    input_node=array_cv_input_node, output_name=output_var_name,
+                    input_node=array_space_combiner_node, output_name=output_var_name,
                     input_vocab_dict=vocab_dict, aux_data=self.aux_data,
                     ngram_range=self._static_vars[WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE]
                 )

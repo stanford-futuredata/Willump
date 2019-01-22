@@ -6,6 +6,7 @@ import ast
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 import sklearn.linear_model
+import re
 
 import willump.evaluation.willump_weld_generator
 from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
