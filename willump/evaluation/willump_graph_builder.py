@@ -177,19 +177,22 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                          target_char=target_char, output_name=output_var_name)
                 return output_var_name, string_remove_char_node
             # TODO:  Lots of potential predictors, differentiate them!
-            elif "predict" in called_function:
-                logit_input_var: str = value.args[0].id
-                logit_weights = self._static_vars[WILLUMP_LINEAR_REGRESSION_WEIGHTS]
-                logit_intercept = self._static_vars[WILLUMP_LINEAR_REGRESSION_INTERCEPT]
-                logit_input_node: WillumpGraphNode = self._node_dict[logit_input_var]
-                logit_node: LinearRegressionNode = LinearRegressionNode(
-                    input_node=logit_input_node, input_type=self._type_map[logit_input_var],
-                    output_name=output_var_name,
-                    output_type=self._type_map[output_var_name],
-                    logit_weights=logit_weights,
-                    logit_intercept=logit_intercept, aux_data=self.aux_data, batch=self.batch
-                )
-                return output_var_name, logit_node
+            elif ".predict" in called_function:
+                if WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:
+                    logit_input_var: str = value.args[0].id
+                    logit_weights = self._static_vars[WILLUMP_LINEAR_REGRESSION_WEIGHTS]
+                    logit_intercept = self._static_vars[WILLUMP_LINEAR_REGRESSION_INTERCEPT]
+                    logit_input_node: WillumpGraphNode = self._node_dict[logit_input_var]
+                    logit_node: LinearRegressionNode = LinearRegressionNode(
+                        input_node=logit_input_node, input_type=self._type_map[logit_input_var],
+                        output_name=output_var_name,
+                        output_type=self._type_map[output_var_name],
+                        logit_weights=logit_weights,
+                        logit_intercept=logit_intercept, aux_data=self.aux_data, batch=self.batch
+                    )
+                    return output_var_name, logit_node
+                else:
+                    return self._create_py_node(node)
             # TODO:  Update this for batched code.
             elif "numpy.append" in called_function:
                 append_input_array: str = value.args[0].id
@@ -202,12 +205,14 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                      self._type_map[output_var_name])
                 return output_var_name, array_append_node
             # TODO:  Don't assume name is input_vect.
-            elif "input_vect.transform" in called_function:
-                if self._static_vars[WILLUMP_COUNT_VECTORIZER_LOWERCASE] is True \
-                        or self._static_vars[WILLUMP_COUNT_VECTORIZER_ANALYZER] is not 'char':
+            elif ".transform" in called_function:
+                lineno = str(node.lineno)
+                if WILLUMP_COUNT_VECTORIZER_VOCAB + lineno in self._static_vars and \
+                    self._static_vars[WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno] is True \
+                        or self._static_vars[WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno] is not 'char':
                     return self._create_py_node(node)
                 freq_count_input_var: str = value.args[0].id
-                vocab_dict = self._static_vars[WILLUMP_COUNT_VECTORIZER_VOCAB]
+                vocab_dict = self._static_vars[WILLUMP_COUNT_VECTORIZER_VOCAB + lineno]
                 array_cv_input_node: WillumpGraphNode = self._node_dict[freq_count_input_var]
                 # TODO:  Once the Weld compilation segfault is fixed, replace with Weld node.
                 array_space_combiner_output = output_var_name + "__weld_combined__"
@@ -220,7 +225,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 array_cv_node: ArrayCountVectorizerNode = ArrayCountVectorizerNode(
                     input_node=array_space_combiner_node, output_name=output_var_name,
                     input_vocab_dict=vocab_dict, aux_data=self.aux_data,
-                    ngram_range=self._static_vars[WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE]
+                    ngram_range=self._static_vars[WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE + lineno]
                 )
                 return output_var_name, array_cv_node
             elif ".merge" in called_function:

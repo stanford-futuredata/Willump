@@ -101,29 +101,34 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                     freq_count_instrumentation_ast.body
                 return_statements += freq_count_instrumentation_statements
             elif "predict" in called_function_name:
-                static_variable_extraction_code = \
-                    """willump_static_vars["{0}"] = {1}\n""" \
-                        .format(WILLUMP_LINEAR_REGRESSION_WEIGHTS, "model.coef_") + \
-                    """willump_static_vars["{0}"] = {1}\n""" \
-                        .format(WILLUMP_LINEAR_REGRESSION_INTERCEPT, "model.intercept_")
-                logit_instrumentation_ast: ast.Module = \
-                    ast.parse(static_variable_extraction_code, "exec")
-                logit_instrumentation_statements: List[ast.stmt] = logit_instrumentation_ast.body
-                return_statements += logit_instrumentation_statements
+                if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name):
+                    model_name = value.func.value.id
+                    static_variable_extraction_code = \
+                        """willump_static_vars["{0}"] = {1}.{2}\n""" \
+                            .format(WILLUMP_LINEAR_REGRESSION_WEIGHTS, model_name, "coef_") + \
+                        """willump_static_vars["{0}"] = {1}.{2}\n""" \
+                            .format(WILLUMP_LINEAR_REGRESSION_INTERCEPT, model_name, "intercept_")
+                    logit_instrumentation_ast: ast.Module = \
+                        ast.parse(static_variable_extraction_code, "exec")
+                    logit_instrumentation_statements: List[ast.stmt] = logit_instrumentation_ast.body
+                    return_statements += logit_instrumentation_statements
             elif "transform" in called_function_name:
-                static_variable_extraction_code = \
-                    """willump_static_vars["{0}"] = {1}\n""" \
-                        .format(WILLUMP_COUNT_VECTORIZER_VOCAB, "input_vect.vocabulary_") + \
-                    """willump_static_vars["{0}"] = {1}\n""" \
-                        .format(WILLUMP_COUNT_VECTORIZER_ANALYZER, "input_vect.analyzer") + \
-                    """willump_static_vars["{0}"] = {1}\n""" \
-                        .format(WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE, "input_vect.ngram_range") + \
-                    """willump_static_vars["{0}"] = {1}\n""" \
-                        .format(WILLUMP_COUNT_VECTORIZER_LOWERCASE, "input_vect.lowercase")
-                count_vectorizer_instrumentation_ast: ast.Module = \
-                    ast.parse(static_variable_extraction_code, "exec")
-                count_vectorizer_instrumentation_statements: List[ast.stmt] = count_vectorizer_instrumentation_ast.body
-                return_statements += count_vectorizer_instrumentation_statements
+                if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name):
+                    lineno = str(value.lineno)
+                    transformer_name = value.func.value.id
+                    static_variable_extraction_code = \
+                        """willump_static_vars["{0}"] = {1}.{2}\n""" \
+                            .format(WILLUMP_COUNT_VECTORIZER_VOCAB + lineno, transformer_name, "vocabulary_") + \
+                        """willump_static_vars["{0}"] = {1}.{2}\n""" \
+                            .format(WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno, transformer_name, "analyzer") + \
+                        """willump_static_vars["{0}"] = {1}.{2}\n""" \
+                            .format(WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE + lineno, transformer_name, "ngram_range") + \
+                        """willump_static_vars["{0}"] = {1}.{2}\n""" \
+                            .format(WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno, transformer_name, "lowercase")
+                    count_vectorizer_instrumentation_ast: ast.Module = \
+                        ast.parse(static_variable_extraction_code, "exec")
+                    count_vectorizer_instrumentation_statements: List[ast.stmt] = count_vectorizer_instrumentation_ast.body
+                    return_statements += count_vectorizer_instrumentation_statements
             elif "merge" in called_function_name:
                 # TODO:  More robust extraction.
                 static_variable_extraction_code = \
