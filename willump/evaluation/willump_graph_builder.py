@@ -217,13 +217,17 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 vectorizer_ngram_range: Tuple[int, int] = \
                     self._static_vars[WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE + lineno]
                 # TODO:  Once the Weld compilation segfault is fixed, replace with Weld node.
-                array_space_combiner_output = output_var_name + "__weld_combined__"
-                array_space_combiner_python = "%s = list(map(lambda x: re.sub(r'\s+', ' ', x), %s))" \
-                                              % (array_space_combiner_output, vectorizer_input_var)
-                array_space_combiner_ast: ast.Module = ast.parse(array_space_combiner_python)
-                array_space_combiner_node: WillumpPythonNode = WillumpPythonNode(array_space_combiner_ast.body[0],
-                                                                    array_space_combiner_output, [vectorizer_input_node])
-                self._type_map[array_space_combiner_output] = self._type_map[vectorizer_input_var]
+                array_space_combiner_output = vectorizer_input_var + "__weld_combined__"
+                if array_space_combiner_output in self._node_dict:
+                    array_space_combiner_node = self._node_dict[array_space_combiner_output]
+                else:
+                    array_space_combiner_python = "%s = list(map(lambda x: re.sub(r'\s+', ' ', x), %s))" \
+                                                  % (array_space_combiner_output, vectorizer_input_var)
+                    array_space_combiner_ast: ast.Module = ast.parse(array_space_combiner_python)
+                    array_space_combiner_node: WillumpPythonNode = WillumpPythonNode(array_space_combiner_ast.body[0],
+                                                                        array_space_combiner_output, [vectorizer_input_node])
+                    self._type_map[array_space_combiner_output] = self._type_map[vectorizer_input_var]
+                    self._node_dict[array_space_combiner_output] = array_space_combiner_node
                 if WILLUMP_TFIDF_IDF_VECTOR + lineno in self._static_vars:
                     idf_vector = self._static_vars[WILLUMP_TFIDF_IDF_VECTOR + lineno]
                     tfidf_node: ArrayTfIdfNode = ArrayTfIdfNode(
