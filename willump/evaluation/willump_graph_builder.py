@@ -208,10 +208,10 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             elif ".transform" in called_function:
                 lineno = str(node.lineno)
                 if WILLUMP_COUNT_VECTORIZER_VOCAB + lineno not in self._static_vars or \
-                    self._static_vars[WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno] is True \
-                        or self._static_vars[WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno] is not 'char':
+                        self._static_vars[WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno] is True:
                     return self._create_py_node(node)
                 vectorizer_input_var: str = value.args[0].id
+                analyzer: str = self._static_vars[WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno]
                 vocab_dict: Mapping[str, int] = self._static_vars[WILLUMP_COUNT_VECTORIZER_VOCAB + lineno]
                 vectorizer_input_node: WillumpGraphNode = self._node_dict[vectorizer_input_var]
                 vectorizer_ngram_range: Tuple[int, int] = \
@@ -225,7 +225,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                   % (array_space_combiner_output, vectorizer_input_var)
                     array_space_combiner_ast: ast.Module = ast.parse(array_space_combiner_python)
                     array_space_combiner_node: WillumpPythonNode = WillumpPythonNode(array_space_combiner_ast.body[0],
-                                                                        array_space_combiner_output, [vectorizer_input_node])
+                                                                                     array_space_combiner_output,
+                                                                                     [vectorizer_input_node])
                     self._type_map[array_space_combiner_output] = self._type_map[vectorizer_input_var]
                     self._node_dict[array_space_combiner_output] = array_space_combiner_node
                 if WILLUMP_TFIDF_IDF_VECTOR + lineno in self._static_vars:
@@ -234,10 +235,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         input_node=array_space_combiner_node, output_name=output_var_name,
                         input_idf_vector=idf_vector,
                         input_vocab_dict=vocab_dict, aux_data=self.aux_data,
+                        analyzer=analyzer,
                         ngram_range=vectorizer_ngram_range
                     )
                     return output_var_name, tfidf_node
                 else:
+                    assert (analyzer == "char")  # TODO:  Get other analyzers working.
                     array_cv_node: ArrayCountVectorizerNode = ArrayCountVectorizerNode(
                         input_node=array_space_combiner_node, output_name=output_var_name,
                         input_vocab_dict=vocab_dict, aux_data=self.aux_data,

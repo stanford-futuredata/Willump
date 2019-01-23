@@ -26,8 +26,12 @@ import re
 with open("tests/test_resources/simple_vocabulary.txt") as simple_vocab:
     simple_vocab_dict = {word: index for index, word in
                          enumerate(simple_vocab.read().splitlines())}
-tf_idf_vec = \
+tf_idf_vec_char = \
     TfidfVectorizer(analyzer='char', ngram_range=(2, 5), vocabulary=simple_vocab_dict,
+                    lowercase=False)
+
+tf_idf_vec_word = \
+    TfidfVectorizer(analyzer='word', ngram_range=(1, 3), vocabulary=simple_vocab_dict,
                     lowercase=False)
 
 
@@ -54,15 +58,18 @@ def tf_idf_vectorizer_then_regression(array_one, input_vect):
     return prediction
 
 
-class ArrayCountVectorizerNodeTests(unittest.TestCase):
+class TfidfNodeTests(unittest.TestCase):
     def setUp(self):
         global willump_typing_map, willump_static_vars
         willump_typing_map = {}
         willump_static_vars = {}
-        self.input_str = ["catdogcat", "thedoghouse", "elephantcat", "Bbbbbbb"]
-        tf_idf_vec.fit(self.input_str)
-        self.idf_vec = tf_idf_vec.idf_
-        self.correct_output = tf_idf_vec.transform(self.input_str).toarray()
+        self.input_str = [" catdogcat", "the dog house ", "elephantcat", "Bbbbbbb", "an ox cat house", "ananan",
+                          "      an ox cat house   "]
+        tf_idf_vec_char.fit(self.input_str)
+        tf_idf_vec_word.fit(self.input_str)
+        self.idf_vec = tf_idf_vec_char.idf_
+        self.correct_output = tf_idf_vec_char.transform(self.input_str).toarray()
+        self.correct_output_word = tf_idf_vec_word.transform(self.input_str).toarray()
 
     def set_typing_map(self, sample_python: str, func_name: str, basic_vec, batch=True) -> None:
         type_discover: WillumpRuntimeTypeDiscovery = WillumpRuntimeTypeDiscovery(batch=batch)
@@ -103,7 +110,7 @@ class ArrayCountVectorizerNodeTests(unittest.TestCase):
     def test_infer_tfidf_vectorizer(self):
         print("\ntest_infer_tfidf_vectorizer")
         sample_python: str = inspect.getsource(sample_tfidf_vectorizer)
-        self.set_typing_map(sample_python, "sample_tfidf_vectorizer", [self.input_str, tf_idf_vec])
+        self.set_typing_map(sample_python, "sample_tfidf_vectorizer", [self.input_str, tf_idf_vec_char])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
@@ -119,14 +126,37 @@ class ArrayCountVectorizerNodeTests(unittest.TestCase):
         local_namespace = {}
         exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
              local_namespace)
-        row, col, data, l, w = local_namespace["sample_tfidf_vectorizer"](self.input_str, tf_idf_vec)
+        row, col, data, l, w = local_namespace["sample_tfidf_vectorizer"](self.input_str, tf_idf_vec_char)
         weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
         numpy.testing.assert_almost_equal(weld_matrix, self.correct_output)
+
+    def test_infer_tfidf_vectorizer_word(self):
+        print("\ntest_infer_tfidf_vectorizer_word")
+        sample_python: str = inspect.getsource(sample_tfidf_vectorizer)
+        self.set_typing_map(sample_python, "sample_tfidf_vectorizer", [self.input_str, tf_idf_vec_word])
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                                       graph_builder.get_aux_data(),
+                                                                                       willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        row, col, data, l, w = local_namespace["sample_tfidf_vectorizer"](self.input_str, tf_idf_vec_word)
+        weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
+        numpy.testing.assert_almost_equal(weld_matrix, self.correct_output_word)
 
     def test_linear_model_tfidf_vectorizer(self):
         print("\ntest_linear_model_tfidf_vectorizer")
         sample_python: str = inspect.getsource(tf_idf_vectorizer_then_regression)
-        self.set_typing_map(sample_python, "tf_idf_vectorizer_then_regression", [self.input_str, tf_idf_vec])
+        self.set_typing_map(sample_python, "tf_idf_vectorizer_then_regression", [self.input_str, tf_idf_vec_char])
         graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
                                                                  willump_static_vars)
         graph_builder.visit(ast.parse(sample_python))
@@ -142,7 +172,6 @@ class ArrayCountVectorizerNodeTests(unittest.TestCase):
         local_namespace = {}
         exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
              local_namespace)
-        preds = local_namespace["tf_idf_vectorizer_then_regression"](self.input_str, tf_idf_vec)
+        preds = local_namespace["tf_idf_vectorizer_then_regression"](self.input_str, tf_idf_vec_char)
         correct_preds = model.predict(self.correct_output)
         numpy.testing.assert_almost_equal(preds, correct_preds)
-

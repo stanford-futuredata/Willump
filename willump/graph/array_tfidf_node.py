@@ -23,7 +23,7 @@ class ArrayTfIdfNode(WillumpGraphNode):
 
     def __init__(self, input_node: WillumpGraphNode, output_name: str,
                  input_vocab_dict: Mapping[str, int], input_idf_vector, aux_data: List[Tuple[int, WeldType]],
-                 ngram_range: Tuple[int, int]) -> None:
+                 ngram_range: Tuple[int, int], analyzer: str = "char") -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
@@ -39,6 +39,7 @@ class ArrayTfIdfNode(WillumpGraphNode):
         self._input_nodes.append(WillumpInputNode(self._vocab_dict_name))
         self._input_nodes.append(WillumpInputNode(self._idf_vector_name))
         self._min_gram, self._max_gram = ngram_range
+        self._analyzer = analyzer
         for entry in self._process_aux_data(vocabulary_list, input_idf_vector):
             aux_data.append(entry)
 
@@ -77,31 +78,82 @@ class ArrayTfIdfNode(WillumpGraphNode):
 
     def get_node_weld(self) -> str:
         if self._model_type is None:
-            weld_program = \
+            if self._analyzer == "char":
+                weld_program = \
+                    """
+                    let list_dicts: vec[dict[i64, i64]] = result(for(INPUT_NAME,
+                        appender[dict[i64, i64]],
+                        | count_dicts: appender[dict[i64, i64]], i_out: i64, string: vec[i8] |
+                            let string_len: i64 = len(string);
+                            let string_dict: dict[i64, i64] = result(for(string,
+                                dictmerger[i64, i64, +],
+                                | count_dict:  dictmerger[i64, i64, +], i_string: i64, char: i8 |
+                                for(rangeiter(NGRAM_MINL, NGRAM_MAXL + 1L, 1L),
+                                    count_dict,
+                                    | count_dict_inner: dictmerger[i64, i64, +], num_iter, iter_value |
+                                        if(i_string + iter_value <= string_len,
+                                            let word: vec[i8] = slice(string, i_string, iter_value);
+                                            let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
+                                            if(exists_and_key.$0,
+                                                merge(count_dict_inner, {exists_and_key.$1, 1L}),
+                                                count_dict_inner
+                                            ),
+                                            count_dict_inner    
+                                        )
+                                )
+                            ));
+                            merge(count_dicts, string_dict)
+                    ));
                 """
-                let list_dicts: vec[dict[i64, i64]] = result(for(INPUT_NAME,
-                    appender[dict[i64, i64]],
-                    | count_dicts: appender[dict[i64, i64]], i_out: i64, string: vec[i8] |
-                        let string_len: i64 = len(string);
-                        let string_dict: dict[i64, i64] = result(for(string,
-                            dictmerger[i64, i64, +],
-                            | count_dict:  dictmerger[i64, i64, +], i_string: i64, char: i8 |
-                            for(rangeiter(NGRAM_MINL, NGRAM_MAXL + 1L, 1L),
-                                count_dict,
-                                | count_dict_inner: dictmerger[i64, i64, +], num_iter, iter_value |
-                                    if(i_string + iter_value <= string_len,
-                                        let word: vec[i8] = slice(string, i_string, iter_value);
-                                        let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
-                                        if(exists_and_key.$0,
-                                            merge(count_dict_inner, {exists_and_key.$1, 1L}),
-                                            count_dict_inner
-                                        ),
-                                        count_dict_inner    
+            else:
+                weld_program = \
+                    """
+                    let list_dicts: vec[dict[i64, i64]] = result(for(INPUT_NAME,
+                        appender[dict[i64, i64]],
+                        | count_dicts: appender[dict[i64, i64]], i_out: i64, string: vec[i8] |
+                            let string_len: i64 = len(string);
+                            let start_index: appender[i64] = select(lookup(string, 0L) == 32c, 
+                                appender[i64],
+                                merge(appender[i64], 0L));
+                            # The indices of every word's start.  We have already replaced all whitespaces with 
+                            # single spaces.
+                            let word_indices_app: appender[i64] = for(string,
+                                start_index,
+                                | bs, i: i64, x: i8 |
+                                    if( x == 32c,
+                                        merge(bs, i + 1L),
+                                        bs
                                     )
-                            )
-                        ));
-                        merge(count_dicts, string_dict)
-                ));
+                            );
+                            # Add a "bonus" index for the end of the final word if no space there.
+                            let word_indices: vec[i64] = select(lookup(string, string_len - 1L) == 32c,
+                                result(word_indices_app),
+                                result(merge(word_indices_app, string_len + 1L))
+                            );
+                            let num_words: i64 = len(word_indices);
+                            let string_dict: dict[i64, i64] = result(for(word_indices,
+                                dictmerger[i64, i64, +],
+                                | count_dict:  dictmerger[i64, i64, +], i_index: i64, start_index: i64 |
+                                for(rangeiter(NGRAM_MINL, NGRAM_MAXL + 1L, 1L),
+                                    count_dict,
+                                    | count_dict_inner: dictmerger[i64, i64, +], num_iter, iter_value |
+                                        if(i_index + iter_value <= num_words,
+                                            let end_index = lookup(word_indices, i_index + iter_value);
+                                            let word: vec[i8] = slice(string, start_index, end_index - start_index - 1L);
+                                            let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
+                                            if(exists_and_key.$0,
+                                                merge(count_dict_inner, {exists_and_key.$1, 1L}),
+                                                count_dict_inner
+                                            ),
+                                            count_dict_inner    
+                                        )
+                                )
+                            ));
+                            merge(count_dicts, string_dict)
+                    ));
+                """
+            weld_program += \
+                """
                 let vec_dict_vecs: vec[vec[{i64, i64}]] = map(list_dicts, 
                     | string_dict: dict[i64, i64] | 
                         tovec(string_dict)
