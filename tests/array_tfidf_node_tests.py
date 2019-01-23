@@ -64,7 +64,9 @@ class TfidfNodeTests(unittest.TestCase):
         willump_typing_map = {}
         willump_static_vars = {}
         self.input_str = [" catdogcat", "the dog house ", "elephantcat", "Bbbbbbb", "an ox cat house", "ananan",
-                          "      an ox cat house   "]
+                          "      an ox cat house   ",
+                          "Silicone Electric Facial Cleansing Brush Rechargeable Face Cleaning Brush for Face SPA Skin Care Face massage"
+                          ]
         tf_idf_vec_char.fit(self.input_str)
         tf_idf_vec_word.fit(self.input_str)
         self.idf_vec = tf_idf_vec_char.idf_
@@ -174,4 +176,27 @@ class TfidfNodeTests(unittest.TestCase):
              local_namespace)
         preds = local_namespace["tf_idf_vectorizer_then_regression"](self.input_str, tf_idf_vec_char)
         correct_preds = model.predict(self.correct_output)
+        numpy.testing.assert_almost_equal(preds, correct_preds)
+
+    def test_linear_model_tfidf_vectorizer_word(self):
+        print("\ntest_linear_model_tfidf_vectorizer_word")
+        sample_python: str = inspect.getsource(tf_idf_vectorizer_then_regression)
+        self.set_typing_map(sample_python, "tf_idf_vectorizer_then_regression", [self.input_str, tf_idf_vec_word])
+        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
+                                                                 willump_static_vars)
+        graph_builder.visit(ast.parse(sample_python))
+        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
+        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
+        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
+                                                                                       graph_builder.get_aux_data(),
+                                                                                       willump_typing_map)
+        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
+        for module in modules_to_import:
+            globals()[module] = importlib.import_module(module)
+        local_namespace = {}
+        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
+             local_namespace)
+        preds = local_namespace["tf_idf_vectorizer_then_regression"](self.input_str, tf_idf_vec_word)
+        correct_preds = model.predict(self.correct_output_word)
         numpy.testing.assert_almost_equal(preds, correct_preds)

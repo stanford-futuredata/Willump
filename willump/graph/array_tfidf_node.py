@@ -106,6 +106,7 @@ class ArrayTfIdfNode(WillumpGraphNode):
                     ));
                 """
             else:
+                assert(self._analyzer == "word")
                 weld_program = \
                     """
                     let list_dicts: vec[dict[i64, i64]] = result(for(INPUT_NAME,
@@ -196,6 +197,10 @@ class ArrayTfIdfNode(WillumpGraphNode):
                     appender[f64],
                     | results:  appender[f64], i_out: i64, string: vec[i8] |
                         let string_len: i64 = len(string);
+                """
+            if self._analyzer == "char":
+                weld_program += \
+                    """
                         let lin_reg_sum_norm: {merger[f64, +], dictmerger[i64, f64, +]} = for(string,
                             {merger[f64, +], dictmerger[i64, f64, +]},
                             | count_sums, i_string: i64, char: i8 |
@@ -217,6 +222,55 @@ class ArrayTfIdfNode(WillumpGraphNode):
                                     )
                             )
                         );
+                    """
+            else:
+                assert(self._analyzer == "word")
+                weld_program += \
+                    """
+                        let start_index: appender[i64] = select(lookup(string, 0L) == 32c, 
+                            appender[i64],
+                            merge(appender[i64], 0L));
+                        # The indices of every word's start.  We have already replaced all whitespaces with 
+                        # single spaces.
+                        let word_indices_app: appender[i64] = for(string,
+                            start_index,
+                            | bs, i: i64, x: i8 |
+                                if( x == 32c,
+                                    merge(bs, i + 1L),
+                                    bs
+                                )
+                        );
+                        # Add a "bonus" index for the end of the final word if no space there.
+                        let word_indices: vec[i64] = select(lookup(string, string_len - 1L) == 32c,
+                            result(word_indices_app),
+                            result(merge(word_indices_app, string_len + 1L))
+                        );
+                        let num_words = len(word_indices);
+                        let lin_reg_sum_norm: {merger[f64, +], dictmerger[i64, f64, +]} = for(word_indices,
+                            {merger[f64, +], dictmerger[i64, f64, +]},
+                            | count_sums, i_index: i64, start_index: i64 |
+                            for(rangeiter(NGRAM_MINL, NGRAM_MAXL + 1L, 1L),
+                                count_sums,
+                                | count_sums_inner, num_iter, iter_value |
+                                    if(i_index + iter_value <= num_words,
+                                        let end_index = lookup(word_indices, i_index + iter_value);
+                                        let word: vec[i8] = slice(string, start_index, end_index - start_index - 1L);
+                                        let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
+                                        if(exists_and_key.$0,
+                                            let weight = lookup(WEIGHTS_NAME, START_INDEXl
+                                              + exists_and_key.$1);
+                                            let idf = lookup(IDF_VEC_NAME, exists_and_key.$1);
+                                            {merge(count_sums_inner.$0, weight * idf),
+                                            merge(count_sums_inner.$1, {exists_and_key.$1, idf})},
+                                            count_sums_inner
+                                        ),
+                                        count_sums_inner
+                                    )
+                            )
+                        );
+                    """
+            weld_program += \
+                """
                         let normalization_num: f64 = result(for(tovec(result(lin_reg_sum_norm.$1)),
                             merger[f64, +],
                             |bs, i, x : {i64, f64}|
