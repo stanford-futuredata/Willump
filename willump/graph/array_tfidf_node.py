@@ -114,7 +114,7 @@ class ArrayTfIdfNode(WillumpGraphNode):
                         let idf_term: f64 = lookup(IDF_VEC_NAME, x.$0);
                         merge(bs, f64(x.$1)*  idf_term * f64(x.$1) * idf_term)
                     ));
-                    let normalization_term = 1.0 / sqrt(squared_sum);
+                    let normalization_term = select(squared_sum > 0.0, 1.0 / sqrt(squared_sum), 0.0);
                     normalization_term
                 );
                 let out_struct: {appender[i64], appender[i64], appender[f64]} = for(vec_dict_vecs,
@@ -170,7 +170,9 @@ class ArrayTfIdfNode(WillumpGraphNode):
                             |bs, i, x : {i64, f64}|
                             merge(bs, x.$1 * x.$1)
                         ));
-                        merge(results, result(lin_reg_sum_norm.$0) / sqrt(normalization_num))
+                        let normalization_num: f64 = 
+                          select(normalization_num > 0.0, 1.0 / sqrt(normalization_num), 0.0);
+                        merge(results, result(lin_reg_sum_norm.$0) * normalization_num)
                 ));
                 """
             weld_program = weld_program.replace("START_INDEX", str(self._start_index))

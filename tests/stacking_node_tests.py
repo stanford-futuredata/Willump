@@ -154,8 +154,8 @@ class StackingNodeTests(unittest.TestCase):
         print("\ntest_sparse_stacking_tfidf")
         model.coef_ = numpy.array([[0, 0.2, 0.3, 0.4, -0.5, 0.6, 0.2, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
         sample_python: str = inspect.getsource(stack_sparse_tfidf)
-        array_one = ["dogdogdogdog house", "bobthe builder", "dog the the the the", "dog"]
-        array_two = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dogthethe the the the the the"]
+        array_one = ["dogdogdogdog house", "bobthe builder", "dog the the the the", "dog", "bbbbb"]
+        array_two = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dogthethe the the the the the", "bb"]
         result_one = vectorizer.transform(array_one)
         result_two = tf_idf_vec.transform(array_two)
         correct_result = scipy.sparse.hstack([result_one, result_two], format="csr").toarray()
@@ -185,8 +185,8 @@ class StackingNodeTests(unittest.TestCase):
         print("\ntest_sparse_stacking_linreg_tfidf")
         model.coef_ = numpy.array([[0, 0.2, 0.3, 0.4, -0.5, 0.6, 0.2, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
         sample_python: str = inspect.getsource(stack_sparse_then_linear_regression_tfidf)
-        array_one = ["dogdogdogdog house", "bobthe builder", "dog the the the the", "dog"]
-        array_two = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dogthethe the the the the the"]
+        array_one = ["dogdogdogdog house", "bobthe builder", "dog the the the the", "dog", "bbbbb"]
+        array_two = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dogthethe the the the the the", "bb"]
         result_one = vectorizer.transform(array_one)
         result_two = tf_idf_vec.transform(array_two)
         correct_result = model.predict(scipy.sparse.hstack([result_one, result_two], format="csr"))

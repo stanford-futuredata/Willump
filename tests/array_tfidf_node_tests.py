@@ -59,7 +59,7 @@ class ArrayCountVectorizerNodeTests(unittest.TestCase):
         global willump_typing_map, willump_static_vars
         willump_typing_map = {}
         willump_static_vars = {}
-        self.input_str = ["catdogcat", "thedoghouse", "elephantcat"]
+        self.input_str = ["catdogcat", "thedoghouse", "elephantcat", "Bbbbbbb"]
         tf_idf_vec.fit(self.input_str)
         self.idf_vec = tf_idf_vec.idf_
         self.correct_output = tf_idf_vec.transform(self.input_str).toarray()
