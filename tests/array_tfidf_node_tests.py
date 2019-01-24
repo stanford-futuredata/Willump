@@ -65,7 +65,7 @@ class TfidfNodeTests(unittest.TestCase):
         willump_static_vars = {}
         self.input_str = [" catdogcat", "the dog house ", "elephantcat", "Bbbbbbb", "an ox cat house", "ananan",
                           "      an ox cat house   ",
-                          "Silicone Electric Facial Cleansing Brush Rechargeable Face Cleaning Brush for Face SPA Skin Care Face massage"
+                          # "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"  #TODO:  Talk to Shoumik about this.
                           ]
         tf_idf_vec_char.fit(self.input_str)
         tf_idf_vec_word.fit(self.input_str)

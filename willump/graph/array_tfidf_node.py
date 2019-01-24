@@ -131,6 +131,7 @@ class ArrayTfIdfNode(WillumpGraphNode):
                                 result(word_indices_app),
                                 result(merge(word_indices_app, string_len + 1L))
                             );
+                            # let num_words: i64 = if(lookup(word_indices, 0L) == 0L || lookup(word_indices, 0L) == 1L,  len(word_indices), 0L);
                             let num_words: i64 = len(word_indices);
                             let string_dict: dict[i64, i64] = result(for(word_indices,
                                 dictmerger[i64, i64, +],
