@@ -79,7 +79,7 @@ willump_static_vars_set: MutableMapping[str, object] = {}
 
 def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]],
                                   aux_data: List[Tuple[int, WeldType]], type_map: MutableMapping[str, WeldType],
-                                  num_threads=0) \
+                                  num_threads) \
         -> Tuple[List[ast.AST], List[str]]:
     python_weld_program = list(map(lambda x: (willump.evaluation.willump_weld_generator.set_input_names(x[0], x[1],
                                                                                                         aux_data), x[1],
@@ -133,7 +133,7 @@ def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
     return new_functiondef
 
 
-def willump_execute(batch=True, num_threads=1) -> Callable:
+def willump_execute(batch=True, num_threads=0) -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
 
@@ -146,7 +146,7 @@ def willump_execute(batch=True, num_threads=1) -> Callable:
         from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
         from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
         from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
-        llvm_runner_func: str = "llvm_runner_func{0}".format(version_number)
+        llvm_runner_func: str = "llvm_runner_func{0}".format(func.__name__)
         globals()[llvm_runner_func] = None
 
         def wrapper(*args):

@@ -1,30 +1,13 @@
 import unittest
 import numpy
-import importlib
-import inspect
-import ast
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 import sklearn.linear_model
 
-import willump.evaluation.willump_weld_generator
-from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
-from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
-from willump import pprint_weld
-from willump.graph.willump_graph import WillumpGraph
-from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
 import willump.evaluation.willump_executor as wexec
-import scipy.sparse.csr
-import re
-
-from typing import Mapping, MutableMapping, List, Tuple
-import typing
-from weld.types import *
-
-willump_typing_map: MutableMapping[str, WeldType]
-willump_static_vars: Mapping[str, object]
 
 
+@wexec.willump_execute()
 def sample_pandas_unpacked(array_one, array_two):
     df = pd.DataFrame()
     df["a"] = array_one
@@ -37,6 +20,7 @@ def sample_pandas_unpacked(array_one, array_two):
     return df
 
 
+@wexec.willump_execute()
 def sample_pandas_unpacked_nested_ops(array_one, array_two, array_three):
     df = pd.DataFrame()
     df["a"] = array_one
@@ -58,6 +42,7 @@ vectorizer = CountVectorizer(analyzer='char', ngram_range=(3, 5), min_df=0.005, 
                              vocabulary=simple_vocab_dict)
 
 
+@wexec.willump_execute()
 def sample_pandas_count_vectorizer(array_one, input_vect):
     df = pd.DataFrame()
     df["strings"] = array_one
@@ -66,6 +51,7 @@ def sample_pandas_count_vectorizer(array_one, input_vect):
     return transformed_result
 
 
+@wexec.willump_execute()
 def sample_pandas_merge(left, right):
     new = left.merge(right, how="left", on="join_column")
     return new
@@ -76,11 +62,13 @@ model.intercept_ = numpy.array([0.2], dtype=numpy.float64)
 model.classes_ = numpy.array([0, 1], dtype=numpy.int64)
 
 
+@wexec.willump_execute()
 def sample_logistic_regression_np_array(np_input):
     predicted_result = model.predict(np_input)
     return predicted_result
 
 
+@wexec.willump_execute()
 def sample_logistic_regression_cv(array_one, input_vect):
     df = pd.DataFrame()
     df["strings"] = array_one
@@ -93,7 +81,16 @@ def sample_logistic_regression_cv(array_one, input_vect):
 FEATURES = ["data1", "data2", "metadata1", "metadata2"]
 
 
+@wexec.willump_execute()
 def sample_merge_linear_regression(left, right):
+    new = left.merge(right, how="left", on="join_column")
+    feature_columns = new[FEATURES]
+    predicted_result = model.predict(feature_columns)
+    return predicted_result
+
+
+@wexec.willump_execute(batch=False)
+def sample_merge_linear_regression_nobatch(left, right):
     new = left.merge(right, how="left", on="join_column")
     feature_columns = new[FEATURES]
     predicted_result = model.predict(feature_columns)
@@ -103,100 +100,38 @@ def sample_merge_linear_regression(left, right):
 DATA_FEATURES = ["data1", "data2"]
 
 
+@wexec.willump_execute()
 def sample_column_select(df):
     data_df = df[DATA_FEATURES]
     return data_df
 
 
 class PandasGraphInferenceTests(unittest.TestCase):
-    def setUp(self):
-        global willump_typing_map, willump_static_vars
-        willump_typing_map = {}
-        willump_static_vars = {}
-
-    def set_typing_map(self, sample_python: str, func_name: str, basic_vec, batch=True) -> None:
-        type_discover: WillumpRuntimeTypeDiscovery = WillumpRuntimeTypeDiscovery(batch=batch)
-        # Create an instrumented AST that will fill willump_typing_map with the Weld types
-        # of all variables in the function.
-        python_ast = ast.parse(sample_python, mode="exec")
-        new_ast: ast.AST = type_discover.visit(python_ast)
-        new_ast = ast.fix_missing_locations(new_ast)
-        local_namespace = {}
-        # Run the instrumented function.
-        exec(compile(new_ast, filename="<ast>", mode="exec"), globals(),
-             local_namespace)
-        local_namespace[func_name](*basic_vec)
-
     def test_unpacked_pandas(self):
         print("\ntest_unpacked_pandas")
-        sample_python: str = inspect.getsource(sample_pandas_unpacked)
         vec_one = numpy.array([1., 2., 3.], dtype=numpy.float64)
         vec_two = numpy.array([4., 5., 6.], dtype=numpy.float64)
-        self.set_typing_map(sample_python, "sample_pandas_unpacked", [vec_one, vec_two])
-        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
-                                                                 willump_static_vars)
-        graph_builder.visit(ast.parse(sample_python))
-        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
-            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
-        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
-                                                                                       graph_builder.get_aux_data(),
-                                                                                       willump_typing_map)
-        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
-        for module in modules_to_import:
-            globals()[module] = importlib.import_module(module)
-        local_namespace = {}
-        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
-             local_namespace)
-        weld_output = local_namespace["sample_pandas_unpacked"](vec_one, vec_two)
+        sample_pandas_unpacked(vec_one, vec_two)
+        sample_pandas_unpacked(vec_one, vec_two)
+        weld_output = sample_pandas_unpacked(vec_one, vec_two)
         numpy.testing.assert_almost_equal(weld_output["ret"].values, numpy.array([25., 49., 81.]))
 
     def test_unpacked_pandas_nested_ops(self):
         print("\ntest_unpacked_pandas_nested_ops")
-        sample_python: str = inspect.getsource(sample_pandas_unpacked_nested_ops)
         vec_one = numpy.array([1., 2., 3.], dtype=numpy.float64)
         vec_two = numpy.array([4., 5., 6.], dtype=numpy.float64)
         vec_three = numpy.array([0., 1., 0.], dtype=numpy.float64)
-        self.set_typing_map(sample_python, "sample_pandas_unpacked_nested_ops", [vec_one, vec_two, vec_three])
-        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
-                                                                 willump_static_vars)
-        graph_builder.visit(ast.parse(sample_python))
-        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
-            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
-        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
-                                                                                       graph_builder.get_aux_data(),
-                                                                                       willump_typing_map)
-        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
-        for module in modules_to_import:
-            globals()[module] = importlib.import_module(module)
-        local_namespace = {}
-        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
-             local_namespace)
-        weld_output = local_namespace["sample_pandas_unpacked_nested_ops"](vec_one, vec_two, vec_three)
+        sample_pandas_unpacked_nested_ops(vec_one, vec_two, vec_three)
+        sample_pandas_unpacked_nested_ops(vec_one, vec_two, vec_three)
+        weld_output = sample_pandas_unpacked_nested_ops(vec_one, vec_two, vec_three)
         numpy.testing.assert_almost_equal(weld_output["ret"].values, numpy.array([1., 6., 3.]))
 
     def test_pandas_count_vectorizer(self):
         print("\ntest_pandas_count_vectorizer")
-        sample_python: str = inspect.getsource(sample_pandas_count_vectorizer)
         string_array = ["theaancatdog house", "bobthe builder", "an    \t   ox anox an ox"]
-        self.set_typing_map(sample_python, "sample_pandas_count_vectorizer", [string_array, vectorizer])
-        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
-                                                                 willump_static_vars)
-        graph_builder.visit(ast.parse(sample_python))
-        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
-            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
-        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
-                                                                                       graph_builder.get_aux_data(),
-                                                                                       willump_typing_map)
-        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
-        for module in modules_to_import:
-            globals()[module] = importlib.import_module(module)
-        local_namespace = {}
-        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
-             local_namespace)
-        weld_output = local_namespace["sample_pandas_count_vectorizer"](string_array, vectorizer)
+        sample_pandas_count_vectorizer(string_array, vectorizer)
+        sample_pandas_count_vectorizer(string_array, vectorizer)
+        weld_output = sample_pandas_count_vectorizer(string_array, vectorizer)
         numpy.testing.assert_almost_equal(weld_output[0], numpy.array([0, 0, 0, 0, 1, 2]))
         numpy.testing.assert_almost_equal(weld_output[1], numpy.array([0, 4, 3, 5, 0, 2]))
         numpy.testing.assert_almost_equal(weld_output[2], numpy.array([1, 1, 1, 1, 1, 2]))
@@ -205,24 +140,9 @@ class PandasGraphInferenceTests(unittest.TestCase):
         print("\ntest_pandas_join")
         left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv")
         right_table = pd.read_csv("tests/test_resources/toy_metadata_csv.csv")
-        sample_python: str = inspect.getsource(sample_pandas_merge)
-        self.set_typing_map(sample_python, "sample_pandas_merge", [left_table, right_table])
-        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
-                                                                 willump_static_vars)
-        graph_builder.visit(ast.parse(sample_python))
-        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
-            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
-        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
-                                                                                       graph_builder.get_aux_data(),
-                                                                                       willump_typing_map)
-        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
-        for module in modules_to_import:
-            globals()[module] = importlib.import_module(module)
-        local_namespace = {}
-        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
-             local_namespace)
-        weld_output = local_namespace["sample_pandas_merge"](left_table, right_table)
+        sample_pandas_merge(left_table, right_table)
+        sample_pandas_merge(left_table, right_table)
+        weld_output = sample_pandas_merge(left_table, right_table)
         numpy.testing.assert_equal(
             weld_output["join_column"].values, left_table["join_column"].values)
         numpy.testing.assert_equal(
@@ -235,50 +155,20 @@ class PandasGraphInferenceTests(unittest.TestCase):
     def test_pandas_regression_vec(self):
         print("\ntest_pandas_regression_vec")
         model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
-        sample_python: str = inspect.getsource(sample_logistic_regression_np_array)
         input_vec = numpy.array([[0, 0, 0, 1, 1, 0], [0, 0, 0, 0, 3, 0]], dtype=numpy.int64)
-        self.set_typing_map(sample_python, "sample_logistic_regression_np_array", [input_vec])
-        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
-                                                                 willump_static_vars)
-        graph_builder.visit(ast.parse(sample_python))
-        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
-            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
-        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
-                                                                                       graph_builder.get_aux_data(),
-                                                                                       willump_typing_map)
-        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
-        for module in modules_to_import:
-            globals()[module] = importlib.import_module(module)
-        local_namespace = {}
-        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
-             local_namespace)
-        weld_output = local_namespace["sample_logistic_regression_np_array"](input_vec)
+        sample_logistic_regression_np_array(input_vec)
+        sample_logistic_regression_np_array(input_vec)
+        weld_output = sample_logistic_regression_np_array(input_vec)
         numpy.testing.assert_equal(
             weld_output, numpy.array([1, 0], dtype=numpy.int64))
 
     def test_logistic_regression_cv(self):
         print("\ntest_logistic_regression_cv")
         model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
-        sample_python: str = inspect.getsource(sample_logistic_regression_cv)
         string_array = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dog the the the the"]
-        self.set_typing_map(sample_python, "sample_logistic_regression_cv", [string_array, vectorizer])
-        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
-                                                                 willump_static_vars)
-        graph_builder.visit(ast.parse(sample_python))
-        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
-            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
-        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
-                                                                                       graph_builder.get_aux_data(),
-                                                                                       willump_typing_map)
-        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
-        for module in modules_to_import:
-            globals()[module] = importlib.import_module(module)
-        local_namespace = {}
-        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
-             local_namespace)
-        weld_output = local_namespace["sample_logistic_regression_cv"](string_array, vectorizer)
+        sample_logistic_regression_cv(string_array, vectorizer)
+        sample_logistic_regression_cv(string_array, vectorizer)
+        weld_output = sample_logistic_regression_cv(string_array, vectorizer)
         numpy.testing.assert_equal(
             weld_output, numpy.array([0, 1, 0, 1], dtype=numpy.int64))
 
@@ -287,24 +177,9 @@ class PandasGraphInferenceTests(unittest.TestCase):
         model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4]], dtype=numpy.float64)
         left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv")
         right_table = pd.read_csv("tests/test_resources/toy_metadata_csv.csv")
-        sample_python: str = inspect.getsource(sample_merge_linear_regression)
-        self.set_typing_map(sample_python, "sample_merge_linear_regression", [left_table, right_table])
-        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
-                                                                 willump_static_vars)
-        graph_builder.visit(ast.parse(sample_python))
-        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
-            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
-        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
-                                                                                       graph_builder.get_aux_data(),
-                                                                                       willump_typing_map)
-        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
-        for module in modules_to_import:
-            globals()[module] = importlib.import_module(module)
-        local_namespace = {}
-        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
-             local_namespace)
-        weld_output = local_namespace["sample_merge_linear_regression"](left_table, right_table)
+        sample_merge_linear_regression(left_table, right_table)
+        sample_merge_linear_regression(left_table, right_table)
+        weld_output = sample_merge_linear_regression(left_table, right_table)
         numpy.testing.assert_equal(
             weld_output, numpy.array([0, 1, 1, 1, 1], dtype=numpy.int64))
 
@@ -313,48 +188,18 @@ class PandasGraphInferenceTests(unittest.TestCase):
         model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4]], dtype=numpy.float64)
         left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv").iloc[0:1].copy()
         right_table = pd.read_csv("tests/test_resources/toy_metadata_csv.csv")
-        sample_python: str = inspect.getsource(sample_merge_linear_regression)
-        self.set_typing_map(sample_python, "sample_merge_linear_regression", [left_table, right_table], batch=False)
-        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
-                                                                 willump_static_vars, batch=False)
-        graph_builder.visit(ast.parse(sample_python))
-        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
-            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map, batch=False)
-        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
-                                                                                       graph_builder.get_aux_data(),
-                                                                                       willump_typing_map)
-        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
-        for module in modules_to_import:
-            globals()[module] = importlib.import_module(module)
-        local_namespace = {}
-        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
-             local_namespace)
-        weld_output = local_namespace["sample_merge_linear_regression"](left_table, right_table)
+        sample_merge_linear_regression(left_table, right_table)
+        sample_merge_linear_regression(left_table, right_table)
+        weld_output = sample_merge_linear_regression_nobatch(left_table, right_table)
         numpy.testing.assert_equal(
             weld_output, numpy.array([0], dtype=numpy.int64))
 
     def test_column_select(self):
         print("\ntest_column_select")
         left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv")
-        sample_python: str = inspect.getsource(sample_column_select)
-        self.set_typing_map(sample_python, "sample_column_select", [left_table])
-        graph_builder: WillumpGraphBuilder = WillumpGraphBuilder(willump_typing_map,
-                                                                 willump_static_vars)
-        graph_builder.visit(ast.parse(sample_python))
-        willump_graph: WillumpGraph = graph_builder.get_willump_graph()
-        python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
-            willump.evaluation.willump_weld_generator.graph_to_weld(willump_graph, willump_typing_map)
-        python_statement_list, modules_to_import = wexec.py_weld_program_to_statements(python_weld_program,
-                                                                                       graph_builder.get_aux_data(),
-                                                                                       willump_typing_map)
-        compiled_functiondef = wexec.py_weld_statements_to_ast(python_statement_list, ast.parse(sample_python))
-        for module in modules_to_import:
-            globals()[module] = importlib.import_module(module)
-        local_namespace = {}
-        exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), globals(),
-             local_namespace)
-        weld_output = local_namespace["sample_column_select"](left_table)
+        sample_column_select(left_table)
+        sample_column_select(left_table)
+        weld_output = sample_column_select(left_table)
         numpy.testing.assert_equal(
             weld_output["data2"].values, left_table["data2"].values)
         numpy.testing.assert_equal(
