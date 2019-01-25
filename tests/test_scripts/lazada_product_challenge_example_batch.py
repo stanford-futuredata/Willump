@@ -14,7 +14,7 @@ def rmse_score(y, pred):
     return numpy.sqrt(mean_squared_error(y, pred))
 
 
-@willump.evaluation.willump_executor.willump_execute()
+@willump.evaluation.willump_executor.willump_execute(num_threads=1)
 def vectorizer_transform(title_vect, input_df, color_vect):
     np_input = list(input_df.values)
     transformed_result = title_vect.transform(np_input)

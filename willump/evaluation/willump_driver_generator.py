@@ -40,6 +40,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
         # Header boilerplate.
         with open(os.path.join(willump_home, "cppextensions", "weld_llvm_caller_header.cpp"), "r") as caller_header:
             buffer += caller_header.read()
+        buffer += "weld_thread_runner* thread_runner = (weld_thread_runner*) %s;" % str(hex(thread_runner_pointer))
         # Define the Weld input struct and output struct.
         input_struct = ""
         for i, input_type in enumerate(input_types):
@@ -100,8 +101,20 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             weld_input_args.nworkers = 1;
             weld_input_args.memlimit = 10000000000;
             weld_input_args.run_id = weld_runst_init(weld_input_args.nworkers, weld_input_args.memlimit);
-        
-            WeldOutputArgs* weld_output_args = run(&weld_input_args);
+            
+            thread_runner->run_function = run;
+            thread_runner->argument = &weld_input_args;
+            thread_runner->ready = true;
+            printf("DRIVER %d\\n", sched_getcpu());
+            while(1) {
+                usleep(10);
+                if(thread_runner->done) {
+                    break;
+                }
+            }
+            thread_runner->done = false;
+            WeldOutputArgs* weld_output_args = thread_runner->output;
+            //WeldOutputArgs* weld_output_args = run(&weld_input_args);
             return_type* weld_output = (return_type*) weld_output_args->output;
             """
         # Parse Weld outputs and return them.

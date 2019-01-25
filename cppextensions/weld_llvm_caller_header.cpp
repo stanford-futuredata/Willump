@@ -44,5 +44,13 @@ struct WeldOutputArgs {
 	i64 errno;
 };
 
+typedef struct weld_thread_runner {
+    bool done;
+    struct WeldOutputArgs* (*run_function)(struct WeldInputArgs*);
+    struct WeldInputArgs* argument;
+    struct WeldOutputArgs* output;
+    bool ready;
+} weld_thread_runner;
+
 extern "C" struct WeldOutputArgs* run(struct WeldInputArgs*);
 extern "C" void* weld_runst_init(i32, i64);
