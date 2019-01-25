@@ -8,7 +8,8 @@ from typing import Mapping, List, Tuple
 
 
 def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
-                        base_filename: str, aux_data: List[Tuple[int, WeldType]]) -> str:
+                        base_filename: str, aux_data: List[Tuple[int, WeldType]],
+                        thread_runner_pointer) -> str:
     """
     Generate a versioned CPP driver for a Weld program. If base_filename is not
     weld_llvm_caller, assume the driver already exists at
