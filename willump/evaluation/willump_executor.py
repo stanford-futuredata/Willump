@@ -79,7 +79,7 @@ willump_static_vars_set: MutableMapping[str, object] = {}
 
 def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]],
                                   aux_data: List[Tuple[int, WeldType]], type_map: MutableMapping[str, WeldType],
-                                  num_threads=1) \
+                                  num_threads=0) \
         -> Tuple[List[ast.AST], List[str]]:
     python_weld_program = list(map(lambda x: (willump.evaluation.willump_weld_generator.set_input_names(x[0], x[1],
                                                                                                         aux_data), x[1],
