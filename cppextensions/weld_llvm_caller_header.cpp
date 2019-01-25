@@ -8,6 +8,7 @@
 #include <ctime>
 #include <chrono>
 #include <iostream>
+#include <atomic>
 
 using namespace std;
 

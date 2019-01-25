@@ -48,10 +48,10 @@ typedef struct weld_thread_runner {
 
 static void* thread_start(void* arg) {
     weld_thread_runner* thread_runner = (weld_thread_runner*) arg;
+    int counter = 0;
     while(1) {
         if (thread_runner->ready) {
-
-            printf("RUNNER %d\n", sched_getcpu());
+            //printf("Runner Thread CPU ID %d\n", sched_getcpu());
             thread_runner->ready = false;
             thread_runner->output = thread_runner->run_function(thread_runner->argument);
             thread_runner->done = true;

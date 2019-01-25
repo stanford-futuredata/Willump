@@ -104,15 +104,16 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             
             thread_runner->run_function = run;
             thread_runner->argument = &weld_input_args;
+            thread_runner->done = false;
             thread_runner->ready = true;
-            printf("DRIVER %d\\n", sched_getcpu());
+            //printf("Driver Thread CPU ID %d\\n", sched_getcpu());
+            int counter = 0;
             while(1) {
-                usleep(10);
+                atomic_thread_fence(memory_order_acquire);
                 if(thread_runner->done) {
                     break;
                 }
             }
-            thread_runner->done = false;
             WeldOutputArgs* weld_output_args = thread_runner->output;
             //WeldOutputArgs* weld_output_args = run(&weld_input_args);
             return_type* weld_output = (return_type*) weld_output_args->output;
