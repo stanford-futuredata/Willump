@@ -8,6 +8,7 @@ from typing import Mapping, List, Tuple
 
 
 def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
+                        input_names: List[str], output_names: List[str],
                         base_filename: str, aux_data: List[Tuple[int, WeldType]],
                         thread_runner_pointer) -> str:
     """
@@ -19,23 +20,15 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
     willump_home: str = os.environ["WILLUMP_HOME"]
     if base_filename is not "weld_llvm_caller":
         if base_filename is "hash_join_dataframe_indexer":
-            buffer = generate_hash_join_dataframe_indexer_driver(type_map)
+            buffer = generate_hash_join_dataframe_indexer_driver(type_map, input_names)
             buffer = buffer.replace(base_filename, base_filename + str(file_version))
         else:
             with open(os.path.join(willump_home, "cppextensions", base_filename + ".cpp")) as driver:
                 buffer = driver.read()
                 buffer = buffer.replace(base_filename, base_filename + str(file_version))
     else:
-        input_types: List[WeldType] = []
-        output_types: List[WeldType] = []
-        num_inputs = 0
-        num_outputs = 0
-        while "__willump_arg{0}".format(num_inputs) in type_map:
-            input_types.append(type_map["__willump_arg{0}".format(num_inputs)])
-            num_inputs += 1
-        while "__willump_retval{0}".format(num_outputs) in type_map:
-            output_types.append(type_map["__willump_retval{0}".format(num_outputs)])
-            num_outputs += 1
+        input_types: List[WeldType] = list(map(lambda name: type_map[name], input_names))
+        output_types: List[WeldType] = list(map(lambda name: type_map[name], output_names))
         buffer = ""
         # Header boilerplate.
         with open(os.path.join(willump_home, "cppextensions", "weld_llvm_caller_header.cpp"), "r") as caller_header:
@@ -102,20 +95,19 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             weld_input_args.memlimit = 10000000000;
             weld_input_args.run_id = weld_runst_init(weld_input_args.nworkers, weld_input_args.memlimit);
             
-            thread_runner->run_function = run;
+            /*thread_runner->run_function = run;
             thread_runner->argument = &weld_input_args;
             thread_runner->done = false;
             thread_runner->ready = true;
             //printf("Driver Thread CPU ID %d\\n", sched_getcpu());
-            int counter = 0;
             while(1) {
                 atomic_thread_fence(memory_order_acquire);
                 if(thread_runner->done) {
                     break;
                 }
             }
-            WeldOutputArgs* weld_output_args = thread_runner->output;
-            //WeldOutputArgs* weld_output_args = run(&weld_input_args);
+            WeldOutputArgs* weld_output_args = thread_runner->output;*/
+            WeldOutputArgs* weld_output_args = run(&weld_input_args);
             return_type* weld_output = (return_type*) weld_output_args->output;
             """
         # Parse Weld outputs and return them.
@@ -471,15 +463,11 @@ def weld_type_to_numpy_macro(wtype: WeldType) -> str:
         return ""
 
 
-def generate_hash_join_dataframe_indexer_driver(type_map: Mapping[str, WeldType]) -> str:
+def generate_hash_join_dataframe_indexer_driver(type_map: Mapping[str, WeldType], input_names: List[str]) -> str:
     willump_home: str = os.environ["WILLUMP_HOME"]
     with open(os.path.join(willump_home, "cppextensions", "hash_join_dataframe_indexer.cpp")) as driver:
         buffer = driver.read()
-    input_types: List[WeldType] = []
-    num_inputs = 0
-    while "__willump_arg{0}".format(num_inputs) in type_map:
-        input_types.append(type_map["__willump_arg{0}".format(num_inputs)])
-        num_inputs += 1
+    input_types: List[WeldType] = list(map(lambda x: type_map[x], input_names))
     input_struct = ""
     for i, input_type in enumerate(input_types):
         input_struct += "{0} _{1};\n".format(wtype_to_c_type(input_type), i)

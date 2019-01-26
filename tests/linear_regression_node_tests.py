@@ -27,14 +27,13 @@ class StringSplitNodeTests(unittest.TestCase):
                                  logistic_regression_weights, logistic_regression_intercept, aux_data)
         output_node: WillumpOutputNode = WillumpOutputNode(logistic_regression_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        type_map = {"__willump_arg0": WeldVec(WeldVec(WeldLong())),
-                    "input_str": WeldVec(WeldVec(WeldLong())),
-                    "logit_output": WeldVec(WeldLong()),
-                    "__willump_retval0": WeldVec(WeldLong())}
+        type_map = {"input_str": WeldVec(WeldVec(WeldLong())),
+                    "logit_output": WeldVec(WeldLong())}
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_str"], aux_data)
-        module_name = wexec.compile_weld_program(weld_program, type_map, aux_data=aux_data)
+        module_name = wexec.compile_weld_program(weld_program, type_map, ["input_str"], ["logit_output"],
+                                                 aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(input_vec)
         numpy.testing.assert_equal(

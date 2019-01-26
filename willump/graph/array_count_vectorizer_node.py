@@ -60,7 +60,9 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
             """
         import willump.evaluation.willump_executor as wexec
         module_name = wexec.compile_weld_program(weld_program,
-                                                 {"__willump_arg0": WeldVec(WeldVec(WeldChar()))},
+                                                 type_map={"input": WeldVec(WeldVec(WeldChar()))},
+                                                 input_names=["input"],
+                                                 output_names=[],
                                                  base_filename="vocabulary_to_dict_driver")
         vocab_to_dict = importlib.import_module(module_name)
         vocab_dict, _ = vocab_to_dict.caller_func(vocabulary_list)

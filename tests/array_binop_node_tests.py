@@ -23,16 +23,13 @@ class ArrayAppendNodeTests(unittest.TestCase):
                                                 "output", WeldVec(WeldDouble()), "+")
         output_node: WillumpOutputNode = WillumpOutputNode(array_addition_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        type_map = {"__willump_arg0": WeldVec(WeldDouble()),
-                    "__willump_arg1": WeldVec(WeldLong()),
-                    "vec_1": WeldVec(WeldDouble()),
+        type_map = {"vec_1": WeldVec(WeldDouble()),
                     "vec_2": WeldVec(WeldLong()),
-                    "output": WeldVec(WeldDouble()),
-                    "__willump_retval0":  WeldVec(WeldDouble())}
+                    "output": WeldVec(WeldDouble())}
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["vec_1", "vec_2"], [])
-        module_name = wexec.compile_weld_program(weld_program, type_map)
+        module_name = wexec.compile_weld_program(weld_program, type_map, ["vec_1", "vec_2"], ["output"])
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(vec_1, vec_2)
         real_output_vec = numpy.array([5.1, 7.2, 9.3], dtype=numpy.float64)

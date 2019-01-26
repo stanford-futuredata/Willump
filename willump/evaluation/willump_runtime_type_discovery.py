@@ -35,12 +35,9 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
         for i, arg in enumerate(node.args.args):
             # First, type the arguments.
             argument_name: str = arg.arg
-            argument_internal_name = "__willump_arg{0}".format(i)
             argument_instrumentation_code: str = \
                 """willump_typing_map["{0}"] = py_var_to_weld_type({0}, {1})\n""" \
-                    .format(argument_name, self.batch) + \
-                """willump_typing_map["{0}"] = py_var_to_weld_type({1}, {2})""" \
-                    .format(argument_internal_name, argument_name, self.batch)
+                    .format(argument_name, self.batch)
             instrumentation_ast: ast.Module = ast.parse(argument_instrumentation_code, "exec")
             instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
             new_body = new_body + instrumentation_statements
@@ -57,17 +54,6 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 extract_static_vars_statements = self._maybe_extract_static_variables(value)
                 new_body = new_body + extract_static_vars_statements
             elif isinstance(body_entry, ast.Return):
-                # Type the function's return value.
-                new_assignment: ast.Assign = ast.Assign()
-                new_assignment_target: ast.Name = ast.Name()
-                new_assignment_target.id = "__willump_retval"
-                new_assignment_target.ctx = ast.Store()
-                new_assignment.targets = [new_assignment_target]
-                new_assignment.value = body_entry.value
-                new_body.append(new_assignment)
-                return_type_statement: List[ast.stmt] = \
-                    self._analyze_target_type(new_assignment_target)
-                new_body = new_body + return_type_statement
                 new_body.append(body_entry)
         new_node.body = new_body
         # No recursion allowed!

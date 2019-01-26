@@ -86,12 +86,17 @@ class WillumpHashJoinNode(WillumpGraphNode):
             """ % (join_col_index, types_string, types_string, values_string)
 
         input_arg_types = {}
+        input_arg_list = []
         for i, column in enumerate(right_dataframe):
-            input_arg_types["__willump_arg%d" % i] = \
+            input_name = "input%d" % i
+            input_arg_types[input_name] = \
                 WeldVec(numpy_type_to_weld_type(right_dataframe[column].values.dtype))
+            input_arg_list.append(input_name)
 
         module_name = wexec.compile_weld_program(weld_program,
                                                  input_arg_types,
+                                                 input_names=input_arg_list,
+                                                 output_names=[],
                                                  base_filename="hash_join_dataframe_indexer")
 
         hash_join_dataframe_indexer = importlib.import_module(module_name)

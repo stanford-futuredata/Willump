@@ -24,9 +24,10 @@ _decoder = weld.encoders.NumpyArrayDecoder()
 version_number = 0
 
 
-def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType],
+def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType], input_names: List[str],
+                         output_names: List[str],
                          aux_data=None, base_filename="weld_llvm_caller",
-                         thread_runner_pointer=None) -> str:
+                         thread_runner_pointer=0) -> str:
     """
     Compile a Weld program to LLVM, then compile this into a Python C extension in a shared object
     file which can run the Weld program from Python.
@@ -49,18 +50,15 @@ def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType],
         os.remove(llvm_dump_location)
     weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
     weld_object.weld_code = weld_program
-    input_types: List[WeldType] = []
-    arg_index: int = 0
-    while "__willump_arg{0}".format(arg_index) in type_map:
-        input_types.append(type_map["__willump_arg{0}".format(arg_index)])
-        arg_index += 1
+    input_types: List[WeldType] = list(map(lambda name: type_map[name], input_names))
     for (_, type_name) in aux_data:
         input_types.append(type_name)
     weld_object.willump_dump_llvm(input_types, input_directory=willump_build_dir,
                                   input_filename=llvm_dump_name)
 
     # Compile the LLVM to assembly and build the C++ glue code with it.
-    driver_file = generate_cpp_driver(version_number, type_map, base_filename, aux_data, thread_runner_pointer)
+    driver_file = generate_cpp_driver(version_number, type_map, input_names, output_names,
+                                      base_filename, aux_data, thread_runner_pointer)
     output_filename: str = os.path.join(willump_build_dir,
                                         "{0}{1}.so".format(base_filename, version_number))
     subprocess.run(["clang++", "-fPIC", "--shared", "-lweld", "-g", "-std=c++11", "-O3",
@@ -84,16 +82,10 @@ def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST
     python_weld_program = list(map(lambda x: (willump.evaluation.willump_weld_generator.set_input_names(x[0], x[1],
                                                                                                         aux_data), x[1],
                                               x[2]) if isinstance(x, tuple) else x, python_weld_program))
-    type_map = copy.copy(type_map)
-    arg_index: int = 0
-    while "__willump_arg{0}".format(arg_index) in type_map:
-        del type_map["__willump_arg{0}".format(arg_index)]
-        arg_index += 1
-    del type_map["__willump_retval"]
     all_python_program: List[ast.AST] = []
     module_to_import = []
 
-    module_name = compile_weld_program("true", {}, base_filename="thread_pool_creator")
+    module_name = compile_weld_program("true", {}, [], [], base_filename="thread_pool_creator")
     thread_pool_creator = importlib.import_module(module_name)
     thread_runner_pointer = thread_pool_creator.caller_func(num_threads)
 
@@ -101,17 +93,13 @@ def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST
         if isinstance(entry, ast.AST):
             all_python_program.append(entry)
         else:
-            weld_program, input_list, output_names = entry
-            entry_type_map = copy.copy(type_map)
-            for i, input_name in enumerate(input_list):
-                entry_type_map["__willump_arg{0}".format(i)] = entry_type_map[input_name]
-            for i, output_name in enumerate(output_names):
-                entry_type_map["__willump_retval{0}".format(i)] = entry_type_map[output_name]
-            module_name = compile_weld_program(weld_program, entry_type_map, aux_data=aux_data,
+            weld_program, input_names, output_names = entry
+            module_name = compile_weld_program(weld_program, type_map, input_names=input_names,
+                                               output_names=output_names, aux_data=aux_data,
                                                thread_runner_pointer=thread_runner_pointer)
             module_to_import.append(module_name)
             argument_string = ""
-            for input_name in input_list:
+            for input_name in input_names:
                 argument_string += input_name + ","
             argument_string = argument_string[:-1]  # Remove trailing comma.
             output_string = ""
@@ -142,6 +130,7 @@ def willump_execute(batch=True, num_threads=0) -> Callable:
     Batch is true if batch-executing (multiple inputs and outputs per call) and
     false if point-executing (one input and output per call).
     """
+
     def willump_execute_inner(func: Callable) -> Callable:
         from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
         from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
@@ -194,8 +183,9 @@ def willump_execute(batch=True, num_threads=0) -> Callable:
                         willump.evaluation.willump_weld_generator.graph_to_weld(python_graph, willump_typing_map,
                                                                                 batch=batch)
                     python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
-                                                                                        aux_data, willump_typing_map,
-                                                                                        num_threads=num_threads)
+                                                                                             aux_data,
+                                                                                             willump_typing_map,
+                                                                                             num_threads=num_threads)
                     compiled_functiondef = py_weld_statements_to_ast(python_statement_list, python_ast)
                     augmented_globals = copy.copy(func.__globals__)
                     # Import all of the compiled Weld blocks called from the transformed function.
@@ -214,4 +204,5 @@ def willump_execute(batch=True, num_threads=0) -> Callable:
                 return globals()[llvm_runner_func](*args)
 
         return wrapper
+
     return willump_execute_inner

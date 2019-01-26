@@ -54,10 +54,8 @@ class RuntimeTypeDiscoveryTests(unittest.TestCase):
         new_ast = ast.fix_missing_locations(new_ast)
         exec(compile(new_ast, filename="<ast>", mode="exec"), globals(), locals())
         self.assertTrue(isinstance(willump_typing_map["c"], WeldLong))
-        self.assertTrue(isinstance(willump_typing_map["__willump_arg0"], WeldLong))
         self.assertTrue(isinstance(willump_typing_map["a"], WeldDouble))
         self.assertTrue(isinstance(willump_typing_map["b"], WeldLong))
-        self.assertTrue(isinstance(willump_typing_map["__willump_retval"], WeldDouble))
 
     def test_arrays_type_discovery(self):
         print("\ntest_arrays_type_discovery")
@@ -70,12 +68,8 @@ class RuntimeTypeDiscoveryTests(unittest.TestCase):
         self.assertTrue(isinstance(willump_typing_map["a"], WeldLong))
         self.assertTrue(isinstance(willump_typing_map["input_numpy_array"], WeldVec))
         self.assertTrue(isinstance(willump_typing_map["input_numpy_array"].elemType, WeldInt))
-        self.assertTrue(isinstance(willump_typing_map["__willump_arg0"], WeldVec))
-        self.assertTrue(isinstance(willump_typing_map["__willump_arg0"].elemType, WeldInt))
         self.assertTrue(isinstance(willump_typing_map["return_numpy_array"], WeldVec))
         self.assertTrue(isinstance(willump_typing_map["return_numpy_array"].elemType, WeldDouble))
-        self.assertTrue(isinstance(willump_typing_map["__willump_retval"], WeldVec))
-        self.assertTrue(isinstance(willump_typing_map["__willump_retval"].elemType, WeldDouble))
 
     def test_strings_type_discovery(self):
         print("\ntest_strings_type_discovery")
@@ -86,11 +80,8 @@ class RuntimeTypeDiscoveryTests(unittest.TestCase):
         new_ast = ast.fix_missing_locations(new_ast)
         exec(compile(new_ast, filename="<ast>", mode="exec"), globals(), locals())
         self.assertTrue(isinstance(willump_typing_map["in_string"], WeldStr))
-        self.assertTrue(isinstance(willump_typing_map["__willump_arg0"], WeldStr))
         self.assertTrue(isinstance(willump_typing_map["out_string"], WeldVec))
         self.assertTrue(isinstance(willump_typing_map["out_string"].elemType, WeldStr))
-        self.assertTrue(isinstance(willump_typing_map["__willump_retval"], WeldVec))
-        self.assertTrue(isinstance(willump_typing_map["__willump_retval"].elemType, WeldStr))
 
 
 if __name__ == '__main__':

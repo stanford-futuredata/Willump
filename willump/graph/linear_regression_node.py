@@ -57,6 +57,8 @@ class LinearRegressionNode(WillumpGraphNode):
             """
         import willump.evaluation.willump_executor as wexec
         module_name = wexec.compile_weld_program(weld_program, {},
+                                                 input_names=[],
+                                                 output_names=[],
                                                  base_filename="encode_logistic_regression_model")
         encode_logit_model = importlib.import_module(module_name)
         weld_weights, weld_intercept = \

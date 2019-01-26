@@ -17,17 +17,15 @@ class StringSplitNodeTests(unittest.TestCase):
         print("\ntest_basic_string_split")
         input_str = "a b c"
         input_node: WillumpInputNode = WillumpInputNode("input_str")
-        string_split_node: StringSplitNode = StringSplitNode(input_node, "output_words")
+        string_split_node: StringSplitNode = StringSplitNode(input_node, "lowered_output_words")
         output_node: WillumpOutputNode = WillumpOutputNode(string_split_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        type_map = {"__willump_arg0": WeldStr(),
-                    "input_str": WeldStr(),
-                    "output_words": WeldVec(WeldStr()),
-                    "__willump_retval0": WeldVec(WeldStr())}
+        type_map = {"input_str": WeldStr(),
+                    "lowered_output_words": WeldVec(WeldStr())}
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_str"], [])
-        module_name = wexec.compile_weld_program(weld_program, type_map)
+        module_name = wexec.compile_weld_program(weld_program, type_map, ["input_str"], ["lowered_output_words"])
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(input_str)
         self.assertEqual(weld_output, ["a", "b", "c"])
@@ -36,17 +34,15 @@ class StringSplitNodeTests(unittest.TestCase):
         print("\ntest_char_runs_string_split")
         input_str = "   cat    dog    house   "
         input_node: WillumpInputNode = WillumpInputNode("input_str")
-        string_split_node: StringSplitNode = StringSplitNode(input_node, "output_words")
+        string_split_node: StringSplitNode = StringSplitNode(input_node, "lowered_output_words")
         output_node: WillumpOutputNode = WillumpOutputNode(string_split_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        type_map = {"__willump_arg0": WeldStr(),
-                    "input_str": WeldStr(),
-                    "output_words": WeldVec(WeldStr()),
-                    "__willump_retval0": WeldVec(WeldStr())}
+        type_map = {"input_str": WeldStr(),
+                    "lowered_output_words": WeldVec(WeldStr())}
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_str"], [])
-        module_name = wexec.compile_weld_program(weld_program, type_map)
+        module_name = wexec.compile_weld_program(weld_program, type_map, ["input_str"], ["lowered_output_words"])
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(input_str)
         self.assertEqual(weld_output, ["cat", "dog", "house"])
@@ -55,17 +51,15 @@ class StringSplitNodeTests(unittest.TestCase):
         print("\ntest_basic_string_split")
         input_str = " \n  c44t   \v d0g  \t\r  elephant123,.  \n "
         input_node: WillumpInputNode = WillumpInputNode("input_str")
-        string_split_node: StringSplitNode = StringSplitNode(input_node, "output_words")
+        string_split_node: StringSplitNode = StringSplitNode(input_node, "lowered_output_words")
         output_node: WillumpOutputNode = WillumpOutputNode(string_split_node)
         graph: WillumpGraph = WillumpGraph(output_node)
-        type_map = {"__willump_arg0": WeldStr(),
-                    "input_str": WeldStr(),
-                    "output_words": WeldVec(WeldStr()),
-                    "__willump_retval0": WeldVec(WeldStr())}
+        type_map = {"input_str": WeldStr(),
+                    "lowered_output_words": WeldVec(WeldStr())}
         weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                     ["input_str"], [])
-        module_name = wexec.compile_weld_program(weld_program, type_map)
+        module_name = wexec.compile_weld_program(weld_program, type_map, ["input_str"], ["lowered_output_words"])
         weld_llvm_caller = importlib.import_module(module_name)
         weld_output = weld_llvm_caller.caller_func(input_str)
         self.assertEqual(weld_output, ["c44t", "d0g", "elephant123,."])

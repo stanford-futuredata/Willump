@@ -64,8 +64,10 @@ class ArrayTfIdfNode(WillumpGraphNode):
             """
         import willump.evaluation.willump_executor as wexec
         module_name = wexec.compile_weld_program(weld_program,
-                                                 {"__willump_arg0": WeldVec(WeldVec(WeldChar())),
-                                                  "__willump_arg1": WeldVec(WeldDouble())},
+                                                 {"input1": WeldVec(WeldVec(WeldChar())),
+                                                  "input2": WeldVec(WeldDouble())},
+                                                 input_names=["input1", "input2"],
+                                                 output_names=[],
                                                  base_filename="tfidf_driver")
         vocab_to_dict = importlib.import_module(module_name)
         vocab_dict, idf_pointer = vocab_to_dict.caller_func(vocabulary_list, idf_vector)
