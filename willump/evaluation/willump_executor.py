@@ -44,7 +44,8 @@ def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType], in
     # Compile the Weld program to LLVM and dump the LLVM.
     willump_home: str = os.environ["WILLUMP_HOME"]
     willump_build_dir: str = os.path.join(willump_home, "build")
-    llvm_dump_name: str = "{0}{1}.ll".format(base_filename, version_number)
+    llvm_dump_name: str = "%s_%s.ll" % (base_filename, version_number)
+    entry_point_name = "weld_run_%d" % version_number
     llvm_dump_location = os.path.join(willump_build_dir, llvm_dump_name)
     if os.path.isfile(llvm_dump_location):
         os.remove(llvm_dump_location)
@@ -54,11 +55,11 @@ def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType], in
     for (_, type_name) in aux_data:
         input_types.append(type_name)
     weld_object.willump_dump_llvm(input_types, input_directory=willump_build_dir,
-                                  input_filename=llvm_dump_name)
+                                  input_filename=llvm_dump_name, entry_point=entry_point_name)
 
     # Compile the LLVM to assembly and build the C++ glue code with it.
     driver_file = generate_cpp_driver(version_number, type_map, input_names, output_names,
-                                      base_filename, aux_data, thread_runner_pointer)
+                                      base_filename, aux_data, thread_runner_pointer, entry_point_name)
     output_filename: str = os.path.join(willump_build_dir,
                                         "{0}{1}.so".format(base_filename, version_number))
     subprocess.run(["clang++", "-fPIC", "--shared", "-lweld", "-g", "-std=c++11", "-O3",

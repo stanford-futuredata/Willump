@@ -31,27 +31,6 @@ struct vec {
   T *ptr;
   i64 size;
 };
-struct struct0 {
-  vec<vec<i8>> _0;
-};
-typedef struct0 input_type;
-
-
-struct WeldInputArgs {
-	void* input;
-	i32 nworkers;
-	i64 memlimit;
-	void* run_id;
-};
-
-struct WeldOutputArgs {
-	void* output;
-	i64 run;
-	i64 errno;
-};
-
-extern "C" struct WeldOutputArgs* run(struct WeldInputArgs*);
-extern "C" void* weld_runst_init(i32, i64);
 
 static PyObject *
 caller_func(PyObject *self, PyObject* args)

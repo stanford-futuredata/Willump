@@ -10,7 +10,7 @@ from typing import Mapping, List, Tuple
 def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                         input_names: List[str], output_names: List[str],
                         base_filename: str, aux_data: List[Tuple[int, WeldType]],
-                        thread_runner_pointer) -> str:
+                        thread_runner_pointer, entry_point_name) -> str:
     """
     Generate a versioned CPP driver for a Weld program. If base_filename is not
     weld_llvm_caller, assume the driver already exists at
@@ -21,11 +21,11 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
     if base_filename is not "weld_llvm_caller":
         if base_filename is "hash_join_dataframe_indexer":
             buffer = generate_hash_join_dataframe_indexer_driver(type_map, input_names)
-            buffer = buffer.replace(base_filename, base_filename + str(file_version))
         else:
             with open(os.path.join(willump_home, "cppextensions", base_filename + ".cpp")) as driver:
                 buffer = driver.read()
-                buffer = buffer.replace(base_filename, base_filename + str(file_version))
+        buffer = buffer.replace(base_filename, base_filename + str(file_version))
+        buffer = buffer.replace("WELD_ENTRY_POINT", entry_point_name)
     else:
         input_types: List[WeldType] = list(map(lambda name: type_map[name], input_names))
         output_types: List[WeldType] = list(map(lambda name: type_map[name], output_names))
@@ -95,7 +95,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             weld_input_args.memlimit = 10000000000;
             weld_input_args.run_id = weld_runst_init(weld_input_args.nworkers, weld_input_args.memlimit);
             
-            /*thread_runner->run_function = run;
+            /*thread_runner->run_function = WELD_ENTRY_POINT;
             thread_runner->argument = &weld_input_args;
             thread_runner->done = false;
             thread_runner->ready = true;
@@ -107,7 +107,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                 }
             }
             WeldOutputArgs* weld_output_args = thread_runner->output;*/
-            WeldOutputArgs* weld_output_args = run(&weld_input_args);
+            WeldOutputArgs* weld_output_args = WELD_ENTRY_POINT(&weld_input_args);
             return_type* weld_output = (return_type*) weld_output_args->output;
             """
         # Marshall the output into ret_tuple ordered as in output_names.
@@ -122,6 +122,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             buffer += footer.read()
         new_function_name = "weld_llvm_caller{0}".format(file_version)
         buffer = buffer.replace("weld_llvm_caller", new_function_name)
+        buffer = buffer.replace("WELD_ENTRY_POINT", entry_point_name)
 
     new_file_name = os.path.join(willump_home, "build",
                                  "{0}{1}.cpp".format(base_filename, file_version))

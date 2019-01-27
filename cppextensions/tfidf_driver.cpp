@@ -50,7 +50,7 @@ struct WeldOutputArgs {
 	i64 errno;
 };
 
-extern "C" struct WeldOutputArgs* run(struct WeldInputArgs*);
+extern "C" struct WeldOutputArgs* WELD_ENTRY_POINT(struct WeldInputArgs*);
 extern "C" void* weld_runst_init(i32, i64);
 
 static PyObject *
@@ -85,7 +85,7 @@ caller_func(PyObject *self, PyObject* args)
     weld_input_args.memlimit = 100000000;
     weld_input_args.run_id = weld_runst_init(weld_input_args.nworkers, weld_input_args.memlimit);
 
-    WeldOutputArgs* weld_output_args = run(&weld_input_args);
+    WeldOutputArgs* weld_output_args = WELD_ENTRY_POINT(&weld_input_args);
 
     f64* idf_data = (f64*) PyArray_DATA(idf_array);
     int idf_len = PyArray_DIMS(idf_array)[0];
