@@ -101,7 +101,7 @@ class TfidfNodeTests(unittest.TestCase):
         module_name = wexec.compile_weld_program(weld_program, type_map, input_names=["input_str"],
                                                  output_names=["lowered_output_words"], aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
-        row, col, data, l, w = weld_llvm_caller.caller_func(self.input_str)
+        (row, col, data, l, w), = weld_llvm_caller.caller_func(self.input_str)
         weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
         numpy.testing.assert_almost_equal(weld_matrix, self.correct_output)
 

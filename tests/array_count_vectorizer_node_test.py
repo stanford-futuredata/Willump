@@ -35,7 +35,7 @@ class ArrayCountVectorizerNodeTests(unittest.TestCase):
         module_name = wexec.compile_weld_program(weld_program, type_map, input_names=["input_str"],
                                                  output_names=["lowered_output_words"], aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(input_str)
+        weld_output, = weld_llvm_caller.caller_func(input_str)
         numpy.testing.assert_equal(
             weld_output[0], numpy.array([0, 1, 2], dtype=numpy.int64))
         numpy.testing.assert_equal(

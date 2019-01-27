@@ -111,17 +111,15 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             return_type* weld_output = (return_type*) weld_output_args->output;
             """
         # Parse Weld outputs and return them.
-        if len(output_types) > 1:
+        buffer += \
+            """
+            PyObject* ret_tuple = PyTuple_New(%d);
+            """ % (len(output_types))
+        for i, output_type in enumerate(output_types):
             buffer += \
                 """
-                PyObject* ret_tuple = PyTuple_New(%d);
-                """ % (len(output_types))
-        for i, output_type in enumerate(output_types):
-            if len(output_types) > 1:
-                buffer += \
-                    """
-                    {
-                    """
+                {
+                """
             if isinstance(output_type, WeldPandas) or isinstance(output_type, WeldCSR):
                 buffer += "struct struct%d curr_output = weld_output->_%d;\n" % (i, i)
             else:
@@ -192,24 +190,16 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                         panic("Unrecognized struct field type %s" % str(field_type))
             else:
                 panic("Unrecognized output type %s" % str(output_type))
-            if len(output_types) > 1:
-                buffer += \
-                    """
-                    PyTuple_SetItem(ret_tuple, %d, (PyObject*) ret);
-                    }
-                    """ % i
-        if len(output_types) > 1:
             buffer += \
                 """
-                    return (PyObject*) ret_tuple;
+                PyTuple_SetItem(ret_tuple, %d, (PyObject*) ret);
                 }
-                """
-        else:
-            buffer += \
-                """
-                    return (PyObject*) ret;
-                }
-                """
+                """ % i
+        buffer += \
+            """
+                return (PyObject*) ret_tuple;
+            }
+            """
         # Footer boilerplate.
         with open(os.path.join(willump_home, "cppextensions", "weld_llvm_caller_footer.cpp"), "r") as footer:
             buffer += footer.read()

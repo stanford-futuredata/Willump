@@ -32,6 +32,6 @@ class ArrayAppendNodeTests(unittest.TestCase):
                                                  input_names=["input_vec", "input_val"],
                                                  output_names=["output"])
         weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(basic_vec, 5)
+        weld_output, = weld_llvm_caller.caller_func(basic_vec, 5)
         real_output_vec = numpy.array([1., 2., 3., 5.], dtype=numpy.float64)
         numpy.testing.assert_almost_equal(weld_output, real_output_vec)

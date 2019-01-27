@@ -28,7 +28,7 @@ class StringLowerNodeTests(unittest.TestCase):
                                     ["input_str"], [])
         module_name = wexec.compile_weld_program(weld_program, type_map, ["input_str"], ["lowered_output_words"])
         weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(input_str)
+        weld_output, = weld_llvm_caller.caller_func(input_str)
         self.assertEqual(weld_output, ["aaa", "bb", "cc"])
 
     def test_mixed_string_lower(self):
@@ -46,6 +46,6 @@ class StringLowerNodeTests(unittest.TestCase):
                                     ["input_str"], [])
         module_name = wexec.compile_weld_program(weld_program, type_map, ["input_str"], ["lowered_output_words"])
         weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(input_str)
+        weld_output, = weld_llvm_caller.caller_func(input_str)
         self.assertEqual(weld_output, ["aa,.,.a", "b,,b", "c34234c"])
 

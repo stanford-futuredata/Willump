@@ -17,7 +17,7 @@ class WeldLLVMCallerTests(unittest.TestCase):
                     "out": WeldVec(WeldDouble())}
         module_name = wexec.compile_weld_program(weld_program, type_map, ["e"], ["out"])
         weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(basic_vec)
+        weld_output, = weld_llvm_caller.caller_func(basic_vec)
         numpy.testing.assert_almost_equal(weld_output, numpy.array([2., 3., 4.]))
 
 

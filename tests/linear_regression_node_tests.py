@@ -35,6 +35,6 @@ class StringSplitNodeTests(unittest.TestCase):
         module_name = wexec.compile_weld_program(weld_program, type_map, ["input_str"], ["logit_output"],
                                                  aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(input_vec)
+        weld_output, = weld_llvm_caller.caller_func(input_vec)
         numpy.testing.assert_equal(
             weld_output, numpy.array([1, 0], dtype=numpy.int64))

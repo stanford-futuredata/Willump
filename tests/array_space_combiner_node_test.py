@@ -30,5 +30,5 @@ class ArraySpaceCombinerNodeTests(unittest.TestCase):
         module_name = wexec.compile_weld_program(weld_program, type_map, ["input_str"], ["lowered_output_words"],
                                                  aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(input_str)
+        weld_output, = weld_llvm_caller.caller_func(input_str)
         self.assertEqual(weld_output, ["catcat cat", "dogd o g dog", "elephant cat"])

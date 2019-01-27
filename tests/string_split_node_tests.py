@@ -27,7 +27,7 @@ class StringSplitNodeTests(unittest.TestCase):
                                     ["input_str"], [])
         module_name = wexec.compile_weld_program(weld_program, type_map, ["input_str"], ["lowered_output_words"])
         weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(input_str)
+        weld_output, = weld_llvm_caller.caller_func(input_str)
         self.assertEqual(weld_output, ["a", "b", "c"])
 
     def test_char_runs_string_split(self):
@@ -44,7 +44,7 @@ class StringSplitNodeTests(unittest.TestCase):
                                     ["input_str"], [])
         module_name = wexec.compile_weld_program(weld_program, type_map, ["input_str"], ["lowered_output_words"])
         weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(input_str)
+        weld_output, = weld_llvm_caller.caller_func(input_str)
         self.assertEqual(weld_output, ["cat", "dog", "house"])
 
     def test_mixed_whitespace_string_split(self):
@@ -61,5 +61,5 @@ class StringSplitNodeTests(unittest.TestCase):
                                     ["input_str"], [])
         module_name = wexec.compile_weld_program(weld_program, type_map, ["input_str"], ["lowered_output_words"])
         weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func(input_str)
+        weld_output, = weld_llvm_caller.caller_func(input_str)
         self.assertEqual(weld_output, ["c44t", "d0g", "elephant123,."])

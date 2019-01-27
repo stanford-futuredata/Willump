@@ -39,7 +39,7 @@ class HashJoinNodeTests(unittest.TestCase):
         module_name = wexec.compile_weld_program(weld_program, type_map, input_names=["input_table"],
                                                  output_names=["output"], aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func((left_table["join_column"].values,
+        weld_output, = weld_llvm_caller.caller_func((left_table["join_column"].values,
                                                     left_table["data1"].values, left_table["data2"].values))
         numpy.testing.assert_equal(
             weld_output[1], numpy.array([4, 5, 2, 5, 3], dtype=numpy.int64))
@@ -71,6 +71,6 @@ class HashJoinNodeTests(unittest.TestCase):
         module_name = wexec.compile_weld_program(weld_program, type_map, input_names=["input_table"],
                                                  output_names=["output"], aux_data=aux_data)
         weld_llvm_caller = importlib.import_module(module_name)
-        weld_output = weld_llvm_caller.caller_func((left_table["join_column"].values[0],
+        weld_output, = weld_llvm_caller.caller_func((left_table["join_column"].values[0],
                                                     left_table["data1"].values[0], left_table["data2"].values[0]))
         self.assertEqual(weld_output, (1, 4, -50, 1.2, 1.3))
