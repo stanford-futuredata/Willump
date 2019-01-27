@@ -110,91 +110,8 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             WeldOutputArgs* weld_output_args = run(&weld_input_args);
             return_type* weld_output = (return_type*) weld_output_args->output;
             """
-        # Parse Weld outputs and return them.
-        buffer += \
-            """
-            PyObject* ret_tuple = PyTuple_New(%d);
-            """ % (len(output_types))
-        for i, output_type in enumerate(output_types):
-            buffer += \
-                """
-                {
-                """
-            if isinstance(output_type, WeldPandas) or isinstance(output_type, WeldCSR):
-                buffer += "struct struct%d curr_output = weld_output->_%d;\n" % (i, i)
-            else:
-                buffer += "%s curr_output = weld_output->_%d;\n" % (wtype_to_c_type(output_type), i)
-            if isinstance(output_type, WeldVec) and isinstance(output_type.elemType, WeldStr):
-                buffer += \
-                    """
-                    PyObject* ret = PyList_New(0);
-                    for(int i = 0; i < curr_output.size; i++) {
-                        i8* str_ptr = curr_output.ptr[i].ptr;
-                        i64 str_size = curr_output.ptr[i].size;
-                        PyList_Append(ret, PyUnicode_FromStringAndSize((const char *) str_ptr, str_size));
-                    }
-                    """
-            # TODO:  Return a 2-D array instead of a list of 1-D arrays.
-            elif isinstance(output_type, WeldVec) and isinstance(output_type.elemType, WeldVec):
-                buffer += \
-                    """
-                    PyObject* ret = PyList_New(0);
-                    for(int i = 0; i < curr_output.size; i++) {
-                        %s* entry_ptr = curr_output.ptr[i].ptr;
-                        i64 entry_size = curr_output.ptr[i].size;
-                        PyArrayObject* ret_entry = 
-                            (PyArrayObject*) PyArray_SimpleNewFromData(1, &entry_size, %s, entry_ptr);
-                        PyArray_ENABLEFLAGS(ret_entry, NPY_ARRAY_OWNDATA);
-                        PyList_Append(ret, (PyObject*) ret_entry);
-                    }
-                    """ % (str(output_type.elemType.elemType), weld_type_to_numpy_macro(output_type.elemType))
-            elif isinstance(output_type, WeldVec):
-                buffer += \
-                    """
-                    PyArrayObject* ret = 
-                        (PyArrayObject*) PyArray_SimpleNewFromData(1, &curr_output.size, %s, curr_output.ptr);
-                    PyArray_ENABLEFLAGS(ret, NPY_ARRAY_OWNDATA);
-                    """ % weld_type_to_numpy_macro(output_type)
-            elif isinstance(output_type, WeldPandas) or isinstance(output_type, WeldCSR):
-                field_types = output_type.field_types
-                buffer += \
-                    """
-                    PyObject *ret = PyTuple_New(%d);
-                    PyObject* ret_entry;
-                    """ % len(field_types)
-                for inner_i, field_type in enumerate(field_types):
-                    if isinstance(field_type, WeldVec):
-                        buffer += \
-                            """
-                            ret_entry = (PyObject*) 
-                                PyArray_SimpleNewFromData(1, &curr_output._%d.size, %s, curr_output._%d.ptr);
-                            //PyArray_ENABLEFLAGS((PyArrayObject*) ret_entry, NPY_ARRAY_OWNDATA);
-                            PyTuple_SetItem(ret, %d, ret_entry);
-                            """ % (inner_i, weld_type_to_numpy_macro(field_type), inner_i, inner_i)
-                    elif wtype_is_scalar(field_type):
-                        if weld_scalar_type_fp(weld_type=field_type):
-                            buffer += \
-                                """
-                                ret_entry =
-                                    PyFloat_FromDouble(curr_output._%d);
-                                PyTuple_SetItem(ret, %d, ret_entry);
-                                """ % (inner_i, inner_i)
-                        else:
-                            buffer += \
-                                """
-                                ret_entry =
-                                    PyLong_FromLong((long) curr_output._%d);
-                                PyTuple_SetItem(ret, %d, ret_entry);
-                                """ % (inner_i, inner_i)
-                    else:
-                        panic("Unrecognized struct field type %s" % str(field_type))
-            else:
-                panic("Unrecognized output type %s" % str(output_type))
-            buffer += \
-                """
-                PyTuple_SetItem(ret_tuple, %d, (PyObject*) ret);
-                }
-                """ % i
+        # Marshall the output into ret_tuple ordered as in output_names.
+        buffer += generate_output_parser(output_types)
         buffer += \
             """
                 return (PyObject*) ret_tuple;
@@ -398,6 +315,96 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                 """.format(wtype_to_c_type(input_type), weld_input_name, i, hex(input_pointer))
         elif isinstance(input_type, WeldDict):
             buffer += "weld_input._%d = (void*) %s;\n" % (i, hex(input_pointer))
+    return buffer
+
+
+def generate_output_parser(output_types: List[WeldType]) -> str:
+    buffer = ""
+    # Parse Weld outputs and return them.
+    buffer += \
+        """
+        PyObject* ret_tuple = PyTuple_New(%d);
+        """ % (len(output_types))
+    for i, output_type in enumerate(output_types):
+        buffer += \
+            """
+            {
+            """
+        if isinstance(output_type, WeldPandas) or isinstance(output_type, WeldCSR):
+            buffer += "struct struct%d curr_output = weld_output->_%d;\n" % (i, i)
+        else:
+            buffer += "%s curr_output = weld_output->_%d;\n" % (wtype_to_c_type(output_type), i)
+        if isinstance(output_type, WeldVec) and isinstance(output_type.elemType, WeldStr):
+            buffer += \
+                """
+                PyObject* ret = PyList_New(0);
+                for(int i = 0; i < curr_output.size; i++) {
+                    i8* str_ptr = curr_output.ptr[i].ptr;
+                    i64 str_size = curr_output.ptr[i].size;
+                    PyList_Append(ret, PyUnicode_FromStringAndSize((const char *) str_ptr, str_size));
+                }
+                """
+        # TODO:  Return a 2-D array instead of a list of 1-D arrays.
+        elif isinstance(output_type, WeldVec) and isinstance(output_type.elemType, WeldVec):
+            buffer += \
+                """
+                PyObject* ret = PyList_New(0);
+                for(int i = 0; i < curr_output.size; i++) {
+                    %s* entry_ptr = curr_output.ptr[i].ptr;
+                    i64 entry_size = curr_output.ptr[i].size;
+                    PyArrayObject* ret_entry = 
+                        (PyArrayObject*) PyArray_SimpleNewFromData(1, &entry_size, %s, entry_ptr);
+                    PyArray_ENABLEFLAGS(ret_entry, NPY_ARRAY_OWNDATA);
+                    PyList_Append(ret, (PyObject*) ret_entry);
+                }
+                """ % (str(output_type.elemType.elemType), weld_type_to_numpy_macro(output_type.elemType))
+        elif isinstance(output_type, WeldVec):
+            buffer += \
+                """
+                PyArrayObject* ret = 
+                    (PyArrayObject*) PyArray_SimpleNewFromData(1, &curr_output.size, %s, curr_output.ptr);
+                PyArray_ENABLEFLAGS(ret, NPY_ARRAY_OWNDATA);
+                """ % weld_type_to_numpy_macro(output_type)
+        elif isinstance(output_type, WeldPandas) or isinstance(output_type, WeldCSR):
+            field_types = output_type.field_types
+            buffer += \
+                """
+                PyObject *ret = PyTuple_New(%d);
+                PyObject* ret_entry;
+                """ % len(field_types)
+            for inner_i, field_type in enumerate(field_types):
+                if isinstance(field_type, WeldVec):
+                    buffer += \
+                        """
+                        ret_entry = (PyObject*) 
+                            PyArray_SimpleNewFromData(1, &curr_output._%d.size, %s, curr_output._%d.ptr);
+                        //PyArray_ENABLEFLAGS((PyArrayObject*) ret_entry, NPY_ARRAY_OWNDATA);
+                        PyTuple_SetItem(ret, %d, ret_entry);
+                        """ % (inner_i, weld_type_to_numpy_macro(field_type), inner_i, inner_i)
+                elif wtype_is_scalar(field_type):
+                    if weld_scalar_type_fp(weld_type=field_type):
+                        buffer += \
+                            """
+                            ret_entry =
+                                PyFloat_FromDouble(curr_output._%d);
+                            PyTuple_SetItem(ret, %d, ret_entry);
+                            """ % (inner_i, inner_i)
+                    else:
+                        buffer += \
+                            """
+                            ret_entry =
+                                PyLong_FromLong((long) curr_output._%d);
+                            PyTuple_SetItem(ret, %d, ret_entry);
+                            """ % (inner_i, inner_i)
+                else:
+                    panic("Unrecognized struct field type %s" % str(field_type))
+        else:
+            panic("Unrecognized output type %s" % str(output_type))
+        buffer += \
+            """
+            PyTuple_SetItem(ret_tuple, %d, (PyObject*) ret);
+            }
+            """ % i
     return buffer
 
 
