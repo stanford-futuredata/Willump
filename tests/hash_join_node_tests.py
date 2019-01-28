@@ -33,7 +33,7 @@ class HashJoinNodeTests(unittest.TestCase):
                     "output": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong()),
                                           WeldVec(WeldDouble()), WeldVec(WeldDouble())],
                                          ["join_column", "data1", "data2", "metadata1", "metadata2"])}
-        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[1]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                                                                  ["input_table"], aux_data)
         module_name = wexec.compile_weld_program(weld_program, type_map, input_names=["input_table"],
@@ -65,7 +65,7 @@ class HashJoinNodeTests(unittest.TestCase):
                                               ["join_column", "data1", "data2"]),
                     "output": WeldPandas([WeldLong(), WeldLong(), WeldLong(), WeldDouble(), WeldDouble()],
                                          ["join_column", "data1", "data2", "metadata1", "metadata2"])}
-        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
+        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[1]
         weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
                                                                                  ["input_table"],  aux_data)
         module_name = wexec.compile_weld_program(weld_program, type_map, input_names=["input_table"],

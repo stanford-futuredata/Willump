@@ -213,11 +213,10 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
 
 def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_block_output_set, weld_block_node_list,
                        future_nodes, typing_map, batch) \
-        -> Tuple[Tuple[str, List[str], List[str]], List[WillumpPythonNode], List[WillumpPythonNode]]:
+        -> List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]]:
     """
-    Helper function for graph_to_weld.  Creates a Willump statement for a block of Weld code given information about
-    the code, its inputs, and its outputs.  Returns the Willump statement as well as Python code to be run before
-    and after it.
+    Helper function for graph_to_weld.  Creates Willump statements for a block of Weld code given information about
+    the code, its inputs, and its outputs.  Returns these Willump statements.
     """
     for entry in weld_block_input_set:
         weld_block_node_list.insert(0, WillumpInputNode(entry))
@@ -235,14 +234,17 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
             weld_block_output_set.remove(entry)
     # Do optimization passes over the block.
     weld_block_node_list = pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map)
-    prepend_nodes, post_process_nodes = weld_pandas_marshalling_pass(weld_block_input_set,
-                                                                     weld_block_output_set, typing_map, batch)
+    preprocess_nodes, postprocess_nodes = weld_pandas_marshalling_pass(weld_block_input_set,
+                                                                       weld_block_output_set, typing_map, batch)
     # Construct the Willump statements from the nodes.
     weld_block_node_list.append(WillumpMultiOutputNode(list(weld_block_output_set)))
     weld_str = ""
     for weld_node in weld_block_node_list:
         weld_str += weld_node.get_node_weld()
-    return (weld_str, list(weld_block_input_set), list(weld_block_output_set)), prepend_nodes, post_process_nodes
+    preprocess_python = list(map(lambda x: x.get_python(), preprocess_nodes))
+    postprocess_python = list(map(lambda x: x.get_python(), postprocess_nodes))
+    return preprocess_python + [(weld_str, list(weld_block_input_set), list(weld_block_output_set))] \
+           + postprocess_python
 
 
 def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch: bool = True) -> \
@@ -266,14 +268,11 @@ def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch
     for i, node in enumerate(sorted_nodes):
         if isinstance(node, WillumpPythonNode):
             if len(weld_block_node_list) > 0:
-                processed_block_tuple, prepend_nodes_list, append_nodes_list = \
+                processed_block_nodes = \
                     process_weld_block(weld_block_input_set, weld_block_aux_input_set,
                                        weld_block_output_set, weld_block_node_list, sorted_nodes[i:], typing_map, batch)
-                for pre_node in prepend_nodes_list:
-                    weld_python_list.append(pre_node.get_python())
-                weld_python_list.append(processed_block_tuple)
-                for post_node in append_nodes_list:
-                    weld_python_list.append(post_node.get_python())
+                for processed_node in processed_block_nodes:
+                    weld_python_list.append(processed_node)
                 weld_block_input_set = set()
                 weld_block_aux_input_set = set()
                 weld_block_output_set = set()
@@ -291,10 +290,11 @@ def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch
             weld_block_output_set.add(node.get_output_name())
             weld_block_node_list.append(node)
     if len(weld_block_node_list) > 0:
-        processed_block_tuple, _, _ = process_weld_block(weld_block_input_set, weld_block_aux_input_set,
-                                                         weld_block_output_set, weld_block_node_list,
-                                                         [sorted_nodes[-1]], typing_map, batch)
-        weld_python_list.append(processed_block_tuple)
+        processed_block_nodes = process_weld_block(weld_block_input_set, weld_block_aux_input_set,
+                                                   weld_block_output_set, weld_block_node_list,
+                                                   [sorted_nodes[-1]], typing_map, batch)
+        for processed_node in processed_block_nodes:
+            weld_python_list.append(processed_node)
     return weld_python_list
 
 
