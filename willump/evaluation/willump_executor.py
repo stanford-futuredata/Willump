@@ -26,7 +26,7 @@ version_number = 0
 
 def compile_weld_program(weld_programs: typing.Union[str, List[str]], type_map: Mapping[str, WeldType],
                          input_names: List[str],
-                         output_names: List[str],
+                         output_names: typing.Union[List[str], List[List[str]]],
                          aux_data=None, base_filename="weld_llvm_caller",
                          thread_runner_pointer=0) -> str:
     """
@@ -43,33 +43,41 @@ def compile_weld_program(weld_programs: typing.Union[str, List[str]], type_map: 
         aux_data = []
     if isinstance(weld_programs, str):
         weld_programs = [weld_programs]
+        output_names = [output_names]
+    assert(len(weld_programs) == len(output_names))
     global version_number
     # Compile the Weld program to LLVM and dump the LLVM.
     willump_home: str = os.environ["WILLUMP_HOME"]
     willump_build_dir: str = os.path.join(willump_home, "build")
-    llvm_dump_name: str = "%s_%s.ll" % (base_filename, version_number)
-    entry_point_name = "weld_run_%d" % version_number
-    llvm_dump_location = os.path.join(willump_build_dir, llvm_dump_name)
-    if os.path.isfile(llvm_dump_location):
-        os.remove(llvm_dump_location)
-    weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
-    weld_object.weld_code = weld_programs[0]
+    llvm_dump_names: List[str] = []
+    entry_point_names: List[str] = []
+    for i in range(len(weld_programs)):
+        llvm_dump_names.append("%s_%d_%d.ll" % (base_filename, version_number, i))
+        entry_point_names.append("weld_run_%d_%d" % (version_number, i))
+    llvm_dump_location_list = []
+    for llvm_dump_name in llvm_dump_names:
+        llvm_dump_location = os.path.join(willump_build_dir, llvm_dump_name)
+        if os.path.isfile(llvm_dump_location):
+            os.remove(llvm_dump_location)
+        llvm_dump_location_list.append(llvm_dump_location)
     input_types: List[WeldType] = list(map(lambda name: type_map[name], input_names))
     for (_, type_name) in aux_data:
         input_types.append(type_name)
-    weld_object.willump_dump_llvm(input_types, input_directory=willump_build_dir,
-                                  input_filename=llvm_dump_name, entry_point=entry_point_name)
-
+    for (weld_program, llvm_dump_name, entry_point_name) in zip(weld_programs, llvm_dump_names, entry_point_names):
+        weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
+        weld_object.weld_code = weld_program
+        weld_object.willump_dump_llvm(input_types, input_directory=willump_build_dir,
+                                      input_filename=llvm_dump_name, entry_point=entry_point_name)
     # Compile the LLVM to assembly and build the C++ glue code with it.
     driver_file = generate_cpp_driver(version_number, type_map, input_names, output_names,
-                                      base_filename, aux_data, thread_runner_pointer, entry_point_name)
+                                      base_filename, aux_data, thread_runner_pointer, entry_point_names)
     output_filename: str = os.path.join(willump_build_dir,
                                         "{0}{1}.so".format(base_filename, version_number))
     subprocess.run(["clang++", "-fPIC", "--shared", "-lweld", "-g", "-std=c++11", "-O3",
                     "-I{0}".format(sysconfig.get_path("include")),
                     "-I{0}".format(numpy.get_include()),
                     "-o", output_filename,
-                    driver_file, llvm_dump_location])
+                    driver_file] + llvm_dump_location_list)
     version_number += 1
     importlib.invalidate_caches()
     return "{0}{1}".format(base_filename, version_number - 1)
@@ -104,7 +112,7 @@ def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST
         else:
             weld_programs, input_names, output_names_list = entry
             module_name = compile_weld_program(weld_programs, type_map, input_names=input_names,
-                                               output_names=output_names_list[0], aux_data=aux_data,
+                                               output_names=output_names_list, aux_data=aux_data,
                                                thread_runner_pointer=thread_runner_pointer)
             module_to_import.append(module_name)
             argument_string = ""

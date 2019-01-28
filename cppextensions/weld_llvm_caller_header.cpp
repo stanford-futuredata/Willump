@@ -53,5 +53,4 @@ typedef struct weld_thread_runner {
     bool ready;
 } weld_thread_runner;
 
-extern "C" struct WeldOutputArgs* WELD_ENTRY_POINT(struct WeldInputArgs*);
 extern "C" void* weld_runst_init(i32, i64);

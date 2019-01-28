@@ -8,9 +8,9 @@ from typing import Mapping, List, Tuple
 
 
 def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
-                        input_names: List[str], output_names: List[str],
+                        input_names: List[str], output_names: List[List[str]],
                         base_filename: str, aux_data: List[Tuple[int, WeldType]],
-                        thread_runner_pointer, entry_point_name) -> str:
+                        thread_runner_pointer: int, entry_point_names: List[str]) -> str:
     """
     Generate a versioned CPP driver for a Weld program. If base_filename is not
     weld_llvm_caller, assume the driver already exists at
@@ -19,21 +19,26 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
     """
     willump_home: str = os.environ["WILLUMP_HOME"]
     if base_filename is not "weld_llvm_caller":
+        assert(len(entry_point_names) == 1)
         if base_filename is "hash_join_dataframe_indexer":
             buffer = generate_hash_join_dataframe_indexer_driver(type_map, input_names)
         else:
             with open(os.path.join(willump_home, "cppextensions", base_filename + ".cpp")) as driver:
                 buffer = driver.read()
         buffer = buffer.replace(base_filename, base_filename + str(file_version))
-        buffer = buffer.replace("WELD_ENTRY_POINT", entry_point_name)
+        buffer = buffer.replace("WELD_ENTRY_POINT", entry_point_names[0])
     else:
-        input_types: List[WeldType] = list(map(lambda name: type_map[name], input_names))
-        output_types: List[WeldType] = list(map(lambda name: type_map[name], output_names))
+        def name_typer(name): return type_map[name]
+        input_types: List[WeldType] = list(map(name_typer, input_names))
+        output_types_list: List[List[WeldType]] = list(map(lambda type_list: list(map(name_typer, type_list)), output_names))
+        num_outputs = sum(map(len, output_names))
         buffer = ""
         # Header boilerplate.
         with open(os.path.join(willump_home, "cppextensions", "weld_llvm_caller_header.cpp"), "r") as caller_header:
             buffer += caller_header.read()
         buffer += "weld_thread_runner* thread_runner = (weld_thread_runner*) %s;" % str(hex(thread_runner_pointer))
+        for weld_entry_point in entry_point_names:
+            buffer += "extern \"C\" struct WeldOutputArgs* %s(struct WeldInputArgs*);" % weld_entry_point
         # Define the Weld input struct and output struct.
         input_struct = ""
         for i, input_type in enumerate(input_types):
@@ -52,32 +57,36 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                 input_struct += "{0} _{1};\n".format(wtype_to_c_type(input_type), i)
         for (i, (_, input_type)) in enumerate(aux_data):
             input_struct += "{0} _{1};\n".format(wtype_to_c_type(input_type), i + len(input_types))
-        output_struct = ""
-        for i, output_type in enumerate(output_types):
-            if isinstance(output_type, WeldPandas) or isinstance(output_type, WeldCSR):
-                inner_struct = ""
-                for inner_i, inner_type in enumerate(output_type.field_types):
-                    inner_struct += "{0} _{1};\n".format(wtype_to_c_type(inner_type), inner_i)
-                buffer += \
-                    """
-                    struct struct%d {
-                      %s
-                    };
-                    """ % (i, inner_struct)
-                output_struct += "struct struct{0} _{1};\n".format(i, i)
-            else:
-                output_struct += "{0} _{1};\n".format(wtype_to_c_type(output_type), i)
         buffer += \
             """
             struct struct_in {
               %s
             };
             typedef struct_in input_type;
-            struct struct_out {
-             %s
-            };
-            typedef struct_out return_type;
-            """ % (input_struct, output_struct)
+            """ % input_struct
+        for output_num, output_types in enumerate(output_types_list):
+            output_struct = ""
+            for i, output_type in enumerate(output_types):
+                if isinstance(output_type, WeldPandas) or isinstance(output_type, WeldCSR):
+                    inner_struct = ""
+                    for inner_i, inner_type in enumerate(output_type.field_types):
+                        inner_struct += "{0} _{1};\n".format(wtype_to_c_type(inner_type), inner_i)
+                    buffer += \
+                        """
+                        struct weld_struct_%d_%d {
+                          %s
+                        };
+                        """ % (output_num, i, inner_struct)
+                    output_struct += "struct weld_struct_%d_%d _%d;\n" % (output_num, i, i)
+                else:
+                    output_struct += "{0} _{1};\n".format(wtype_to_c_type(output_type), i)
+            buffer += \
+                """
+                struct struct_out_%d {
+                  %s
+                };
+                typedef struct_out_%d return_type_%d;
+                """ % (output_num, output_struct, output_num, output_num)
         # Begin the Weld LLVM caller function.
         buffer += \
             """
@@ -107,11 +116,21 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                 }
             }
             WeldOutputArgs* weld_output_args = thread_runner->output;*/
-            WeldOutputArgs* weld_output_args = WELD_ENTRY_POINT(&weld_input_args);
-            return_type* weld_output = (return_type*) weld_output_args->output;
+            WeldOutputArgs* weld_output_args;
             """
+        for output_num, weld_entry_point in enumerate(entry_point_names):
+            buffer += \
+                """
+                weld_output_args = %s(&weld_input_args);
+                return_type_%d* weld_output_%d = (return_type_%d*) weld_output_args->output;
+                """ % (weld_entry_point, output_num, output_num, output_num)
         # Marshall the output into ret_tuple ordered as in output_names.
-        buffer += generate_output_parser(output_types)
+        buffer += \
+            """
+            PyObject* ret_tuple = PyTuple_New(%d);
+            """ % num_outputs
+        for output_num, output_types in enumerate(output_types_list):
+            buffer += generate_output_parser(output_num, output_types)
         buffer += \
             """
                 return (PyObject*) ret_tuple;
@@ -122,7 +141,6 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             buffer += footer.read()
         new_function_name = "weld_llvm_caller{0}".format(file_version)
         buffer = buffer.replace("weld_llvm_caller", new_function_name)
-        buffer = buffer.replace("WELD_ENTRY_POINT", entry_point_name)
 
     new_file_name = os.path.join(willump_home, "build",
                                  "{0}{1}.cpp".format(base_filename, file_version))
@@ -319,22 +337,18 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
     return buffer
 
 
-def generate_output_parser(output_types: List[WeldType]) -> str:
+def generate_output_parser(output_num: int, output_types: List[WeldType]) -> str:
     buffer = ""
     # Parse Weld outputs and return them.
-    buffer += \
-        """
-        PyObject* ret_tuple = PyTuple_New(%d);
-        """ % (len(output_types))
     for i, output_type in enumerate(output_types):
         buffer += \
             """
             {
             """
         if isinstance(output_type, WeldPandas) or isinstance(output_type, WeldCSR):
-            buffer += "struct struct%d curr_output = weld_output->_%d;\n" % (i, i)
+            buffer += "struct weld_struct_%d_%d curr_output = weld_output_%d->_%d;\n" % (output_num, i, output_num, i)
         else:
-            buffer += "%s curr_output = weld_output->_%d;\n" % (wtype_to_c_type(output_type), i)
+            buffer += "%s curr_output = weld_output_%d->_%d;\n" % (wtype_to_c_type(output_type), output_num, i)
         if isinstance(output_type, WeldVec) and isinstance(output_type.elemType, WeldStr):
             buffer += \
                 """
@@ -405,7 +419,7 @@ def generate_output_parser(output_types: List[WeldType]) -> str:
             """
             PyTuple_SetItem(ret_tuple, %d, (PyObject*) ret);
             }
-            """ % i
+            """ % (output_num + i)
     return buffer
 
 
