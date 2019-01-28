@@ -106,6 +106,8 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
         if node_is_transformable(input_node):
             if isinstance(input_node, ArrayCountVectorizerNode) or isinstance(input_node, ArrayTfIdfNode):
                 input_node.push_model("linear", (model_node.weights_data_name,), index_start)
+                # Set that node's output's new type.
+                typing_map[input_node.get_output_name()] = WeldVec(WeldDouble())
                 nodes_to_sum.append(input_node)
             elif isinstance(input_node, StackSparseNode):
                 if all(node_is_transformable(stacked_node) for stacked_node in input_node.get_in_nodes()):
@@ -158,6 +160,8 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
                     new_input_name = input_node.input_array_string_name
                 input_node.push_model("linear", (model_node.weights_data_name,), pushed_map,
                                       new_input_name)
+                # Set that node's output's new type.
+                typing_map[input_node.get_output_name()] = WeldVec(WeldDouble())
                 nodes_to_sum.append(input_node)
     if len(nodes_to_sum) > 0:
         weld_block_node_list.remove(model_node)
@@ -213,15 +217,42 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
 
 def multithreading_weld_blocks_pass(weld_block_node_list: List[WillumpGraphNode],
                                     weld_block_input_set: Set[str],
-                                    weld_block_output_set: Set[str],) \
+                                    weld_block_output_set: Set[str]) \
         -> List[typing.Union[Tuple[List[WillumpGraphNode], Set[str], Set[str]],
-                      Tuple[Set[str], List[Tuple[List[WillumpGraphNode], Set[str]]]]]]:
+                             Tuple[Set[str], List[Tuple[List[WillumpGraphNode], Set[str]]]]]]:
     """
     Identify opportunities for multithreading in the node list and parallelize them.  Return a list of sequential
     Weld blocks (Tuples of node lists, inputs, and outputs) or parallel node blocks (inputs, then a list of tuples
     of node lists and outputs).
+
+    TODO:  Only parallelizes node blocks ending in a CombineLinearRegressionNode.
+
+    TODO:  Assumes subgraphs rooted in inputs to a CombineLinearRegressionNode and in weld_block_node_list are disjoint.
     """
-    return [(weld_block_node_list, weld_block_input_set, weld_block_output_set)]
+    combine_node = weld_block_node_list[-1]
+    if not isinstance(combine_node, CombineLinearRegressionNode):
+        return [(weld_block_node_list, weld_block_input_set, weld_block_output_set)]
+    input_nodes = combine_node.get_in_nodes()
+    thread_list: List[Tuple[List[WillumpGraphNode], Set[str]]] = []
+    for model_input_node in input_nodes:
+        # The graph below model_input_node, topologically sorted.
+        sorted_nodes: List[WillumpGraphNode] = topological_sort_graph(WillumpGraph(model_input_node))
+        # Only the nodes from that graph which are in our block.
+        sorted_nodes = list(filter(lambda x: x in weld_block_node_list, sorted_nodes))
+        output_set: Set[str] = set()
+        for node in sorted_nodes:
+            output_name = node.get_output_name()
+            if output_name in weld_block_output_set or node is model_input_node:
+                output_set.add(output_name)
+        thread_list.append((sorted_nodes, output_set))
+    parallel_entry: Tuple[Set[str], List[Tuple[List[WillumpGraphNode], Set[str]]]] = (weld_block_input_set, thread_list)
+    combiner_input_names = set()
+    for model_input_node in input_nodes:
+        combiner_input_names.add(model_input_node.get_output_name())
+    combiner_output_name = {combine_node.get_output_name()}
+    sequential_entry: Tuple[List[WillumpGraphNode], Set[str], Set[str]] = ([combine_node],
+                                                                          combiner_input_names, combiner_output_name)
+    return [parallel_entry, sequential_entry]
 
 
 def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_block_output_set, weld_block_node_list,

@@ -1,5 +1,4 @@
 from willump.graph.willump_graph_node import WillumpGraphNode
-from willump.graph.willump_output_node import WillumpOutputNode
 from typing import List, Set
 
 
@@ -7,10 +6,10 @@ class WillumpGraph(object):
     """
     A Willump Graph.  Each graph represents a featurization pipeline.
     """
-    output_node: WillumpOutputNode
+    output_node: WillumpGraphNode
 
     def __init__(self,
-                 output_node: WillumpOutputNode) -> None:
+                 output_node: WillumpGraphNode) -> None:
         self.output_node = output_node
 
     def validate_graph(self) -> bool:
@@ -20,7 +19,7 @@ class WillumpGraph(object):
         """
         return True
 
-    def get_output_node(self) -> WillumpOutputNode:
+    def get_output_node(self) -> WillumpGraphNode:
         """
         Return the graph's output node.
         """
