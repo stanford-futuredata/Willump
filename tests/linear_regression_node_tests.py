@@ -29,12 +29,7 @@ class StringSplitNodeTests(unittest.TestCase):
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"input_str": WeldVec(WeldVec(WeldLong())),
                     "logit_output": WeldVec(WeldLong())}
-        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
-        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
-                                    ["input_str"], aux_data)
-        module_name = wexec.compile_weld_program(weld_program, type_map, ["input_str"], ["logit_output"],
-                                                 aux_data=aux_data)
-        weld_llvm_caller = importlib.import_module(module_name)
-        weld_output, = weld_llvm_caller.caller_func(input_vec)
+        weld_output = wexec.execute_from_basics(graph, type_map, (input_vec,), ["input_str"], ["logit_output"],
+                                                aux_data)
         numpy.testing.assert_equal(
             weld_output, numpy.array([1, 0], dtype=numpy.int64))

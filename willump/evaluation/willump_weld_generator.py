@@ -213,7 +213,7 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
 
 def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_block_output_set, weld_block_node_list,
                        future_nodes, typing_map, batch) \
-        -> List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]]:
+        -> List[typing.Union[ast.AST, Tuple[List[str], List[str], List[str]]]]:
     """
     Helper function for graph_to_weld.  Creates Willump statements for a block of Weld code given information about
     the code, its inputs, and its outputs.  Returns these Willump statements.
@@ -243,12 +243,12 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
         weld_str += weld_node.get_node_weld()
     preprocess_python = list(map(lambda x: x.get_python(), preprocess_nodes))
     postprocess_python = list(map(lambda x: x.get_python(), postprocess_nodes))
-    return preprocess_python + [(weld_str, list(weld_block_input_set), list(weld_block_output_set))] \
+    return preprocess_python + [([weld_str], list(weld_block_input_set), list(weld_block_output_set))] \
            + postprocess_python
 
 
 def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch: bool = True) -> \
-        List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]]:
+        List[typing.Union[ast.AST, Tuple[List[str], List[str], List[str]]]]:
     """
     Convert a Willump graph into a sequence of Willump statements.
 
@@ -260,7 +260,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch
     # We must first topologically sort the graph so that all of a node's inputs are computed before the node runs.
     sorted_nodes = topological_sort_graph(graph)
     sorted_nodes = push_back_python_nodes_pass(sorted_nodes)
-    weld_python_list: List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]] = []
+    weld_python_list: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[str]]]] = []
     weld_block_input_set: Set[str] = set()
     weld_block_aux_input_set: Set[str] = set()
     weld_block_output_set: Set[str] = set()

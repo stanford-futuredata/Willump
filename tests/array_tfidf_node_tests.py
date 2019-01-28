@@ -95,13 +95,9 @@ class TfidfNodeTests(unittest.TestCase):
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"input_str": WeldVec(WeldStr()),
                     "lowered_output_words": WeldCSR((WeldDouble()))}
-        weld_program, _, _ = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)[0]
-        weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
-                                                                                 ["input_str"], aux_data)
-        module_name = wexec.compile_weld_program(weld_program, type_map, input_names=["input_str"],
-                                                 output_names=["lowered_output_words"], aux_data=aux_data)
-        weld_llvm_caller = importlib.import_module(module_name)
-        (row, col, data, l, w), = weld_llvm_caller.caller_func(self.input_str)
+        (row, col, data, l, w) = wexec.execute_from_basics(graph,
+                                                type_map,
+                                                (self.input_str,), ["input_str"], ["lowered_output_words"], aux_data)
         weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
         numpy.testing.assert_almost_equal(weld_matrix, self.correct_output)
 

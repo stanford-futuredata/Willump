@@ -15,8 +15,7 @@ import willump.evaluation.willump_weld_generator
 from willump.evaluation.willump_driver_generator import generate_cpp_driver
 from willump.graph.willump_graph import WillumpGraph
 
-from typing import Callable, MutableMapping, Mapping, List, Tuple
-import typing
+from typing import Callable, MutableMapping, Mapping, List, Tuple, Union
 
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
@@ -24,7 +23,7 @@ _decoder = weld.encoders.NumpyArrayDecoder()
 version_number = 0
 
 
-def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType], input_names: List[str],
+def compile_weld_program(weld_programs: Union[str, List[str]], type_map: Mapping[str, WeldType], input_names: List[str],
                          output_names: List[str],
                          aux_data=None, base_filename="weld_llvm_caller",
                          thread_runner_pointer=0) -> str:
@@ -40,6 +39,8 @@ def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType], in
     """
     if aux_data is None:
         aux_data = []
+    if isinstance(weld_programs, str):
+        weld_programs = [weld_programs]
     global version_number
     # Compile the Weld program to LLVM and dump the LLVM.
     willump_home: str = os.environ["WILLUMP_HOME"]
@@ -50,7 +51,7 @@ def compile_weld_program(weld_program: str, type_map: Mapping[str, WeldType], in
     if os.path.isfile(llvm_dump_location):
         os.remove(llvm_dump_location)
     weld_object = weld.weldobject.WeldObject(_encoder, _decoder)
-    weld_object.weld_code = weld_program
+    weld_object.weld_code = weld_programs[0]
     input_types: List[WeldType] = list(map(lambda name: type_map[name], input_names))
     for (_, type_name) in aux_data:
         input_types.append(type_name)
@@ -76,13 +77,18 @@ willump_typing_map_set: MutableMapping[str, MutableMapping[str, WeldType]] = {}
 willump_static_vars_set: MutableMapping[str, object] = {}
 
 
-def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], List[str]]]],
+def py_weld_program_to_statements(python_weld_program: List[Union[ast.AST, Tuple[List[str], List[str], List[str]]]],
                                   aux_data: List[Tuple[int, WeldType]], type_map: MutableMapping[str, WeldType],
                                   num_threads) \
         -> Tuple[List[ast.AST], List[str]]:
-    python_weld_program = list(map(lambda x: (willump.evaluation.willump_weld_generator.set_input_names(x[0], x[1],
-                                                                                                        aux_data), x[1],
-                                              x[2]) if isinstance(x, tuple) else x, python_weld_program))
+    def set_weld_statement_input_names(x: Tuple[List[str], List[str], List[str]]):
+        weld_strings, x_input_names, x_output_names = x
+        updated_weld_strings = list(map(lambda weld_string: willump.evaluation.willump_weld_generator.set_input_names(
+            weld_string, x_input_names, aux_data), weld_strings))
+        return updated_weld_strings, x_input_names, x_output_names
+
+    python_weld_program = list(map(lambda x: set_weld_statement_input_names(x)
+    if isinstance(x, tuple) else x, python_weld_program))
     all_python_program: List[ast.AST] = []
     module_to_import = []
 
@@ -94,8 +100,8 @@ def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST
         if isinstance(entry, ast.AST):
             all_python_program.append(entry)
         else:
-            weld_program, input_names, output_names = entry
-            module_name = compile_weld_program(weld_program, type_map, input_names=input_names,
+            weld_programs, input_names, output_names = entry
+            module_name = compile_weld_program(weld_programs, type_map, input_names=input_names,
                                                output_names=output_names, aux_data=aux_data,
                                                thread_runner_pointer=thread_runner_pointer)
             module_to_import.append(module_name)
@@ -179,7 +185,7 @@ def willump_execute(batch=True, num_threads=0) -> Callable:
                     python_graph: WillumpGraph = graph_builder.get_willump_graph()
                     aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()
                     # Transform the Willump graph into blocks of Weld and Python code.  Compile the Weld blocks.
-                    python_weld_program: List[typing.Union[ast.AST, Tuple[str, List[str], str]]] = \
+                    python_weld_program: List[Union[ast.AST, Tuple[List[str], List[str], str]]] = \
                         willump.evaluation.willump_weld_generator.graph_to_weld(python_graph, willump_typing_map,
                                                                                 batch=batch)
                     python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
@@ -206,3 +212,23 @@ def willump_execute(batch=True, num_threads=0) -> Callable:
         return wrapper
 
     return willump_execute_inner
+
+
+def execute_from_basics(graph: WillumpGraph, type_map, inputs: tuple, input_names, output_names, aux_data):
+    """
+    Only for unit tests.  Used to test graph execution separately from inference.
+    """
+    w_statements = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)
+    for entry in w_statements:
+        if isinstance(entry, tuple):
+            weld_program, _, _ = entry
+            break
+    weld_program = weld_program[0]
+    weld_program = willump.evaluation.willump_weld_generator.set_input_names(weld_program,
+                                                                             input_names, aux_data)
+    module_name = compile_weld_program(weld_program, type_map=type_map,
+                                       input_names=input_names,
+                                       output_names=output_names, aux_data=aux_data)
+    weld_llvm_caller = importlib.import_module(module_name)
+    weld_output, = weld_llvm_caller.caller_func(*inputs)
+    return weld_output
