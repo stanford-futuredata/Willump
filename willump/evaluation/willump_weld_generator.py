@@ -211,17 +211,26 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
     return pandas_input_processing_nodes, pandas_post_processing_nodes
 
 
+def multithreading_weld_blocks_pass(weld_block_node_list: List[WillumpGraphNode],
+                                    weld_block_input_set: Set[str],
+                                    weld_block_output_set: Set[str],) \
+        -> List[typing.Union[Tuple[List[WillumpGraphNode], Set[str], Set[str]],
+                      Tuple[Set[str], List[Tuple[List[WillumpGraphNode], Set[str]]]]]]:
+    """
+    Identify opportunities for multithreading in the node list and parallelize them.  Return a list of sequential
+    Weld blocks (Tuples of node lists, inputs, and outputs) or parallel node blocks (inputs, then a list of tuples
+    of node lists and outputs).
+    """
+    return [(weld_block_node_list, weld_block_input_set, weld_block_output_set)]
+
+
 def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_block_output_set, weld_block_node_list,
                        future_nodes, typing_map, batch) \
-        -> List[typing.Union[ast.AST, Tuple[List[str], List[str], List[str]]]]:
+        -> List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]]:
     """
     Helper function for graph_to_weld.  Creates Willump statements for a block of Weld code given information about
     the code, its inputs, and its outputs.  Returns these Willump statements.
     """
-    for entry in weld_block_input_set:
-        weld_block_node_list.insert(0, WillumpInputNode(entry))
-    for entry in weld_block_aux_input_set:
-        weld_block_node_list.insert(0, WillumpInputNode(entry))
     # Do not emit any output that are not needed in later blocks.
     for entry in weld_block_output_set.copy():
         appears_later = False
@@ -236,19 +245,55 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
     weld_block_node_list = pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map)
     preprocess_nodes, postprocess_nodes = weld_pandas_marshalling_pass(weld_block_input_set,
                                                                        weld_block_output_set, typing_map, batch)
-    # Construct the Willump statements from the nodes.
-    weld_block_node_list.append(WillumpMultiOutputNode(list(weld_block_output_set)))
-    weld_str = ""
-    for weld_node in weld_block_node_list:
-        weld_str += weld_node.get_node_weld()
+    # Split Weld blocks into multiple threads.
+    threaded_statements_list = \
+        multithreading_weld_blocks_pass(weld_block_node_list, weld_block_input_set, weld_block_output_set)
+    # Append appropriate input and output nodes to each node list.
+    for multithreaded_entry in threaded_statements_list:
+        if len(multithreaded_entry) == 2:
+            input_set, thread_list = multithreaded_entry
+            for thread_entry in thread_list:
+                weld_block_nodes, output_set = thread_entry
+                for entry in input_set:
+                    weld_block_nodes.insert(0, WillumpInputNode(entry))
+                for entry in weld_block_aux_input_set:
+                    weld_block_nodes.insert(0, WillumpInputNode(entry))
+                weld_block_nodes.append(WillumpMultiOutputNode(list(output_set)))
+        else:
+            weld_block_nodes, input_set, output_set = multithreaded_entry
+            for entry in input_set:
+                weld_block_nodes.insert(0, WillumpInputNode(entry))
+            for entry in weld_block_aux_input_set:
+                weld_block_nodes.insert(0, WillumpInputNode(entry))
+            weld_block_nodes.append(WillumpMultiOutputNode(list(output_set)))
+    # Construct the statement list from the nodes.
+    weld_string_nodes: List[Tuple[List[str], List[str], List[List[str]]]] = []
+    for multithreaded_entry in threaded_statements_list:
+        if len(multithreaded_entry) == 2:
+            input_set, thread_list = multithreaded_entry
+            weld_strings = []
+            output_sets = []
+            for thread_entry in thread_list:
+                weld_block_nodes, output_set = thread_entry
+                weld_str: str = ""
+                for weld_node in weld_block_nodes:
+                    weld_str += weld_node.get_node_weld()
+                weld_strings.append(weld_str)
+                output_sets.append(output_set)
+            weld_string_nodes.append((weld_strings, list(input_set), output_sets))
+        else:
+            weld_block_nodes, input_set, output_set = multithreaded_entry
+            weld_str: str = ""
+            for weld_node in weld_block_nodes:
+                weld_str += weld_node.get_node_weld()
+            weld_string_nodes.append(([weld_str], list(input_set), [list(output_set)]))
     preprocess_python = list(map(lambda x: x.get_python(), preprocess_nodes))
     postprocess_python = list(map(lambda x: x.get_python(), postprocess_nodes))
-    return preprocess_python + [([weld_str], list(weld_block_input_set), list(weld_block_output_set))] \
-           + postprocess_python
+    return preprocess_python + weld_string_nodes + postprocess_python
 
 
 def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch: bool = True) -> \
-        List[typing.Union[ast.AST, Tuple[List[str], List[str], List[str]]]]:
+        List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]]:
     """
     Convert a Willump graph into a sequence of Willump statements.
 
