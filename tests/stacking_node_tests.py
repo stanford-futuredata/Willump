@@ -31,7 +31,7 @@ model.intercept_ = numpy.array([0.2], dtype=numpy.float64)
 model.classes_ = numpy.array([0, 1], dtype=numpy.int64)
 
 
-@wexec.willump_execute(num_threads=1)
+@wexec.willump_execute(num_workers=1)
 def stack_sparse_then_linear_regression(array_one, array_two, input_vect):
     transformed_result_one = input_vect.transform(array_one)
     transformed_result_two = input_vect.transform(array_two)
@@ -54,7 +54,7 @@ def stack_sparse_tfidf(array_one, array_two, input_vect, tf_idf_vect):
     return combined_result
 
 
-@wexec.willump_execute(num_threads=1)
+@wexec.willump_execute(num_workers=1)
 def stack_sparse_then_linear_regression_tfidf(array_one, array_two, input_vect, tf_idf_vect):
     transformed_result_one = input_vect.transform(array_one)
     transformed_result_two = tf_idf_vect.transform(array_two)

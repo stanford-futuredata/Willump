@@ -89,7 +89,7 @@ willump_static_vars_set: MutableMapping[str, object] = {}
 
 def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]],
                                   aux_data: List[Tuple[int, WeldType]], type_map: MutableMapping[str, WeldType],
-                                  num_threads) \
+                                  num_workers) \
         -> Tuple[List[ast.AST], List[str]]:
     def set_weld_statement_input_names(x: Tuple[List[str], List[str], List[List[str]]]):
         weld_strings, x_input_names, x_output_names = x
@@ -102,15 +102,15 @@ def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST
     all_python_program: List[ast.AST] = []
     module_to_import = []
 
-    # Make sure no entry was given more parallel jobs than we have threads.
+    # Make sure no entry was given more parallel jobs than we have threads (including main thread).
     for entry in python_weld_program:
         if isinstance(entry, tuple):
             weld_programs, _, _ = entry
-            assert(num_threads + 1 >= len(weld_programs))
+            assert(num_workers + 1 >= len(weld_programs))
     # Create the thread pool.
     module_name = compile_weld_program("true", {}, [], [], base_filename="thread_pool_creator")
     thread_pool_creator = importlib.import_module(module_name)
-    thread_runner_pointer = thread_pool_creator.caller_func(num_threads)
+    thread_runner_pointer = thread_pool_creator.caller_func(num_workers)
 
     for entry in python_weld_program:
         if isinstance(entry, ast.AST):
@@ -144,7 +144,7 @@ def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
     return new_functiondef
 
 
-def willump_execute(batch=True, num_threads=0) -> Callable:
+def willump_execute(batch=True, num_workers=0) -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
 
@@ -208,7 +208,7 @@ def willump_execute(batch=True, num_threads=0) -> Callable:
                     python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
                                                                                              aux_data,
                                                                                              willump_typing_map,
-                                                                                             num_threads=num_threads)
+                                                                                             num_workers=num_workers)
                     compiled_functiondef = py_weld_statements_to_ast(python_statement_list, python_ast)
                     augmented_globals = copy.copy(func.__globals__)
                     # Import all of the compiled Weld blocks called from the transformed function.

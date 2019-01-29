@@ -38,7 +38,7 @@ def load_combi_prep(folder='data_new/', split=None):
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
 
 
-@willump.evaluation.willump_executor.willump_execute(batch=True, num_threads=1)
+@willump.evaluation.willump_executor.willump_execute(batch=True, num_workers=1)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two):
     one_combi = combi.merge(features_one, how='left', on=join_col_one)
     two_combi = one_combi.merge(features_two, how='left', on=join_col_two)
