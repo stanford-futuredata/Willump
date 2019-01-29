@@ -130,8 +130,9 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
                     current_node_stack.append((selection_input, (index_start, index_end), selection_map))
                     weld_block_node_list.remove(input_node)
                 else:
-                    # TODO:  Push directly onto the selection node.
-                    panic("Pushing onto selection node not implemented")
+                    input_node.push_model("linear", (model_node.weights_data_name,), selection_map)
+                    typing_map[input_node.get_output_name()] = WeldVec(WeldDouble())
+                    nodes_to_sum.append(input_node)
             elif isinstance(input_node, WillumpHashJoinNode):
                 join_left_columns = input_node.left_df_type.column_names
                 join_right_columns = input_node.right_df_type.column_names
@@ -296,7 +297,7 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
                                                                        weld_block_output_set, typing_map, batch)
     # Split Weld blocks into multiple threads.
     num_threads = num_workers + 1  # The main thread also does work.
-    if True:
+    if num_threads > 1:
         threaded_statements_list = \
             multithreading_weld_blocks_pass(weld_block_node_list,
                                             weld_block_input_set, weld_block_output_set, num_threads)

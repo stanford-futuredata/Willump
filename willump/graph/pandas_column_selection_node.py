@@ -2,7 +2,7 @@ from willump.graph.willump_graph_node import WillumpGraphNode
 
 from weld.types import *
 
-from typing import List
+from typing import List, Tuple, Mapping
 
 
 class PandasColumnSelectionNode(WillumpGraphNode):
@@ -21,6 +21,9 @@ class PandasColumnSelectionNode(WillumpGraphNode):
         self._input_nodes = [input_node]
         self._input_type = input_type
         self.selected_columns = selected_columns
+        self._model_type = None
+        self._model_parameters = None
+        self._model_index_map = None
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
@@ -28,13 +31,39 @@ class PandasColumnSelectionNode(WillumpGraphNode):
     def get_node_type(self) -> str:
         return "array count vectorizer"
 
+    def push_model(self, model_type: str, model_parameters: Tuple, model_index_map: Mapping[str, int]):
+        self._model_type = model_type
+        self._model_parameters = model_parameters
+        self._model_index_map = model_index_map
+
     def get_node_weld(self) -> str:
         assert(isinstance(self._input_type, WeldPandas))
-        selection_string = ""
-        input_columns = self._input_type.column_names
-        for column in self.selected_columns:
-            selection_string += "INPUT_NAME.$%d," % input_columns.index(column)
-        weld_program = "let OUTPUT_NAME = {%s};" % selection_string
+        if self._model_type is None:
+            selection_string = ""
+            input_columns = self._input_type.column_names
+            for column in self.selected_columns:
+                selection_string += "INPUT_NAME.$%d," % input_columns.index(column)
+            weld_program = "let OUTPUT_NAME = {%s};" % selection_string
+        else:
+            # TODO:  Handle unbatched case.
+            assert(self._model_type == "linear")
+            weights_name, = self._model_parameters
+            sum_string = ""
+            input_columns = self._input_type.column_names
+            for column in self.selected_columns:
+                sum_string += "lookup(WEIGHTS_NAME, %dL) * f64(lookup(INPUT_NAME.$%d, result_i))+" % (self._model_index_map[column], input_columns.index(column))
+            sum_string = sum_string[:-1]
+            weld_program = \
+                """
+                let OUTPUT_NAME: vec[f64] = result(for(rangeiter(0L, len(INPUT_NAME.$0), 1L),
+                    appender[f64],
+                    | results: appender[f64], iter_num: i64, result_i: i64 |
+                        let sum: f64 = SUM_STRING;
+                        merge(results, sum)
+                ));
+                """
+            weld_program = weld_program.replace("SUM_STRING", sum_string)
+            weld_program = weld_program.replace("WEIGHTS_NAME", weights_name)
         weld_program = weld_program.replace("INPUT_NAME", self._input_array_string_name)
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         return weld_program
