@@ -96,34 +96,47 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
         # Generate the input parser
         buffer += generate_input_parser(input_types, aux_data)
         # Create the input arguments and run Weld.
-        buffer += \
-            """    
-            struct WeldInputArgs weld_input_args;
-            weld_input_args.input = &weld_input;
-            weld_input_args.nworkers = 1;
-            weld_input_args.memlimit = 10000000000;
-            weld_input_args.run_id = weld_runst_init(weld_input_args.nworkers, weld_input_args.memlimit);
-            
-            /*thread_runner->run_function = WELD_ENTRY_POINT;
-            thread_runner->argument = &weld_input_args;
-            thread_runner->done = false;
-            thread_runner->ready = true;
-            //printf("Driver Thread CPU ID %d\\n", sched_getcpu());
-            while(1) {
-                atomic_thread_fence(memory_order_acquire);
-                if(thread_runner->done) {
-                    break;
-                }
-            }
-            WeldOutputArgs* weld_output_args = thread_runner->output;*/
-            WeldOutputArgs* weld_output_args;
-            """
-        for output_num, weld_entry_point in enumerate(entry_point_names):
+        for i in range(len(entry_point_names)):
+            buffer += \
+                """    
+                struct WeldInputArgs weld_input_args_{0};
+                weld_input_args_{0}.input = &weld_input;
+                weld_input_args_{0}.nworkers = 1;
+                weld_input_args_{0}.memlimit = 10000000000;
+                weld_input_args_{0}.run_id = weld_runst_init(weld_input_args_{0}.nworkers, weld_input_args_{0}.memlimit);
+                """.format(i)
+        buffer += "WeldOutputArgs* weld_output_args;"
+        for output_num in range(len(entry_point_names)):
             buffer += \
                 """
-                weld_output_args = %s(&weld_input_args);
-                return_type_%d* weld_output_%d = (return_type_%d*) weld_output_args->output;
-                """ % (weld_entry_point, output_num, output_num, output_num)
+                return_type_%d* weld_output_%d;
+                """ % (output_num, output_num)
+        if len(entry_point_names) > 1:
+            assert(len(entry_point_names) == 2)  # TODO:  Fix this
+            buffer += \
+                """
+                thread_runner->run_function = %s;
+                thread_runner->argument = &weld_input_args_%d;
+                thread_runner->done = false;
+                thread_runner->ready = true;
+                """ % (entry_point_names[1], 1)
+        buffer += \
+            """
+            weld_output_args = %s(&weld_input_args_%d);
+            weld_output_%d = (return_type_%d*) weld_output_args->output;
+            """ % (entry_point_names[0], 0, 0, 0)
+        if len(entry_point_names) > 1:
+            buffer += \
+                """
+                while(1) {
+                    atomic_thread_fence(memory_order_acquire);
+                    if(thread_runner->done) {
+                        break;
+                    }
+                }
+                weld_output_args = thread_runner->output;
+                weld_output_%d = (return_type_%d*) weld_output_args->output;
+                """ % (1, 1)
         # Marshall the output into ret_tuple ordered as in output_names.
         buffer += \
             """
