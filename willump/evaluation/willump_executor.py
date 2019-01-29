@@ -1,6 +1,5 @@
 import ast
 import numpy
-import os
 import subprocess
 import importlib
 import sysconfig
@@ -14,8 +13,10 @@ import weld.encoders
 import willump.evaluation.willump_weld_generator
 from willump.evaluation.willump_driver_generator import generate_cpp_driver
 from willump.graph.willump_graph import WillumpGraph
+from willump import *
 
-from typing import Callable, MutableMapping, Mapping, List, Tuple, Union
+from typing import Callable, MutableMapping, Mapping, List, Tuple
+import concurrent.futures
 import typing
 
 _encoder = weld.encoders.NumpyArrayEncoder()
@@ -144,7 +145,7 @@ def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
     return new_functiondef
 
 
-def willump_execute(batch=True, num_workers=0) -> Callable:
+def willump_execute(batch=True, num_workers=0, async_funcs=()) -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
 
@@ -197,7 +198,7 @@ def willump_execute(batch=True, num_workers=0) -> Callable:
                     python_source = inspect.getsource(func)
                     python_ast: ast.Module = ast.parse(python_source)
                     function_name: str = python_ast.body[0].name
-                    graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars, batch=batch)
+                    graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars, async_funcs, batch)
                     graph_builder.visit(python_ast)
                     python_graph: WillumpGraph = graph_builder.get_willump_graph()
                     aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()
@@ -216,6 +217,9 @@ def willump_execute(batch=True, num_workers=0) -> Callable:
                         augmented_globals[module] = importlib.import_module(module)
                     # TODO:  Remove this once in-Weld whitespace consolidation works.
                     augmented_globals["re"] = importlib.import_module("re")
+                    if len(async_funcs) > 0:
+                        augmented_globals[WILLUMP_THREAD_POOL_EXECUTOR] =\
+                            concurrent.futures.ThreadPoolExecutor(max_workers=5)
                     local_namespace = {}
                     # Call the transformed function with its original arguments.
                     exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), augmented_globals,

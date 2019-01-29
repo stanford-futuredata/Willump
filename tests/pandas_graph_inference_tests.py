@@ -3,6 +3,7 @@ import numpy
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer
 import sklearn.linear_model
+import time
 
 import willump.evaluation.willump_executor as wexec
 
@@ -106,6 +107,24 @@ def sample_column_select(df):
     return data_df
 
 
+def first():
+    time.sleep(0.1)
+    return 1
+
+
+def second():
+    time.sleep(0.1)
+    return 2
+
+
+@wexec.willump_execute(async_funcs=["first", "second"])
+def sample_async_funcs(three):
+    one = first()
+    two = second()
+    six = one + two + three
+    return six
+
+
 class PandasGraphInferenceTests(unittest.TestCase):
     def test_unpacked_pandas(self):
         print("\ntest_unpacked_pandas")
@@ -205,3 +224,14 @@ class PandasGraphInferenceTests(unittest.TestCase):
         numpy.testing.assert_equal(
             weld_output["data1"].values, numpy.array([4, 5, 2, 5, 3], dtype=numpy.int64))
         self.assertEqual(len(weld_output.columns), 2)
+
+    def test_async_funcs(self):
+        print("\ntest_async_funcs")
+        sample_async_funcs(3)
+        sample_async_funcs(3)
+        start = time.time()
+        weld_output = sample_async_funcs(3)
+        end = time.time()
+        time_elapsed = end - start
+        self.assertLess(time_elapsed, 0.2)
+        self.assertEqual(weld_output, 6)

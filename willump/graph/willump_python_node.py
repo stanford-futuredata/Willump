@@ -10,14 +10,14 @@ class WillumpPythonNode(WillumpGraphNode):
 
     TODO:  Can also have any number of outputs.
     """
-    _arg_name: str
-    _in_nodes: List[WillumpGraphNode]
-    _python_ast: ast.AST
+    is_async_node: bool
 
-    def __init__(self, python_ast: ast.AST, arg_name: str, in_nodes: List[WillumpGraphNode]) -> None:
+    def __init__(self, python_ast: ast.AST, arg_name: str, in_nodes: List[WillumpGraphNode],
+                 is_async_node: bool = False) -> None:
         self._arg_name = arg_name
         self._in_nodes = in_nodes
         self._python_ast = python_ast
+        self.is_async_node = is_async_node
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._in_nodes

@@ -47,9 +47,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     aux_data: List[Tuple[int, WeldType]]
     # Temporary variable counter
     _temp_var_counter: int
+    # Asynchronous Python functions to execute on parallel threads if possible.
+    _async_funcs: List[str]
 
     def __init__(self, type_map: MutableMapping[str, WeldType],
-                 static_vars: Mapping[str, object], batch=True) -> None:
+                 static_vars: Mapping[str, object], async_funcs: List[str], batch: bool) -> None:
         self._node_dict = {}
         self._type_map = type_map
         self._static_vars = static_vars
@@ -57,6 +59,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         self.aux_data = []
         self._temp_var_counter = 0
         self.batch = batch
+        self._async_funcs = async_funcs
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """
@@ -268,9 +271,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 output_type = self._type_map[output_var_name]
                 stack_sparse_node = StackSparseNode(input_nodes, output_var_name, output_type)
                 return output_var_name, stack_sparse_node
-            # TODO:  What to do with these?
-            elif "reshape" in called_function:
-                return output_var_name, None
+            elif called_function in self._async_funcs:
+                return self._create_py_node(node, is_async_func=True)
             else:
                 return self._create_py_node(node)
         else:
@@ -294,7 +296,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         else:
             panic("Unrecognized return: {0}".format(ast.dump(node)))
 
-    def _create_py_node(self, entry: ast.AST) -> Tuple[str, WillumpGraphNode]:
+    def _create_py_node(self, entry: ast.AST, is_async_func=False) -> Tuple[str, WillumpGraphNode]:
         entry_analyzer = ExpressionVariableAnalyzer()
         entry_analyzer.visit(entry)
         input_list, output_list = entry_analyzer.get_in_out_list()
@@ -304,7 +306,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         for input_var in input_list:
             if input_var in self._node_dict:
                 input_node_list.append(self._node_dict[input_var])
-        willump_python_node: WillumpPythonNode = WillumpPythonNode(entry, output_var_name, input_node_list)
+        willump_python_node: WillumpPythonNode = WillumpPythonNode(entry,
+                                                                   output_var_name, input_node_list, is_async_func)
         return output_var_name, willump_python_node
 
     def _create_temp_var_from_node(self, entry: ast.expr, entry_type: WeldType) -> Tuple[str, WillumpGraphNode]:

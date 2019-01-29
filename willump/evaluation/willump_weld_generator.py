@@ -4,7 +4,7 @@ import ast
 import copy
 
 from weld.types import *
-from willump import panic
+from willump import *
 
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
@@ -252,7 +252,7 @@ def multithreading_weld_blocks_pass(weld_block_node_list: List[WillumpGraphNode]
         thread_list_length = len(thread_list)  # To avoid Python weirdness.
         thread_list_index = 0
         while thread_list_length > num_threads:
-            assert(thread_list_index < thread_list_length)
+            assert (thread_list_index < thread_list_length)
             graph_nodes_one, outputs_one = thread_list[thread_list_index]
             graph_nodes_two, outputs_two = thread_list[(thread_list_index + 1) % thread_list_length]
             graph_nodes_comb = graph_nodes_one + graph_nodes_two
@@ -270,8 +270,87 @@ def multithreading_weld_blocks_pass(weld_block_node_list: List[WillumpGraphNode]
         combiner_input_names.add(model_input_node.get_output_name())
     combiner_output_name = {combine_node.get_output_name()}
     sequential_entry: Tuple[List[WillumpGraphNode], Set[str], Set[str]] = ([combine_node],
-                                                                          combiner_input_names, combiner_output_name)
+                                                                           combiner_input_names, combiner_output_name)
     return [parallel_entry, sequential_entry]
+
+
+def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
+        -> List[WillumpGraphNode]:
+    """
+    Run all asynchronous Python nodes in separate threads.
+    """
+    def find_pyblock_after_n(n: int) -> Optional[Tuple[int, int]]:
+        start_index = None
+        end_index = None
+        for i, statement in enumerate(sorted_nodes):
+            if i > n and isinstance(statement, WillumpPythonNode):
+                start_index = i
+                break
+        if start_index is None:
+            return None
+        for i, statement in enumerate(sorted_nodes):
+            if i > start_index and not isinstance(statement, WillumpPythonNode):
+                end_index = i
+                break
+        if end_index is None:
+            end_index = len(sorted_nodes)
+        return start_index, end_index
+    pyblock_start_end = find_pyblock_after_n(-1)
+    while pyblock_start_end is not None:
+        pyblock_start, pyblock_end = pyblock_start_end
+        pyblock: List[WillumpPythonNode] = sorted_nodes[pyblock_start:pyblock_end]
+        async_nodes = []
+        for node in pyblock:
+            if node.is_async_node:
+                async_nodes.append(node)
+        for async_node in async_nodes:
+            async_node_index = pyblock.index(async_node)
+            input_names: List[str] = list(map(lambda x: x.get_output_name(), async_node.get_in_nodes()))
+            first_legal_index: int = async_node_index
+            for j in range(async_node_index - 1, 0 - 1, -1):
+                if pyblock[j].get_output_name() in input_names:
+                    break
+                else:
+                    first_legal_index = j
+            pyblock.remove(async_node)
+            async_node_ast: ast.Assign = async_node.get_python()
+            assert(isinstance(async_node_ast.value, ast.Call))
+            assert(isinstance(async_node_ast.value.func, ast.Name))
+            # output = executor.submit(original func names, original func args...)
+            new_call = ast.Call()
+            new_call.keywords = []
+            new_call.func = ast.Attribute()
+            new_call.func.attr = "submit"
+            new_call.func.ctx = ast.Load()
+            new_call.func.value = ast.Name()
+            new_call.func.value.id = WILLUMP_THREAD_POOL_EXECUTOR
+            new_call.func.value.ctx = ast.Load()
+            new_args = async_node_ast.value.args
+            new_first_arg = ast.Name()
+            new_first_arg.id = async_node_ast.value.func.id
+            new_first_arg.ctx = ast.Load()
+            new_args.insert(0, new_first_arg)
+            new_call.args = new_args
+            async_node_ast.value = new_call
+            executor_async_node = WillumpPythonNode(async_node_ast, async_node.get_output_name(), async_node.get_in_nodes())
+            pyblock.insert(first_legal_index, executor_async_node)
+            last_legal_index = first_legal_index + 1
+            for j in range(first_legal_index + 1, len(pyblock)):
+                curr_node = pyblock[j]
+                node_inputs = list(map(lambda x: x.get_output_name(), curr_node.get_in_nodes()))
+                if async_node.get_output_name() in node_inputs:
+                    break
+                else:
+                    last_legal_index = j
+            result_python = "%s = %s.result()" % (async_node.get_output_name(), async_node.get_output_name())
+            result_ast: ast.Module = \
+                ast.parse(result_python, "exec")
+            pandas_input_node = WillumpPythonNode(result_ast.body[0], async_node.get_output_name(), [executor_async_node])
+            pyblock.insert(last_legal_index, pandas_input_node)
+        sorted_nodes = sorted_nodes[:pyblock_start] + pyblock + sorted_nodes[pyblock_end:]
+        pyblock_start_end = find_pyblock_after_n(pyblock_end)
+
+    return sorted_nodes
 
 
 def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_block_output_set, weld_block_node_list,
@@ -360,6 +439,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch
     # We must first topologically sort the graph so that all of a node's inputs are computed before the node runs.
     sorted_nodes = topological_sort_graph(graph)
     sorted_nodes = push_back_python_nodes_pass(sorted_nodes)
+    sorted_nodes = async_python_functions_parallel_pass(sorted_nodes)
     weld_python_list: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[str]]]] = []
     weld_block_input_set: Set[str] = set()
     weld_block_aux_input_set: Set[str] = set()
