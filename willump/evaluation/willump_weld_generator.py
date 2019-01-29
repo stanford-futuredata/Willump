@@ -277,8 +277,11 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
     preprocess_nodes, postprocess_nodes = weld_pandas_marshalling_pass(weld_block_input_set,
                                                                        weld_block_output_set, typing_map, batch)
     # Split Weld blocks into multiple threads.
-    threaded_statements_list = \
-        multithreading_weld_blocks_pass(weld_block_node_list, weld_block_input_set, weld_block_output_set)
+    if True:
+        threaded_statements_list = \
+            multithreading_weld_blocks_pass(weld_block_node_list, weld_block_input_set, weld_block_output_set)
+    else:
+        threaded_statements_list = [(weld_block_node_list, weld_block_input_set, weld_block_output_set)]
     # Append appropriate input and output nodes to each node list.
     for multithreaded_entry in threaded_statements_list:
         if len(multithreaded_entry) == 2:
