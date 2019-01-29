@@ -16,6 +16,9 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
     weld_llvm_caller, assume the driver already exists at
     WILLUMP_HOME/cppextensions/base_filename.cpp.  Otherwise, generate a driver using the
     Weld inputs and outputs in type_map.
+
+    Assumes that the number of worker threads in the thread pool pointed to by thread_runner_pointer is at least one
+    less than the number of Weld programs pointed to in entry_point_names (the main thread also does work).
     """
     willump_home: str = os.environ["WILLUMP_HOME"]
     if base_filename is not "weld_llvm_caller":
@@ -111,32 +114,34 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
                 """
                 return_type_%d* weld_output_%d;
                 """ % (output_num, output_num)
-        if len(entry_point_names) > 1:
-            assert(len(entry_point_names) == 2)  # TODO:  Fix this
+        # Start all the worker threads, if necessary.  Note that the second job is run by the first worker thread.
+        for output_num in range(1, len(entry_point_names)):
             buffer += \
                 """
-                thread_runner->run_function = %s;
-                thread_runner->argument = &weld_input_args_%d;
-                thread_runner->done = false;
-                thread_runner->ready = true;
-                """ % (entry_point_names[1], 1)
+                thread_runner[{0}].run_function = {1};
+                thread_runner[{0}].argument = &weld_input_args_{2};
+                thread_runner[{0}].done = false;
+                thread_runner[{0}].ready = true;
+                """.format(output_num - 1, entry_point_names[output_num], output_num)
+        # Start computation on the main thread.
         buffer += \
             """
             weld_output_args = %s(&weld_input_args_%d);
             weld_output_%d = (return_type_%d*) weld_output_args->output;
             """ % (entry_point_names[0], 0, 0, 0)
-        if len(entry_point_names) > 1:
+        # Wait for the workers to terminate, collect their output.  As before, second job is run by first worker.
+        for output_num in range(1, len(entry_point_names)):
             buffer += \
                 """
                 while(1) {
                     atomic_thread_fence(memory_order_acquire);
-                    if(thread_runner->done) {
+                    if(thread_runner[%d].done) {
                         break;
                     }
                 }
-                weld_output_args = thread_runner->output;
+                weld_output_args = thread_runner[%d].output;
                 weld_output_%d = (return_type_%d*) weld_output_args->output;
-                """ % (1, 1)
+                """ % (output_num - 1, output_num - 1, output_num, output_num)
         # Marshall the output into ret_tuple ordered as in output_names.
         buffer += \
             """

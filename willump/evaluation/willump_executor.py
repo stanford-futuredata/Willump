@@ -102,6 +102,12 @@ def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST
     all_python_program: List[ast.AST] = []
     module_to_import = []
 
+    # Make sure no entry was given more parallel jobs than we have threads.
+    for entry in python_weld_program:
+        if isinstance(entry, tuple):
+            weld_programs, _, _ = entry
+            assert(num_threads + 1 >= len(weld_programs))
+    # Create the thread pool.
     module_name = compile_weld_program("true", {}, [], [], base_filename="thread_pool_creator")
     thread_pool_creator = importlib.import_module(module_name)
     thread_runner_pointer = thread_pool_creator.caller_func(num_threads)
