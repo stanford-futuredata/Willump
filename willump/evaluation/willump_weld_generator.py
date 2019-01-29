@@ -217,7 +217,8 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
 
 def multithreading_weld_blocks_pass(weld_block_node_list: List[WillumpGraphNode],
                                     weld_block_input_set: Set[str],
-                                    weld_block_output_set: Set[str]) \
+                                    weld_block_output_set: Set[str],
+                                    num_threads: int) \
         -> List[typing.Union[Tuple[List[WillumpGraphNode], Set[str], Set[str]],
                              Tuple[Set[str], List[Tuple[List[WillumpGraphNode], Set[str]]]]]]:
     """
@@ -245,6 +246,23 @@ def multithreading_weld_blocks_pass(weld_block_node_list: List[WillumpGraphNode]
             if output_name in weld_block_output_set or node is model_input_node:
                 output_set.add(output_name)
         thread_list.append((sorted_nodes, output_set))
+    # Coalesce if more jobs than threads.
+    if len(thread_list) > num_threads:
+        thread_list_length = len(thread_list)  # To avoid Python weirdness.
+        thread_list_index = 0
+        while thread_list_length > num_threads:
+            assert(thread_list_index < thread_list_length)
+            graph_nodes_one, outputs_one = thread_list[thread_list_index]
+            graph_nodes_two, outputs_two = thread_list[(thread_list_index + 1) % thread_list_length]
+            graph_nodes_comb = graph_nodes_one + graph_nodes_two
+            outputs_comb = outputs_one.union(outputs_two)
+            new_entry: List[Tuple[List[WillumpGraphNode], Set[str]]] = [(graph_nodes_comb, outputs_comb)]
+            if (thread_list_index + 1) % thread_list_length != 0:
+                thread_list = thread_list[0:thread_list_index] + new_entry + thread_list[thread_list_index + 2:]
+            else:
+                thread_list = new_entry + thread_list[1:-1]
+            thread_list_length -= 1
+            thread_list_index = (thread_list_index + 1) % thread_list_length
     parallel_entry: Tuple[Set[str], List[Tuple[List[WillumpGraphNode], Set[str]]]] = (weld_block_input_set, thread_list)
     combiner_input_names = set()
     for model_input_node in input_nodes:
@@ -256,7 +274,7 @@ def multithreading_weld_blocks_pass(weld_block_node_list: List[WillumpGraphNode]
 
 
 def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_block_output_set, weld_block_node_list,
-                       future_nodes, typing_map, batch) \
+                       future_nodes, typing_map, batch, num_workers) \
         -> List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]]:
     """
     Helper function for graph_to_weld.  Creates Willump statements for a block of Weld code given information about
@@ -277,9 +295,11 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
     preprocess_nodes, postprocess_nodes = weld_pandas_marshalling_pass(weld_block_input_set,
                                                                        weld_block_output_set, typing_map, batch)
     # Split Weld blocks into multiple threads.
+    num_threads = num_workers + 1  # The main thread also does work.
     if True:
         threaded_statements_list = \
-            multithreading_weld_blocks_pass(weld_block_node_list, weld_block_input_set, weld_block_output_set)
+            multithreading_weld_blocks_pass(weld_block_node_list,
+                                            weld_block_input_set, weld_block_output_set, num_threads)
     else:
         threaded_statements_list = [(weld_block_node_list, weld_block_input_set, weld_block_output_set)]
     # Append appropriate input and output nodes to each node list.
@@ -326,7 +346,7 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
     return preprocess_python + weld_string_nodes + postprocess_python
 
 
-def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch: bool = True) -> \
+def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch: bool = True, num_workers=0) -> \
         List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]]:
     """
     Convert a Willump graph into a sequence of Willump statements.
@@ -348,8 +368,8 @@ def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch
         if isinstance(node, WillumpPythonNode):
             if len(weld_block_node_list) > 0:
                 processed_block_nodes = \
-                    process_weld_block(weld_block_input_set, weld_block_aux_input_set,
-                                       weld_block_output_set, weld_block_node_list, sorted_nodes[i:], typing_map, batch)
+                    process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_block_output_set,
+                                       weld_block_node_list, sorted_nodes[i:], typing_map, batch, num_workers)
                 for processed_node in processed_block_nodes:
                     weld_python_list.append(processed_node)
                 weld_block_input_set = set()
@@ -371,7 +391,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch
     if len(weld_block_node_list) > 0:
         processed_block_nodes = process_weld_block(weld_block_input_set, weld_block_aux_input_set,
                                                    weld_block_output_set, weld_block_node_list,
-                                                   [sorted_nodes[-1]], typing_map, batch)
+                                                   [sorted_nodes[-1]], typing_map, batch, num_workers)
         for processed_node in processed_block_nodes:
             weld_python_list.append(processed_node)
     return weld_python_list

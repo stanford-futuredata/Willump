@@ -204,7 +204,7 @@ def willump_execute(batch=True, num_workers=0) -> Callable:
                     # Transform the Willump graph into blocks of Weld and Python code.  Compile the Weld blocks.
                     python_weld_program: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]] = \
                         willump.evaluation.willump_weld_generator.graph_to_weld(python_graph, willump_typing_map,
-                                                                                batch=batch)
+                                                                                batch=batch, num_workers=num_workers)
                     python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
                                                                                              aux_data,
                                                                                              willump_typing_map,
