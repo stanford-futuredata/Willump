@@ -24,6 +24,7 @@ df = pd.read_csv("tests/test_resources/lazada_challenge_features/lazada_data_tra
                  names=['country', 'sku_id', 'title', 'category_lvl_1', 'category_lvl_2', 'category_lvl_3',
                         'short_description', 'price', 'product_type'])
 
+
 model = pickle.load(open("tests/test_resources/lazada_challenge_features/multi_lazada_model.pk", "rb"))
 y = numpy.loadtxt("tests/test_resources/lazada_challenge_features/conciseness_train.labels", dtype=int)
 
@@ -31,6 +32,9 @@ title_vectorizer = CountVectorizer(analyzer='char', ngram_range=(2, 6), min_df=0
                                    lowercase=False, stop_words=None, binary=False, decode_error='replace')
 title_vectorizer.fit(df["title"].tolist())
 print("Vocabulary has length %d" % len(title_vectorizer.vocabulary_))
+
+
+df["title"] = df["title"].apply(lambda x: x + x + x + x + x)
 
 colors = [x.strip() for x in open("tests/test_resources/lazada_challenge_features/colors.txt", encoding="windows-1252").readlines()]
 c = list(filter(lambda x: len(x.split()) > 1, colors))
