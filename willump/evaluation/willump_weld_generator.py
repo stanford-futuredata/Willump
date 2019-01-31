@@ -101,11 +101,15 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
 
         # TODO:  Work on more than just joins.
         """
+        if node in nodes_to_base_map:
+            return nodes_to_base_map[node]
         base_discovery_node = node
         join_cols_set = set()
+        touched_nodes = []
         while True:
             assert (isinstance(base_discovery_node, WillumpHashJoinNode))
             join_cols_set.add(base_discovery_node.join_col_name)
+            touched_nodes.append(base_discovery_node)
             base_left_input = base_discovery_node.get_in_nodes()[0]
             if node_is_transformable(base_left_input) and not \
                     (isinstance(base_left_input, WillumpHashJoinNode) and
@@ -114,8 +118,10 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
                 base_discovery_node = base_left_input
             else:
                 break
+        for node in touched_nodes:
+            nodes_to_base_map[node] = base_discovery_node
         return base_discovery_node
-
+    nodes_to_base_map: MutableMapping[WillumpGraphNode, WillumpGraphNode] = {}
     model_node = weld_block_node_list[-1]
     if not isinstance(model_node, LinearRegressionNode):
         return weld_block_node_list

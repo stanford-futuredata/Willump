@@ -13,8 +13,6 @@ class WillumpHashJoinNode(WillumpGraphNode):
     """
     Implements a left join between two dataframes on a specific column.
 
-    TODO:  Proper typing of join column instead of casting to i64.
-
     TODO:  Handle case where entry is in left but not in right.
     """
     input_array_string_name: str
@@ -38,6 +36,9 @@ class WillumpHashJoinNode(WillumpGraphNode):
         self.left_df_type = left_input_type
         self._size_left_df = len(left_input_type.column_names)
         self._join_col_left_index = list(left_input_type.column_names).index(join_col_name)
+        self._join_col_elem_type = left_input_type.field_types[self._join_col_left_index]
+        if isinstance(self._join_col_elem_type, WeldVec):
+            self._join_col_elem_type = self._join_col_elem_type.elemType
         self.batch = batch
         self._model_type = None
         self._model_parameters = None
@@ -53,7 +54,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
 
     def _process_aux_data(self, right_dataframe) -> List[Tuple[int, WeldType]]:
         """
-        Returns a pointer to a Weld dict[i64, {vec...vec}] of all the columns in right_dataframe
+        Returns a pointer to a Weld dict[join_col_type, {vec...vec}] of all the columns in right_dataframe
         indexed by join_col_name.
         """
         import willump.evaluation.willump_executor as wexec
@@ -79,11 +80,12 @@ class WillumpHashJoinNode(WillumpGraphNode):
         weld_program = \
             """
             result(for(_inp%d,
-                dictmerger[i64, %s, +],
-                | bs: dictmerger[i64, %s, +], i: i64, x: i64 |
-                    merge(bs, {x, %s})
+                dictmerger[JOIN_COL_TYPE, %s, +],
+                | bs: dictmerger[JOIN_COL_TYPE, %s, +], i: i64, x |
+                    merge(bs, {JOIN_COL_TYPE(x), %s})
             ))
             """ % (join_col_index, types_string, types_string, values_string)
+        weld_program = weld_program.replace("JOIN_COL_TYPE", str(self._join_col_elem_type))
 
         input_arg_types = {}
         input_arg_list = []
@@ -107,7 +109,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
 
         indexed_right_dataframe = hash_join_dataframe_indexer.caller_func(*input_args)
         self.right_df_type = WeldPandas(types_list, right_df_column_names)
-        return [(indexed_right_dataframe, WeldDict(WeldLong(), self.right_df_type))]
+        return [(indexed_right_dataframe, WeldDict(self._join_col_elem_type, self.right_df_type))]
 
     def push_model(self, model_type: str, model_parameters: Tuple, model_index_map: Mapping[str, int],
                    new_input_name: str):
@@ -141,7 +143,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
                     let pre_output = (for(INPUT_NAME.$JOIN_COL_LEFT_INDEX,
                         STRUCT_BUILDER,
                         |bs, i: i64, x |
-                            let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, i64(x));
+                            let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, x);
                             MERGE_STATEMENT
                     ));
                     let OUTPUT_NAME = RESULT_STATEMENT;
@@ -166,7 +168,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
                 result_statement += "}"
                 weld_program = \
                     """
-                        let pre_output = lookup(RIGHT_DATAFRAME_NAME, i64(INPUT_NAME.$JOIN_COL_LEFT_INDEX));
+                        let pre_output = lookup(RIGHT_DATAFRAME_NAME, INPUT_NAME.$JOIN_COL_LEFT_INDEX);
                         let OUTPUT_NAME = RESULT_STATEMENT;
                     """
                 weld_program = weld_program.replace("JOIN_COL_LEFT_INDEX", str(self._join_col_left_index))
@@ -197,7 +199,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
                     let OUTPUT_NAME: vec[f64] = result(for(INPUT_NAME.$JOIN_COL_LEFT_INDEX,
                         appender[f64],
                         |bs, i: i64, x |
-                            let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, i64(x));
+                            let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, x);
                             merge(bs, SUM_STATEMENT)
                     ));
                     """
@@ -210,7 +212,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
                 sum_statement = sum_statement[:-1]
                 weld_program = \
                     """
-                    let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, i64(INPUT_NAME.$JOIN_COL_LEFT_INDEX));
+                    let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, INPUT_NAME.$JOIN_COL_LEFT_INDEX);
                     let pre_output: f64 = SUM_STATEMENT;
                     let OUTPUT_NAME: vec[f64] = result(merge(appender[f64], pre_output));
                     """
