@@ -93,6 +93,29 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
         """
         return node in weld_block_node_list and node.get_output_name() not in weld_block_output_set
 
+    def find_dataframe_base_node(node):
+        """
+        If a sequence of operations is being performed to a dataframe and a model is being pushed through all of them,
+        find the earliest node pushed through.  This node's input will become the input for all the pushed
+        nodes as their original inputs have been pushed through.
+
+        # TODO:  Work on more than just joins.
+        """
+        base_discovery_node = node
+        join_cols_set = set()
+        while True:
+            assert (isinstance(base_discovery_node, WillumpHashJoinNode))
+            join_cols_set.add(base_discovery_node.join_col_name)
+            base_left_input = base_discovery_node.get_in_nodes()[0]
+            if node_is_transformable(base_left_input) and not \
+                    (isinstance(base_left_input, WillumpHashJoinNode) and
+                     any(join_col_name in base_left_input.right_df_type.column_names
+                         for join_col_name in join_cols_set)):
+                base_discovery_node = base_left_input
+            else:
+                break
+        return base_discovery_node
+
     model_node = weld_block_node_list[-1]
     if not isinstance(model_node, LinearRegressionNode):
         return weld_block_node_list
@@ -139,10 +162,8 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
                 output_columns = join_left_columns + join_right_columns
                 if curr_selection_map is None:
                     curr_selection_map = {col: index_start + i for i, col in enumerate(output_columns)}
-                join_left_input = input_node.get_in_nodes()[0]
-                if node_is_transformable(join_left_input) and not (isinstance(join_left_input,
-                                                                              WillumpHashJoinNode) and input_node.join_col_name in
-                                                                   join_left_input.right_df_type.column_names):
+                join_base_node = find_dataframe_base_node(input_node)
+                if join_base_node is not input_node:
                     pushed_map = {}
                     next_map = {}
                     for col in curr_selection_map.keys():
@@ -150,20 +171,23 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
                             pushed_map[col] = curr_selection_map[col]
                         else:
                             next_map[col] = curr_selection_map[col]
+                    join_left_input = input_node.get_in_nodes()[0]
                     current_node_stack.append((join_left_input, (index_start, index_end), next_map))
-                    # TODO:  Make this input name discovery recurse for arbitrarily deep joins.
-                    new_input_name = join_left_input.input_array_string_name
+                    new_input_name = join_base_node.input_array_string_name
                 else:
                     pushed_map = {}
                     for col in curr_selection_map.keys():
                         if col in output_columns:
                             pushed_map[col] = curr_selection_map[col]
                     new_input_name = input_node.input_array_string_name
-                input_node.push_model("linear", (model_node.weights_data_name,), pushed_map,
-                                      new_input_name)
-                # Set that node's output's new type.
-                typing_map[input_node.get_output_name()] = WeldVec(WeldDouble())
-                nodes_to_sum.append(input_node)
+                if len(pushed_map) > 0:
+                    input_node.push_model("linear", (model_node.weights_data_name,), pushed_map,
+                                          new_input_name)
+                    # Set that node's output's new type.
+                    typing_map[input_node.get_output_name()] = WeldVec(WeldDouble())
+                    nodes_to_sum.append(input_node)
+                else:
+                    weld_block_node_list.remove(input_node)
     if len(nodes_to_sum) > 0:
         weld_block_node_list.remove(model_node)
         weld_block_node_list.append(CombineLinearRegressionNode(input_nodes=nodes_to_sum,
