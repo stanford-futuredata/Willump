@@ -1,0 +1,4 @@
+gender,gen_played,gen_played_pos,gen_played_rel,gen_played_rel_global,gen_played_pos_rel,gen_played_ratio,gender
+-1,22896,9897,1.0,0.41387537,1.0,0.4322589,-1
+0,16044,7133,0.7007338,0.29001644,0.72072345,0.44458988,0
+1,16381,7320,0.7154525,0.29610816,0.73961806,0.44685918,1
