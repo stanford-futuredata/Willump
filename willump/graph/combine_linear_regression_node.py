@@ -26,19 +26,22 @@ class CombineLinearRegressionNode(WillumpGraphNode):
         self._intercept_data_name = intercept_data_name
         self._input_nodes = input_nodes
         self._output_type = output_type
+        self._input_names = []
+        for input_node in input_nodes:
+            self._input_names.append(input_node.get_output_name())
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
 
-    def get_node_type(self) -> str:
-        return "combine_logistic_regression"
+    def get_in_names(self) -> List[str]:
+        return self._input_names
 
     def get_node_weld(self) -> str:
         assert(isinstance(self._output_type, WeldVec))
         output_elem_type_str = str(self._output_type.elemType)
         zip_string: str = ""
-        for input_node in self._input_nodes:
-            zip_string += "%s," % input_node.get_output_name()
+        for input_name in self._input_names:
+            zip_string += "%s," % input_name
         zip_string = zip_string[:-1]
         if len(self._input_nodes) > 1:
             sum_string: str = ""

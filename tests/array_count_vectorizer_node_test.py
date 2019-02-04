@@ -22,10 +22,10 @@ class ArrayCountVectorizerNodeTests(unittest.TestCase):
             simple_vocab_dict = {word: index for index, word in
                                  enumerate(simple_vocab.read().splitlines())}
         array_cv_node: ArrayCountVectorizerNode = \
-            ArrayCountVectorizerNode(input_node, output_name='lowered_output_words',
+            ArrayCountVectorizerNode(input_node, "input_str", output_name='lowered_output_words',
                                      input_vocab_dict=simple_vocab_dict,
                                      aux_data=aux_data, ngram_range=(2, 5))
-        output_node: WillumpOutputNode = WillumpOutputNode(array_cv_node)
+        output_node: WillumpOutputNode = WillumpOutputNode(array_cv_node, ["lowered_output_words"])
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"input_str": WeldVec(WeldStr()),
                     "lowered_output_words": WeldCSR((WeldLong()))}

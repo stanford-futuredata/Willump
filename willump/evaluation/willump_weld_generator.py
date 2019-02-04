@@ -67,7 +67,7 @@ def push_back_python_nodes_pass(sorted_nodes: List[WillumpGraphNode]) -> List[Wi
     for i in range(len(sorted_nodes)):
         if isinstance(sorted_nodes[i], WillumpPythonNode) or isinstance(sorted_nodes[i], WillumpInputNode):
             python_node = sorted_nodes[i]
-            input_names: List[str] = list(map(lambda x: x.get_output_name(), python_node.get_in_nodes()))
+            input_names: List[str] = python_node.get_in_names()
             good_index: int = i
             for j in range(i - 1, 0 - 1, -1):
                 if sorted_nodes[j].get_output_name() in input_names:
@@ -121,6 +121,7 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
         for node in touched_nodes:
             nodes_to_base_map[node] = base_discovery_node
         return base_discovery_node
+
     nodes_to_base_map: MutableMapping[WillumpGraphNode, WillumpGraphNode] = {}
     model_node = weld_block_node_list[-1]
     if not isinstance(model_node, LinearRegressionNode):
@@ -227,7 +228,8 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
                 pandas_glue_python = "%s = tuple(%s.values[0])" % (input_name, input_name)
             pandas_glue_ast: ast.Module = \
                 ast.parse(pandas_glue_python, "exec")
-            pandas_input_node = WillumpPythonNode(pandas_glue_ast.body[0], input_name, [])
+            pandas_input_node = WillumpPythonNode(python_ast=pandas_glue_ast.body[0], input_names=[],
+                                                  output_name=input_name, in_nodes=[])
             pandas_input_processing_nodes.append(pandas_input_node)
     for output_name in weld_block_output_set:
         output_type = typing_map[output_name]
@@ -241,7 +243,8 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
             df_creation_statement = "%s = pd.DataFrame({%s})" % (output_name, df_creation_arguments)
             df_creation_ast: ast.Module = \
                 ast.parse(df_creation_statement, "exec")
-            df_creation_node = WillumpPythonNode(df_creation_ast.body[0], output_name, [])
+            df_creation_node = WillumpPythonNode(python_ast=df_creation_ast.body[0], input_names=[],
+                                                 output_name=output_name, in_nodes=[])
             pandas_post_processing_nodes.append(df_creation_node)
     return pandas_input_processing_nodes, pandas_post_processing_nodes
 
@@ -295,9 +298,7 @@ def multithreading_weld_blocks_pass(weld_block_node_list: List[WillumpGraphNode]
             thread_list_length -= 1
             thread_list_index = (thread_list_index + 1) % thread_list_length
     parallel_entry: Tuple[Set[str], List[Tuple[List[WillumpGraphNode], Set[str]]]] = (weld_block_input_set, thread_list)
-    combiner_input_names = set()
-    for model_input_node in input_nodes:
-        combiner_input_names.add(model_input_node.get_output_name())
+    combiner_input_names = set(combine_node.get_in_names())
     combiner_output_name = {combine_node.get_output_name()}
     sequential_entry: Tuple[List[WillumpGraphNode], Set[str], Set[str]] = ([combine_node],
                                                                            combiner_input_names, combiner_output_name)
@@ -309,6 +310,7 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
     """
     Run all asynchronous Python nodes in separate threads.
     """
+
     def find_pyblock_after_n(n: int) -> Optional[Tuple[int, int]]:
         start_index = None
         end_index = None
@@ -325,6 +327,7 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
         if end_index is None:
             end_index = len(sorted_nodes)
         return start_index, end_index
+
     pyblock_start_end = find_pyblock_after_n(-1)
     while pyblock_start_end is not None:
         pyblock_start, pyblock_end = pyblock_start_end
@@ -335,7 +338,7 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
                 async_nodes.append(node)
         for async_node in async_nodes:
             async_node_index = pyblock.index(async_node)
-            input_names: List[str] = list(map(lambda x: x.get_output_name(), async_node.get_in_nodes()))
+            input_names: List[str] = async_node.get_in_names()
             first_legal_index: int = async_node_index
             for j in range(async_node_index - 1, 0 - 1, -1):
                 if pyblock[j].get_output_name() in input_names:
@@ -344,8 +347,8 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
                     first_legal_index = j
             pyblock.remove(async_node)
             async_node_ast: ast.Assign = async_node.get_python()
-            assert(isinstance(async_node_ast.value, ast.Call))
-            assert(isinstance(async_node_ast.value.func, ast.Name))
+            assert (isinstance(async_node_ast.value, ast.Call))
+            assert (isinstance(async_node_ast.value.func, ast.Name))
             # output = executor.submit(original func names, original func args...)
             new_call = ast.Call()
             new_call.keywords = []
@@ -362,12 +365,14 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
             new_args.insert(0, new_first_arg)
             new_call.args = new_args
             async_node_ast.value = new_call
-            executor_async_node = WillumpPythonNode(async_node_ast, async_node.get_output_name(), async_node.get_in_nodes())
+            executor_async_node = WillumpPythonNode(python_ast=async_node_ast, input_names=async_node.get_in_names(),
+                                                    output_name=async_node.get_output_name(),
+                                                    in_nodes=async_node.get_in_nodes())
             pyblock.insert(first_legal_index, executor_async_node)
             last_legal_index = first_legal_index + 1
             for j in range(first_legal_index + 1, len(pyblock)):
                 curr_node = pyblock[j]
-                node_inputs = list(map(lambda x: x.get_output_name(), curr_node.get_in_nodes()))
+                node_inputs = curr_node.get_in_names()
                 if async_node.get_output_name() in node_inputs:
                     break
                 else:
@@ -375,7 +380,10 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
             result_python = "%s = %s.result()" % (async_node.get_output_name(), async_node.get_output_name())
             result_ast: ast.Module = \
                 ast.parse(result_python, "exec")
-            pandas_input_node = WillumpPythonNode(result_ast.body[0], async_node.get_output_name(), [executor_async_node])
+            pandas_input_node = WillumpPythonNode(python_ast=result_ast.body[0],
+                                                  input_names=[async_node.get_output_name()],
+                                                  output_name=async_node.get_output_name(),
+                                                  in_nodes=[executor_async_node])
             pyblock.insert(last_legal_index, pandas_input_node)
         sorted_nodes = sorted_nodes[:pyblock_start] + pyblock + sorted_nodes[pyblock_end:]
         pyblock_start_end = find_pyblock_after_n(pyblock_end)
@@ -394,8 +402,7 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
     for entry in weld_block_output_set.copy():
         appears_later = False
         for future_node in future_nodes:
-            for node_input in future_node.get_in_nodes():
-                input_name = node_input.get_output_name()
+            for input_name in future_node.get_in_names():
                 if entry == input_name:
                     appears_later = True
         if not appears_later:
@@ -491,8 +498,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch
         elif isinstance(node, WillumpInputNode) or isinstance(node, WillumpOutputNode):
             pass
         else:
-            for node_input in node.get_in_nodes():
-                input_name = node_input.get_output_name()
+            for input_name in node.get_in_names():
                 if "AUX_DATA" in input_name:
                     weld_block_aux_input_set.add(input_name)
                 elif input_name not in weld_block_output_set:

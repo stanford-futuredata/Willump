@@ -18,12 +18,15 @@ class ArrayBinopNode(WillumpGraphNode):
     def __init__(self,
                  input_one_node: WillumpGraphNode,
                  input_two_node: WillumpGraphNode,
+                 input_one_name: str,
+                 input_two_name: str,
                  output_name: str,
                  output_type: WeldType,
                  binop_str: str) -> None:
         self._input_nodes = [input_one_node, input_two_node]
-        self._input_one_name = input_one_node.get_output_name()
-        self._input_two_name = input_two_node.get_output_name()
+        self._input_one_name = input_one_name
+        self._input_two_name = input_two_name
+        self._input_names = [input_one_name, input_two_name]
         self._output_name = output_name
         self._output_type = output_type
         self._binop_str = binop_str
@@ -31,8 +34,8 @@ class ArrayBinopNode(WillumpGraphNode):
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
 
-    def get_node_type(self) -> str:
-        return "array_addition"
+    def get_in_names(self) -> List[str]:
+        return self._input_names
 
     def get_node_weld(self) -> str:
         weld_program = \

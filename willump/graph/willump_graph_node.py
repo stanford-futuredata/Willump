@@ -1,4 +1,4 @@
-import typing
+from typing import List
 
 
 class WillumpGraphNode(object):
@@ -6,21 +6,15 @@ class WillumpGraphNode(object):
     Interface for Willump Graph Nodes.  All types of nodes subclass this class.  Nodes represent
     transforms.
     """
-    def get_in_nodes(self) -> typing.List['WillumpGraphNode']:
+    def get_in_nodes(self) -> List['WillumpGraphNode']:
         """
         Return the node's in-nodes.  These are inputs to the transform represented by the node.
         """
         ...
 
-    def get_node_type(self) -> str:
+    def get_in_names(self) -> List[str]:
         """
-        Return a string indicating the type of transform the node represents.
-        """
-        ...
-
-    def get_node_weld(self) -> str:
-        """
-        Return the Weld IR code defining this node's transform.
+        Return the names of a node's input variables.  These come from the in-nodes.
         """
         ...
 
@@ -29,3 +23,10 @@ class WillumpGraphNode(object):
         Return the name of the variable this node outputs.
         """
         ...
+
+    def get_node_weld(self) -> str:
+        """
+        Return the Weld IR code defining this node's transform.
+        """
+        ...
+    

@@ -13,16 +13,17 @@ class StringLowerNode(WillumpGraphNode):
     _input_string_name: str
     _output_name: str
 
-    def __init__(self, input_node: WillumpGraphNode, output_name: str) -> None:
+    def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str) -> None:
         self._input_node = input_node
-        self._input_string_name = input_node.get_output_name()
+        self._input_string_name = input_name
         self._output_name = output_name
+        self._input_names = [input_name]
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return [self._input_node]
 
-    def get_node_type(self) -> str:
-        return "string_lower"
+    def get_in_names(self) -> List[str]:
+        return self._input_names
 
     def get_node_weld(self) -> str:
         weld_program = \

@@ -19,12 +19,13 @@ class LinearRegressionNode(WillumpGraphNode):
     input_width: int
     batch: bool
 
-    def __init__(self, input_node: WillumpGraphNode, input_type: WeldType, output_name: str, output_type: WeldType,
+    def __init__(self, input_node: WillumpGraphNode, input_name: str, input_type: WeldType, output_name: str,
+                 output_type: WeldType,
                  logit_weights, logit_intercept, aux_data: List[Tuple[int, WeldType]], batch=True) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
-        self._input_string_name = input_node.get_output_name()
+        self._input_string_name = input_name
         self._output_name = output_name
         self.weights_data_name = "AUX_DATA_{0}".format(len(aux_data))
         self.intercept_data_name = "AUX_DATA_{0}".format(len(aux_data) + 1)
@@ -32,6 +33,7 @@ class LinearRegressionNode(WillumpGraphNode):
         self._input_nodes.append(input_node)
         self._input_nodes.append(WillumpInputNode(self.weights_data_name))
         self._input_nodes.append(WillumpInputNode(self.intercept_data_name))
+        self._input_names = [input_name, self.weights_data_name, self.intercept_data_name]
         self._input_type = input_type
         self._output_type = output_type
         self.batch = batch
@@ -42,8 +44,8 @@ class LinearRegressionNode(WillumpGraphNode):
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
 
-    def get_node_type(self) -> str:
-        return "logistic_regression"
+    def get_in_names(self) -> List[str]:
+        return self._input_names
 
     @staticmethod
     def _process_aux_data(logit_weights, logit_intercept) -> List[Tuple[int, WeldType]]:
@@ -66,7 +68,7 @@ class LinearRegressionNode(WillumpGraphNode):
         return [(weld_weights, WeldVec(WeldDouble())), (weld_intercept, WeldVec(WeldDouble()))]
 
     def get_node_weld(self) -> str:
-        assert(isinstance(self._output_type, WeldVec))
+        assert (isinstance(self._output_type, WeldVec))
         output_elem_type_str = str(self._output_type.elemType)
         if isinstance(self._input_type, WeldVec):
             elem_type = self._input_type.elemType.elemType
@@ -122,7 +124,7 @@ class LinearRegressionNode(WillumpGraphNode):
             weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
             weld_program = weld_program.replace("ELEM_TYPE", str(elem_type))
         else:
-            assert(isinstance(self._input_type, WeldPandas))
+            assert (isinstance(self._input_type, WeldPandas))
             if self.batch:
                 sum_string = ""
                 for i in range(len(self._input_type.column_names)):
@@ -162,5 +164,5 @@ class LinearRegressionNode(WillumpGraphNode):
         return self._output_name
 
     def __repr__(self):
-        return "Linear regression node for input {0} output {1}\n"\
+        return "Linear regression node for input {0} output {1}\n" \
             .format(self._input_string_name, self._output_name)

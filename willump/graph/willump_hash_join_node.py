@@ -21,17 +21,18 @@ class WillumpHashJoinNode(WillumpGraphNode):
     join_col_name: str
     batch: bool
 
-    def __init__(self, input_node: WillumpGraphNode, left_input_type: WeldType, output_name: str, join_col_name: str,
+    def __init__(self, input_node: WillumpGraphNode, input_name: str, left_input_type: WeldType, output_name: str, join_col_name: str,
                  right_dataframe, aux_data: List[Tuple[int, WeldType]], batch=True) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
-        self.input_array_string_name = input_node.get_output_name()
+        self.input_array_string_name = input_name
         self._output_name = output_name
         self._right_dataframe = right_dataframe
         self._right_dataframe_name = "AUX_DATA_{0}".format(len(aux_data))
         self.join_col_name = join_col_name
         self._input_nodes = [input_node, WillumpInputNode(self._right_dataframe_name)]
+        self._input_names = [input_name, self._right_dataframe_name]
         assert(isinstance(left_input_type, WeldPandas))
         self.left_df_type = left_input_type
         self._size_left_df = len(left_input_type.column_names)
@@ -49,8 +50,8 @@ class WillumpHashJoinNode(WillumpGraphNode):
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
 
-    def get_node_type(self) -> str:
-        return "array count vectorizer"
+    def get_in_names(self) -> List[str]:
+        return self._input_names
 
     def _process_aux_data(self, right_dataframe) -> List[Tuple[int, WeldType]]:
         """

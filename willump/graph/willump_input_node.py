@@ -15,8 +15,8 @@ class WillumpInputNode(WillumpGraphNode):
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return []
 
-    def get_node_type(self) -> str:
-        return "input"
+    def get_in_names(self) -> List[str]:
+        return []
 
     def get_node_weld(self) -> str:
         return "let {0} = WELD_INPUT_{0}__;".format(self._arg_name)

@@ -51,12 +51,12 @@ class HashJoinNodeTests(unittest.TestCase):
         input_node: WillumpInputNode = WillumpInputNode("input_table")
         aux_data = []
         hash_join_node: WillumpHashJoinNode = \
-            WillumpHashJoinNode(input_node=input_node, output_name="output", join_col_name="join_column",
+            WillumpHashJoinNode(input_node=input_node, input_name="input_table", output_name="output", join_col_name="join_column",
                                 right_dataframe=right_table, aux_data=aux_data,
                                 left_input_type=WeldPandas(
                                     [WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
                                     ["join_column", "data1", "data2"]), batch=True)
-        output_node: WillumpOutputNode = WillumpOutputNode(hash_join_node)
+        output_node: WillumpOutputNode = WillumpOutputNode(hash_join_node, ["output"])
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"input_table": WeldPandas([WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
                                               ["join_column", "data1", "data2"]),
@@ -84,11 +84,11 @@ class HashJoinNodeTests(unittest.TestCase):
         input_node: WillumpInputNode = WillumpInputNode("input_table")
         aux_data = []
         hash_join_node: WillumpHashJoinNode = \
-            WillumpHashJoinNode(input_node=input_node, output_name="output", join_col_name="join_column",
+            WillumpHashJoinNode(input_node=input_node, input_name="input_table", output_name="output", join_col_name="join_column",
                                 right_dataframe=right_table, aux_data=aux_data,
                                 left_input_type=WeldPandas([WeldLong(), WeldLong(), WeldLong()],
                                                            ["join_column", "data1", "data2"]), batch=False)
-        output_node: WillumpOutputNode = WillumpOutputNode(hash_join_node)
+        output_node: WillumpOutputNode = WillumpOutputNode(hash_join_node, ["output"])
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"input_table": WeldPandas([WeldLong(), WeldLong(), WeldLong()],
                                               ["join_column", "data1", "data2"]),

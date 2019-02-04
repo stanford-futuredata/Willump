@@ -23,9 +23,9 @@ class StringSplitNodeTests(unittest.TestCase):
         logistic_regression_intercept = numpy.array([1.0],
                                                   dtype=numpy.float64)
         logistic_regression_node: LinearRegressionNode = \
-            LinearRegressionNode(input_node, WeldVec(WeldVec(WeldLong())), "logit_output", WeldVec(WeldLong()),
+            LinearRegressionNode(input_node, "input_str", WeldVec(WeldVec(WeldLong())), "logit_output", WeldVec(WeldLong()),
                                  logistic_regression_weights, logistic_regression_intercept, aux_data)
-        output_node: WillumpOutputNode = WillumpOutputNode(logistic_regression_node)
+        output_node: WillumpOutputNode = WillumpOutputNode(logistic_regression_node, ["logit_output"])
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"input_str": WeldVec(WeldVec(WeldLong())),
                     "logit_output": WeldVec(WeldLong())}

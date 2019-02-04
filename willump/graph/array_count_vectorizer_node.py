@@ -20,13 +20,13 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
     _model_parameters: Tuple
     _start_index: int
 
-    def __init__(self, input_node: WillumpGraphNode, output_name: str,
+    def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str,
                  input_vocab_dict: Mapping[str, int], aux_data: List[Tuple[int, WeldType]],
                  ngram_range: Tuple[int, int]) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
-        self._input_array_string_name = input_node.get_output_name()
+        self._input_array_string_name = input_name
         self._output_name = output_name
         vocabulary_list = sorted(input_vocab_dict.keys(), key=lambda x: input_vocab_dict[x])
         self._vocab_size = len(vocabulary_list)
@@ -35,6 +35,7 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
         self._input_nodes = []
         self._input_nodes.append(input_node)
         self._input_nodes.append(WillumpInputNode(self._vocab_dict_name))
+        self._input_names = [input_name, self._vocab_dict_name]
         self._min_gram, self._max_gram = ngram_range
         for entry in self._process_aux_data(vocabulary_list):
             aux_data.append(entry)
@@ -42,8 +43,8 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
 
-    def get_node_type(self) -> str:
-        return "array count vectorizer"
+    def get_in_names(self) -> List[str]:
+        return self._input_names
 
     def _process_aux_data(self, vocabulary_list) -> List[Tuple[int, WeldType]]:
         """

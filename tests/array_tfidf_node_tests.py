@@ -88,10 +88,10 @@ class TfidfNodeTests(unittest.TestCase):
         aux_data = []
         input_node: WillumpInputNode = WillumpInputNode("input_str")
         array_cv_node: ArrayTfIdfNode = \
-            ArrayTfIdfNode(input_node, output_name='lowered_output_words', input_idf_vector=self.idf_vec,
+            ArrayTfIdfNode(input_node, "input_str", output_name='lowered_output_words', input_idf_vector=self.idf_vec,
                            input_vocab_dict=simple_vocab_dict,
                            aux_data=aux_data, ngram_range=(2, 5))
-        output_node: WillumpOutputNode = WillumpOutputNode(array_cv_node)
+        output_node: WillumpOutputNode = WillumpOutputNode(array_cv_node, ["lowered_output_words"])
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"input_str": WeldVec(WeldStr()),
                     "lowered_output_words": WeldCSR((WeldDouble()))}

@@ -12,18 +12,19 @@ class WillumpPythonNode(WillumpGraphNode):
     """
     is_async_node: bool
 
-    def __init__(self, python_ast: ast.AST, arg_name: str, in_nodes: List[WillumpGraphNode],
+    def __init__(self, python_ast: ast.AST, input_names: List[str], output_name: str, in_nodes: List[WillumpGraphNode],
                  is_async_node: bool = False) -> None:
-        self._arg_name = arg_name
+        self._arg_name = output_name
         self._in_nodes = in_nodes
+        self._input_names = input_names
         self._python_ast = python_ast
         self.is_async_node = is_async_node
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._in_nodes
 
-    def get_node_type(self) -> str:
-        return "willump_python"
+    def get_in_names(self) -> List[str]:
+        return self._input_names
 
     def get_node_weld(self) -> str:
         return ""

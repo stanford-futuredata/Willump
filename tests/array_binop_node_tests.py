@@ -19,9 +19,9 @@ class ArrayAppendNodeTests(unittest.TestCase):
         vec_2 = numpy.array([4, 5, 6], dtype=numpy.int64)
         vec1_input_node: WillumpInputNode = WillumpInputNode("vec_1")
         vec2_input_node: WillumpInputNode = WillumpInputNode("vec_2")
-        array_addition_node: ArrayBinopNode = ArrayBinopNode(vec1_input_node, vec2_input_node,
+        array_addition_node: ArrayBinopNode = ArrayBinopNode(vec1_input_node, vec2_input_node, "vec_1", "vec_2",
                                                 "output", WeldVec(WeldDouble()), "+")
-        output_node: WillumpOutputNode = WillumpOutputNode(array_addition_node)
+        output_node: WillumpOutputNode = WillumpOutputNode(array_addition_node, ["output"])
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"vec_1": WeldVec(WeldDouble()),
                     "vec_2": WeldVec(WeldLong()),

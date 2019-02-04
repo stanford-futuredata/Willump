@@ -11,12 +11,12 @@ class PandasColumnSelectionNode(WillumpGraphNode):
     """
     selected_columns: List[str]
 
-    def __init__(self, input_node: WillumpGraphNode, output_name: str,
+    def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str,
                  input_type: WeldType, selected_columns: List[str]) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
-        self._input_array_string_name = input_node.get_output_name()
+        self._input_array_string_name = input_name
         self._output_name = output_name
         self._input_nodes = [input_node]
         self._input_type = input_type
@@ -24,12 +24,13 @@ class PandasColumnSelectionNode(WillumpGraphNode):
         self._model_type = None
         self._model_parameters = None
         self._model_index_map = None
+        self._input_names = [input_name]
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
 
-    def get_node_type(self) -> str:
-        return "array count vectorizer"
+    def get_in_names(self) -> List[str]:
+        return self._input_names
 
     def push_model(self, model_type: str, model_parameters: Tuple, model_index_map: Mapping[str, int]):
         self._model_type = model_type
