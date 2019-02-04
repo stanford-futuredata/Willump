@@ -63,14 +63,6 @@ def sample_string_lower(input_string):
 
 
 @wexec.willump_execute()
-def sample_string_remove_char(input_string):
-    output_strings = input_string.split()
-    for i in range(len(output_strings)):
-        output_strings[i] = output_strings[i].replace(".", "")
-    return output_strings
-
-
-@wexec.willump_execute()
 def sample_scalar_append(input_array, input_value):
     output_array = numpy.append(input_array, input_value)
     return output_array
@@ -129,13 +121,6 @@ class GraphInferenceTests(unittest.TestCase):
         weld_output = sample_string_lower(sample_string)
         numpy.testing.assert_equal(weld_output, ["cat", "dog", "house."])
 
-    def test_string_remove_char(self):
-        print("\ntest_string_remove_char")
-        sample_string: str = "ca..t do..g \n hous...e. "
-        sample_string_remove_char(sample_string)
-        sample_string_remove_char(sample_string)
-        weld_output = sample_string_remove_char(sample_string)
-        numpy.testing.assert_equal(weld_output, ["cat", "dog", "house"])
 
     def test_scalar_append(self):
         print("\ntest_scalar_append")

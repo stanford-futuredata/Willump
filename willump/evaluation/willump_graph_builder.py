@@ -6,12 +6,9 @@ from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
-from willump.graph.string_split_node import StringSplitNode
 from willump.graph.string_lower_node import StringLowerNode
-from willump.graph.string_removechar_node import StringRemoveCharNode
 from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.linear_regression_node import LinearRegressionNode
-from willump.graph.array_append_node import ArrayAppendNode
 from willump.graph.array_binop_node import ArrayBinopNode
 from willump.graph.willump_hash_join_node import WillumpHashJoinNode
 from willump.graph.willump_python_node import WillumpPythonNode
@@ -155,30 +152,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             if called_function is None:
                 return self._create_py_node(node)
             # TODO:  Update this for batched code.
-            if "split" in called_function:
-                split_input_var: str = value.func.value.id
-                split_input_node: WillumpGraphNode = self._node_dict[split_input_var]
-                string_split_node: StringSplitNode = StringSplitNode(input_node=split_input_node,
-                                                                     output_name=output_var_name)
-                return output_var_name, string_split_node
-            # TODO:  Update this for batched code.
             elif "lower" in called_function:
                 lower_input_var: str = value.func.value.value.id
                 lower_input_node: WillumpGraphNode = self._node_dict[lower_input_var]
                 string_lower_node: StringLowerNode = StringLowerNode(input_node=lower_input_node,
                                                                      output_name=output_var_name)
                 return output_var_name, string_lower_node
-            # TODO:  Update this for batched code.
-            elif "replace" in called_function:
-                replace_input_var: str = value.func.value.value.id
-                replace_input_node: WillumpGraphNode = self._node_dict[replace_input_var]
-                target_char: str = value.args[0].s
-                assert (len(target_char) == 1)
-                assert (len(value.args[1].s) == 0)
-                string_remove_char_node: StringRemoveCharNode = \
-                    StringRemoveCharNode(input_node=replace_input_node,
-                                         target_char=target_char, output_name=output_var_name)
-                return output_var_name, string_remove_char_node
             # TODO:  Lots of potential predictors, differentiate them!
             elif ".predict" in called_function:
                 if WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:
@@ -196,18 +175,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     return output_var_name, logit_node
                 else:
                     return self._create_py_node(node)
-            # TODO:  Update this for batched code.
-            elif "numpy.append" in called_function:
-                append_input_array: str = value.args[0].id
-                append_input_value: str = value.args[1].id
-                append_input_array_node: WillumpGraphNode = self._node_dict[append_input_array]
-                append_input_val_node: WillumpGraphNode = self._node_dict[append_input_value]
-                array_append_node: ArrayAppendNode = ArrayAppendNode(append_input_array_node, append_input_val_node,
-                                                                     output_var_name,
-                                                                     self._type_map[append_input_array],
-                                                                     self._type_map[output_var_name])
-                return output_var_name, array_append_node
-            # TODO:  Don't assume name is input_vect.
             elif ".transform" in called_function:
                 lineno = str(node.lineno)
                 if WILLUMP_COUNT_VECTORIZER_VOCAB + lineno not in self._static_vars or \

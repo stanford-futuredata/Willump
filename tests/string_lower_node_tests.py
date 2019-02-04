@@ -1,13 +1,10 @@
 import unittest
-import importlib
 
 import willump.evaluation.willump_executor as wexec
-import willump.evaluation.willump_weld_generator
 
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
-from willump.graph.string_split_node import StringSplitNode
 from willump.graph.string_lower_node import StringLowerNode
 from weld.types import *
 
