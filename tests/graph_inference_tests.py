@@ -68,6 +68,17 @@ def sample_scalar_append(input_array, input_value):
     return output_array
 
 
+@wexec.willump_execute()
+def sample_control_flow(input_num):
+    retval = 0
+    if input_num > 5:
+        for i in range(input_num):
+            retval = retval + 1
+    else:
+        return 2
+    return retval
+
+
 class GraphInferenceTests(unittest.TestCase):
     def test_basic_math_inference(self):
         print("\ntest_basic_math_inference")
@@ -121,7 +132,6 @@ class GraphInferenceTests(unittest.TestCase):
         weld_output = sample_string_lower(sample_string)
         numpy.testing.assert_equal(weld_output, ["cat", "dog", "house."])
 
-
     def test_scalar_append(self):
         print("\ntest_scalar_append")
         basic_vec = numpy.array([1, 2, 3], dtype=numpy.int64)
@@ -131,6 +141,15 @@ class GraphInferenceTests(unittest.TestCase):
         output_vec = numpy.array([1, 2, 3, 5], dtype=numpy.int64)
         numpy.testing.assert_equal(weld_output, output_vec)
         self.assertEqual(weld_output.dtype, output_vec.dtype)
+
+    def test_control_flow(self):
+        print("\ntest_control_flow")
+        sample_control_flow(6)
+        sample_control_flow(5)
+        weld_output = sample_control_flow(3)
+        numpy.testing.assert_equal(weld_output, 2)
+        weld_output_two = sample_control_flow(10)
+        numpy.testing.assert_equal(weld_output_two, 10)
 
 
 if __name__ == '__main__':

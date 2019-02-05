@@ -70,24 +70,16 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         for entry in node.body:
             if isinstance(entry, ast.Assign):
                 output_var_name, assignment_node = self.analyze_Assign(entry)
-                if assignment_node is None:
-                    pass
-                else:
-                    self._node_dict[output_var_name] = assignment_node
+                self._node_dict[output_var_name] = assignment_node
             elif isinstance(entry, ast.Return):
                 self.analyze_Return(entry)
-            elif isinstance(entry, ast.For):
-                for for_entry in entry.body:
-                    output_var_name, assignment_node = self.analyze_Assign(for_entry)
-                    if assignment_node is None:
-                        pass
-                    else:
-                        self._node_dict[output_var_name] = assignment_node
             else:
-                panic("Unrecognized body node %s" % ast.dump(entry))
+                output_names, py_node = self._create_py_node(entry)
+                for output_name in output_names:
+                    self._node_dict[output_name] = py_node
 
     def analyze_Assign(self, node: ast.Assign) -> \
-            Tuple[str, Optional[WillumpGraphNode]]:
+            Tuple[str, WillumpGraphNode]:
         """
         Process an assignment AST node into either a Willump Weld node or Willump Python node that
         defines the variable being assigned.
@@ -276,20 +268,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
 
         Assumes function returns a single value, which must be a numpy float64 array.
         """
-        output_node: WillumpOutputNode
-        if isinstance(node.value, ast.Name):
-            output_name: str = node.value.id
-            if output_name in self._node_dict:
-                output_node = WillumpOutputNode(WillumpPythonNode(python_ast=node,
-                                                                  input_names=[output_name],
-                                                                  output_names=[output_name],
-                                                                  in_nodes=[self._node_dict[output_name]]),
-                                                input_names=[output_name])
-            else:
-                panic("No in-node found for return node {0}".format(ast.dump(node)))
-            self.willump_graph = WillumpGraph(output_node)
-        else:
-            panic("Unrecognized return: {0}".format(ast.dump(node)))
+        return_names, return_py_node = self._create_py_node(node)
+        output_node = WillumpOutputNode(return_py_node, return_names)
+        self.willump_graph = WillumpGraph(output_node)
 
     def _create_py_node(self, entry: ast.AST, is_async_func=False) -> Tuple[List[str], WillumpGraphNode]:
         entry_analyzer = ExpressionVariableAnalyzer()
