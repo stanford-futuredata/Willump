@@ -306,7 +306,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                     """
                     PyObject* weld_entry{0} = PyTuple_GetItem({1}, {0});
                     """.format(inner_i, input_name)
-                if isinstance(field_type, WeldVec):
+                if isinstance(field_type, WeldVec) and not isinstance(field_type.elemType, WeldStr):
                     buffer += \
                         """
                         PyArrayObject* weld_numpy_entry%d;
@@ -321,6 +321,17 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                         {0}._{1}.ptr = ({2}*) PyArray_DATA(weld_numpy_entry{1});
                         """.format(weld_input_name,
                                    inner_i, wtype_to_c_type(field_type.elemType))
+                elif isinstance(field_type, WeldVec) and isinstance(field_type.elemType, WeldStr):
+                    buffer += \
+                        """
+                        {0}.size = PyList_Size({1});
+                        {0}.ptr = (vec<i8>*) malloc(sizeof(vec<i8>) * {0}.size);
+                        for(int i = 0; i < {0}.size; i++) {{
+                            PyObject* string_entry = PyList_GetItem({1}, i);
+                            {0}.ptr[i].size = PyUnicode_GET_LENGTH(string_entry);
+                            {0}.ptr[i].ptr = (i8*) PyUnicode_DATA(string_entry);
+                        }}
+                        """.format("%s._%d" % (weld_input_name, inner_i), "weld_entry%d" % inner_i)
                 elif wtype_is_scalar(field_type):
                     if weld_scalar_type_fp(weld_type=field_type):
                         buffer += \
@@ -406,7 +417,7 @@ def generate_output_parser(output_num: int, output_types: List[WeldType]) -> str
                 PyObject* ret_entry;
                 """ % len(field_types)
             for inner_i, field_type in enumerate(field_types):
-                if isinstance(field_type, WeldVec):
+                if isinstance(field_type, WeldVec) and not isinstance(field_type.elemType, WeldStr):
                     buffer += \
                         """
                         ret_entry = (PyObject*) 
@@ -414,6 +425,17 @@ def generate_output_parser(output_num: int, output_types: List[WeldType]) -> str
                         //PyArray_ENABLEFLAGS((PyArrayObject*) ret_entry, NPY_ARRAY_OWNDATA);
                         PyTuple_SetItem(ret, %d, ret_entry);
                         """ % (inner_i, weld_type_to_numpy_macro(field_type), inner_i, inner_i)
+                elif isinstance(field_type, WeldVec) and isinstance(field_type.elemType, WeldStr):
+                    buffer += \
+                        """
+                        ret_entry = PyList_New(0);
+                        for(int i = 0; i < curr_output._{0}.size; i++) {{
+                            i8* str_ptr = curr_output._{0}.ptr[i].ptr;
+                            i64 str_size = curr_output._{0}.ptr[i].size;
+                            PyList_Append(ret_entry, PyUnicode_FromStringAndSize((const char *) str_ptr, str_size));
+                        }}
+                        PyTuple_SetItem(ret, {0}, ret_entry);
+                        """.format(inner_i)
                 elif wtype_is_scalar(field_type):
                     if weld_scalar_type_fp(weld_type=field_type):
                         buffer += \
@@ -487,7 +509,7 @@ def weld_type_to_numpy_macro(wtype: WeldType) -> str:
             panic("Unrecognized IO type {0}".format(wtype.__str__()))
             return ""
     elif isinstance(wtype, WeldStr):
-        return "NPY_INT8"
+        return "NPY_OBJECT"
     else:
         panic("Numpy array type that is not vector {0}".format(wtype.__str__()))
         return ""
