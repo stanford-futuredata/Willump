@@ -22,10 +22,14 @@ class WillumpOutputNode(WillumpGraphNode):
         return self._input_names
 
     def get_node_weld(self) -> str:
-        return "{0}\n".format(self._input_node.get_output_name())
+        weld_str = "{"
+        for entry in self._input_node.get_output_names():
+            weld_str = weld_str + entry + ","
+        weld_str += "}"
+        return weld_str
 
-    def get_output_name(self) -> str:
-        return self._input_node.get_output_name()
+    def get_output_names(self) -> List[str]:
+        return self._input_node.get_output_names()
 
     def __repr__(self):
         return "Output node\n"

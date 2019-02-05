@@ -69,6 +69,9 @@ class CombineLinearRegressionNode(WillumpGraphNode):
     def get_output_name(self) -> str:
         return self._output_name
 
+    def get_output_names(self) -> List[str]:
+        return [self._output_name]
+
     def __repr__(self):
         return "Combine linear regression node for input {0} output {1}\n"\
             .format(str(self._input_nodes), self._output_name)

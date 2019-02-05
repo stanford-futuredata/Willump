@@ -72,6 +72,9 @@ class PandasColumnSelectionNode(WillumpGraphNode):
     def get_output_name(self) -> str:
         return self._output_name
 
+    def get_output_names(self) -> List[str]:
+        return [self._output_name]
+
     def __repr__(self):
         return "Pandas column selection node for input {0} output {1}\n" \
             .format(self._input_array_string_name, self._output_name)

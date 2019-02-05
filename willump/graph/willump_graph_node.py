@@ -18,9 +18,9 @@ class WillumpGraphNode(object):
         """
         ...
 
-    def get_output_name(self) -> str:
+    def get_output_names(self) -> List[str]:
         """
-        Return the name of the variable this node outputs.
+        Return the names of the variables this node outputs.
         """
         ...
 
@@ -29,4 +29,4 @@ class WillumpGraphNode(object):
         Return the Weld IR code defining this node's transform.
         """
         ...
-    
+

@@ -163,6 +163,9 @@ class LinearRegressionNode(WillumpGraphNode):
     def get_output_name(self) -> str:
         return self._output_name
 
+    def get_output_names(self) -> List[str]:
+        return [self._output_name]
+
     def __repr__(self):
         return "Linear regression node for input {0} output {1}\n" \
             .format(self._input_string_name, self._output_name)

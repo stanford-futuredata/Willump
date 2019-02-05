@@ -92,18 +92,22 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         Process an assignment AST node into either a Willump Weld node or Willump Python node that
         defines the variable being assigned.
         """
+        def create_single_output_py_node(in_node, is_async_func=False):
+            output_names, py_node = self._create_py_node(in_node, is_async_func=is_async_func)
+            assert(len(output_names) == 1)
+            return output_names[0], py_node
         assert (len(node.targets) == 1)  # Assume assignment to only one variable.
         target: ast.expr = node.targets[0]
         output_var_name = self.get_assignment_target_name(target)
         if output_var_name is None:
-            return self._create_py_node(node)
+            return create_single_output_py_node(node)
         output_type = self._type_map[output_var_name]
         value: ast.expr = node.value
         if isinstance(value, ast.BinOp):
             if not isinstance(output_type, WeldVec):
-                return self._create_py_node(node)
+                return create_single_output_py_node(node)
             if isinstance(target, ast.Subscript):
-                return self._create_py_node(node)
+                return create_single_output_py_node(node)
             if isinstance(value.left, ast.Name) and value.left.id in self._node_dict:
                 left_name: str = value.left.id
                 left_node: WillumpGraphNode = self._node_dict[left_name]
@@ -135,7 +139,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                   output_type, "/")
                 return output_var_name, array_binop_node
             else:
-                return self._create_py_node(node)
+                return create_single_output_py_node(node)
         elif isinstance(value, ast.Subscript):
             if isinstance(value.slice.value, ast.Name) and isinstance(value.value, ast.Name):
                 input_var_name = value.value.id
@@ -149,13 +153,13 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                   selected_columns=column_names)
                     return output_var_name, pandas_column_selection_node
                 else:
-                    return self._create_py_node(node)
+                    return create_single_output_py_node(node)
             else:
-                return self._create_py_node(node)
+                return create_single_output_py_node(node)
         elif isinstance(value, ast.Call):
             called_function: Optional[str] = self._get_function_name(value)
             if called_function is None:
-                return self._create_py_node(node)
+                return create_single_output_py_node(node)
             # TODO:  Update this for batched code.
             elif "lower" in called_function:
                 lower_input_var: str = value.func.value.value.id
@@ -182,12 +186,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     )
                     return output_var_name, logit_node
                 else:
-                    return self._create_py_node(node)
+                    return create_single_output_py_node(node)
             elif ".transform" in called_function:
                 lineno = str(node.lineno)
                 if WILLUMP_COUNT_VECTORIZER_VOCAB + lineno not in self._static_vars or \
                         self._static_vars[WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno] is True:
-                    return self._create_py_node(node)
+                    return create_single_output_py_node(node)
                 vectorizer_input_var: str = value.args[0].id
                 analyzer: str = self._static_vars[WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno]
                 vocab_dict: Mapping[str, int] = self._static_vars[WILLUMP_COUNT_VECTORIZER_VOCAB + lineno]
@@ -205,7 +209,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     array_space_combiner_node: WillumpPythonNode = WillumpPythonNode(
                         python_ast=array_space_combiner_ast.body[0],
                         input_names=[vectorizer_input_var],
-                        output_name=array_space_combiner_output,
+                        output_names=[array_space_combiner_output],
                         in_nodes=[vectorizer_input_node])
                     self._type_map[array_space_combiner_output] = self._type_map[vectorizer_input_var]
                     self._node_dict[array_space_combiner_output] = array_space_combiner_node
@@ -233,7 +237,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     return output_var_name, array_cv_node
             elif ".merge" in called_function:
                 if self._static_vars[WILLUMP_JOIN_HOW + str(node.lineno)] is not 'left':
-                    return self._create_py_node(node)
+                    return create_single_output_py_node(node)
                 join_col: str = self._static_vars[WILLUMP_JOIN_COL + str(node.lineno)]
                 right_df = self._static_vars[WILLUMP_JOIN_RIGHT_DATAFRAME + str(node.lineno)]
                 left_df_input_var: str = value.func.value.id
@@ -249,7 +253,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             elif "sparse.hstack" in called_function:
                 if not isinstance(value.args[0], ast.List) or \
                         not all(isinstance(ele, ast.Name) for ele in value.args[0].elts):
-                    return self._create_py_node(node)
+                    return create_single_output_py_node(node)
                 input_nodes = [self._node_dict[arg_node.id] for arg_node in value.args[0].elts]
                 input_names = [arg_node.id for arg_node in value.args[0].elts]
                 output_type = self._type_map[output_var_name]
@@ -259,11 +263,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                     output_type=output_type)
                 return output_var_name, stack_sparse_node
             elif called_function in self._async_funcs:
-                return self._create_py_node(node, is_async_func=True)
+                return create_single_output_py_node(node, is_async_func=True)
             else:
-                return self._create_py_node(node)
+                return create_single_output_py_node(node)
         else:
-            return self._create_py_node(node)
+            return create_single_output_py_node(node)
 
     def analyze_Return(self, node: ast.Return) -> None:
         """
@@ -278,7 +282,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             if output_name in self._node_dict:
                 output_node = WillumpOutputNode(WillumpPythonNode(python_ast=node,
                                                                   input_names=[output_name],
-                                                                  output_name=output_name,
+                                                                  output_names=[output_name],
                                                                   in_nodes=[self._node_dict[output_name]]),
                                                 input_names=[output_name])
             else:
@@ -287,22 +291,20 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         else:
             panic("Unrecognized return: {0}".format(ast.dump(node)))
 
-    def _create_py_node(self, entry: ast.AST, is_async_func=False) -> Tuple[str, WillumpGraphNode]:
+    def _create_py_node(self, entry: ast.AST, is_async_func=False) -> Tuple[List[str], WillumpGraphNode]:
         entry_analyzer = ExpressionVariableAnalyzer()
         entry_analyzer.visit(entry)
         input_list, output_list = entry_analyzer.get_in_out_list()
-        assert (len(output_list) == 1)
-        output_var_name = output_list[0]
         input_node_list = []
         for input_var in input_list:
             if input_var in self._node_dict:
                 input_node_list.append(self._node_dict[input_var])
         willump_python_node: WillumpPythonNode = WillumpPythonNode(python_ast=entry,
                                                                    input_names=input_list,
-                                                                   output_name=output_var_name,
+                                                                   output_names=output_list,
                                                                    in_nodes=input_node_list,
                                                                    is_async_node=is_async_func)
-        return output_var_name, willump_python_node
+        return output_list, willump_python_node
 
     def _create_temp_var_from_node(self, entry: ast.expr, entry_type: WeldType) -> Tuple[str, WillumpGraphNode]:
         """

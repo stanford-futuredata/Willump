@@ -16,7 +16,7 @@ class StackSparseNode(WillumpGraphNode):
         Initialize the node.
         """
         self._input_nodes = input_nodes
-        self.output_name = output_name
+        self._output_name = output_name
         assert(isinstance(output_type, WeldCSR))
         self._elem_type = output_type.elemType
         self._input_names = input_names
@@ -53,13 +53,16 @@ class StackSparseNode(WillumpGraphNode):
             let OUTPUT_NAME: {vec[i64], vec[i64], vec[ELEM_TYPE], i64, i64} = {result(stacker.$0), 
                 result(stacker.$1), result(stacker.$2), stack_height, stack_width};
             """
-        weld_program = weld_program.replace("OUTPUT_NAME", self.output_name)
+        weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         weld_program = weld_program.replace("ELEM_TYPE", str(self._elem_type))
         return weld_program
 
     def get_output_name(self) -> str:
-        return self.output_name
+        return self._output_name
+
+    def get_output_names(self) -> List[str]:
+        return [self._output_name]
 
     def __repr__(self):
         return "Array count-vectorizer node for input {0} output {1}\n" \
-            .format(self._input_nodes, self.output_name)
+            .format(self._input_nodes, self._output_name)

@@ -56,6 +56,9 @@ class ArrayBinopNode(WillumpGraphNode):
     def get_output_name(self) -> str:
         return self._output_name
 
+    def get_output_names(self) -> List[str]:
+        return [self._output_name]
+
     def __repr__(self):
         return "Array Addition node for inputs {0} {1} output {2}\n"\
             .format(self._input_one_name, self._input_two_name, self._output_name)

@@ -5,7 +5,7 @@ from typing import List
 
 class WillumpMultiOutputNode(WillumpGraphNode):
     """
-    Not a standard graph node--has multiple outputs unlike all graph nodes.
+    Special case of output node used for multiple returns from many sources.
     """
     input_list: List[str]
 
@@ -25,8 +25,8 @@ class WillumpMultiOutputNode(WillumpGraphNode):
         weld_str += "}"
         return weld_str
 
-    def get_output_name(self) -> str:
-        return self.input_node.get_output_name()
+    def get_output_names(self) -> List[str]:
+        return self.input_list
 
     def __repr__(self):
         return "Multi-Output node\n"
