@@ -33,7 +33,7 @@ def numpy_type_to_weld_type(numpy_array_dtype) -> WeldType:
         return WeldDouble()
     # TODO:  Fix this placeholder.
     elif numpy_array_dtype == numpy.object:
-        return WeldType()
+        return WeldStr()
     else:
         panic("Unrecognized Numpy Type %s" % numpy_array_dtype)
         return WeldType()

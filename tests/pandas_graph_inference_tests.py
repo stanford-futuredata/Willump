@@ -125,6 +125,12 @@ def sample_async_funcs(three):
     return six
 
 
+@wexec.willump_execute()
+def pandas_sample_string_lower(df):
+    df["title"] = df["title"].apply(str.lower)
+    return df
+
+
 class PandasGraphInferenceTests(unittest.TestCase):
     def test_unpacked_pandas(self):
         print("\ntest_unpacked_pandas")
@@ -235,3 +241,11 @@ class PandasGraphInferenceTests(unittest.TestCase):
         time_elapsed = end - start
         self.assertLess(time_elapsed, 0.2)
         self.assertEqual(weld_output, 6)
+
+    def pandas_test_string_lower(self):
+        print("\npandas_test_string_lower")
+        input_df = pd.DataFrame({"title": ["aA,.,.a", "B,,b", "c34234C"]})
+        pandas_sample_string_lower(input_df)
+        pandas_sample_string_lower(input_df)
+        weld_output = pandas_sample_string_lower(input_df)
+        self.assertEqual(list(weld_output["title"].values), ["aa,.,.a", "b,,b", "c34234c"])

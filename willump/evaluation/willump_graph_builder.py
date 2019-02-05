@@ -84,10 +84,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         Process an assignment AST node into either a Willump Weld node or Willump Python node that
         defines the variable being assigned.
         """
+
         def create_single_output_py_node(in_node, is_async_func=False):
             output_names, py_node = self._create_py_node(in_node, is_async_func=is_async_func)
-            assert(len(output_names) == 1)
+            assert (len(output_names) == 1)
             return output_names[0], py_node
+
         assert (len(node.targets) == 1)  # Assume assignment to only one variable.
         target: ast.expr = node.targets[0]
         output_var_name = self.get_assignment_target_name(target)
@@ -152,14 +154,27 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             called_function: Optional[str] = self._get_function_name(value)
             if called_function is None:
                 return create_single_output_py_node(node)
-            # TODO:  Update this for batched code.
-            elif "lower" in called_function:
-                lower_input_var: str = value.func.value.value.id
-                lower_input_node: WillumpGraphNode = self._node_dict[lower_input_var]
-                string_lower_node: StringLowerNode = StringLowerNode(input_node=lower_input_node,
-                                                                     input_name=lower_input_var,
-                                                                     output_name=output_var_name)
-                return output_var_name, string_lower_node
+            # Applying a function to a Pandas column.
+            elif "apply" in called_function:
+                if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Subscript) \
+                        and isinstance(value.func.value.value, ast.Name) and isinstance(value.func.value.slice.value,
+                                                                                        ast.Str):
+                    input_df_name = value.func.value.value.id
+                    input_df_node = self._node_dict[input_df_name]
+                    input_df_type = self._type_map[input_df_name]
+
+                    target_col = value.func.value.slice.value.s
+                    if isinstance(value.args[0], ast.Attribute) and value.args[0].attr == "lower":
+                        string_lower_node: StringLowerNode = StringLowerNode(input_node=input_df_node,
+                                                                             input_name=input_df_name,
+                                                                             input_type=input_df_type,
+                                                                             output_name=output_var_name,
+                                                                             target_col=target_col)
+                        return output_var_name, string_lower_node
+                    else:
+                        return create_single_output_py_node(node)
+                else:
+                    return create_single_output_py_node(node)
             # TODO:  Lots of potential predictors, differentiate them!
             elif ".predict" in called_function:
                 if WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:

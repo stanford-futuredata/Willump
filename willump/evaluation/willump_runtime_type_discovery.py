@@ -211,6 +211,8 @@ def py_var_to_weld_type(py_var: object, batch) -> Optional[WeldType]:
             return WeldVec(WeldFloat())
         elif py_var.dtype == numpy.float64:
             return WeldVec(WeldDouble())
+        elif py_var.dtype == numpy.object:
+            return WeldVec(py_var_to_weld_type(py_var[0], batch))
         else:
             panic("Unrecognized ndarray type {0}".format(py_var.dtype.__str__()))
             return None

@@ -222,8 +222,11 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
             df_temp_name = "%s__df_temp" % input_name
             if batch:
                 pandas_glue_python_args = ""
-                for column in input_type.column_names:
-                    pandas_glue_python_args += "%s['%s'].values," % (input_name, column)
+                for column, field_type in zip(input_type.column_names, input_type.field_types):
+                    if isinstance(field_type, WeldVec) and isinstance(field_type.elemType, WeldStr):
+                        pandas_glue_python_args += "list(%s['%s'].values)," % (input_name, column)
+                    else:
+                        pandas_glue_python_args += "%s['%s'].values," % (input_name, column)
                 pandas_glue_python = "%s = (%s)" % (input_name, pandas_glue_python_args)
             else:
                 pandas_glue_python = "%s = tuple(%s.values[0])" % (input_name, input_name)
