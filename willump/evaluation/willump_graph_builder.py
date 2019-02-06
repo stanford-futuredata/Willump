@@ -207,9 +207,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 vectorizer_ngram_range: Tuple[int, int] = \
                     self._static_vars[WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE + lineno]
                 # TODO:  Once the Weld compilation segfault is fixed, replace with Weld node.
-                array_space_combiner_output = self.get_store_name(vectorizer_input_var + "__weld_combined__",
+                try:
+                    array_space_combiner_output = self.get_load_name(vectorizer_input_var + "__weld_combined__", node.lineno, self._type_map)
+                except UntypedVariableException:
+                    array_space_combiner_output = self.get_store_name(vectorizer_input_var + "__weld_combined__",
                                                                   node.lineno)
-
                 if array_space_combiner_output in self._node_dict:
                     array_space_combiner_node = self._node_dict[array_space_combiner_output]
                 else:
