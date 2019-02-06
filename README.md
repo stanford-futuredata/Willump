@@ -1,6 +1,6 @@
 # Willump
 
-**Willump is under active development!  Please report any bugs or unusual behavior to [willump-group@cs.stanford.edu](willump-group@cs.stanford.edu).**
+**Willump is under active development!  Please report any bugs or unusual behavior to [willump-group@cs.stanford.edu](mailto:willump-group@cs.stanford.edu).**
 
 Willump is a compiler for model serving.  It speeds up model serving pipelines written
 in Python using Numpy and Pandas.  To speed up a function using Willump, simply
