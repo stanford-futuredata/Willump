@@ -127,7 +127,7 @@ def sample_async_funcs(three):
 
 @wexec.willump_execute()
 def pandas_sample_string_lower(df):
-    df["title"] = df["title"].apply(str.lower)
+    df["new_col"] = df["title"].apply(str.lower)
     return df
 
 
@@ -242,10 +242,11 @@ class PandasGraphInferenceTests(unittest.TestCase):
         self.assertLess(time_elapsed, 0.2)
         self.assertEqual(weld_output, 6)
 
-    def pandas_test_string_lower(self):
-        print("\npandas_test_string_lower")
+    def test_pandas_string_lower(self):
+        print("\ntest_pandas_string_lower")
         input_df = pd.DataFrame({"title": ["aA,.,.a", "B,,b", "c34234C"]})
         pandas_sample_string_lower(input_df)
         pandas_sample_string_lower(input_df)
         weld_output = pandas_sample_string_lower(input_df)
-        self.assertEqual(list(weld_output["title"].values), ["aa,.,.a", "b,,b", "c34234c"])
+        self.assertEqual(list(weld_output["new_col"].values), ["aa,.,.a", "b,,b", "c34234c"])
+        self.assertEqual(list(weld_output["title"].values), ["aA,.,.a", "B,,b", "c34234C"])

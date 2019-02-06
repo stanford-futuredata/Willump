@@ -20,12 +20,16 @@ class StringLowerNodeTests(unittest.TestCase):
         string_lower_node: StringLowerNode = \
             StringLowerNode(input_node=input_node, input_name="input_str",
                             input_type=WeldPandas([WeldStr()], ["target_col"]),
-                            target_col="target_col",
-                            output_name="lowered_output_words")
+                            input_col="target_col",
+                            output_name="lowered_output_words",
+                            output_col="new_col",
+                            output_type=WeldPandas([WeldVec(WeldStr()), WeldVec(WeldStr())],
+                                                       ["new_col", "target_col"]))
         output_node: WillumpOutputNode = WillumpOutputNode(string_lower_node, ["lowered_output_words"])
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"input_str": WeldPandas([WeldVec(WeldStr())], ["target_col"]),
-                    "lowered_output_words": WeldPandas([WeldVec(WeldStr())], ["target_col"])}
+                    "lowered_output_words": WeldPandas([WeldVec(WeldStr()), WeldVec(WeldStr())],
+                                                       ["new_col", "target_col"])}
         weld_output = wexec.execute_from_basics(graph, type_map, ((input_str,),), ["input_str"], ["lowered_output_words"],
                                                 [])
-        self.assertEqual(weld_output, (["aa,.,.a", "b,,b", "c34234c"],))
+        self.assertEqual(weld_output, (["aa,.,.a", "b,,b", "c34234c"], ["aA,.,.a", "B,,b", "c34234C"]))

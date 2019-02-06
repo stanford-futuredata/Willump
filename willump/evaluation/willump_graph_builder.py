@@ -163,14 +163,17 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     input_df_name = self.get_load_name(value.func.value.value.id, value.lineno, self._type_map)
                     input_df_node = self._node_dict[input_df_name]
                     input_df_type = self._type_map[input_df_name]
-
-                    target_col = value.func.value.slice.value.s
-                    if isinstance(value.args[0], ast.Attribute) and value.args[0].attr == "lower":
+                    input_col = value.func.value.slice.value.s
+                    if isinstance(value.args[0], ast.Attribute) and value.args[0].attr == "lower" and\
+                            isinstance(target, ast.Subscript) and isinstance(target.slice.value, ast.Str):
+                        output_col = target.slice.value.s
                         string_lower_node: StringLowerNode = StringLowerNode(input_node=input_df_node,
                                                                              input_name=input_df_name,
                                                                              input_type=input_df_type,
+                                                                             input_col=input_col,
                                                                              output_name=output_var_name,
-                                                                             target_col=target_col)
+                                                                             output_type=self._type_map[output_var_name],
+                                                                             output_col=output_col)
                         return output_var_name, string_lower_node
                     else:
                         return create_single_output_py_node(node)

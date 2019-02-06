@@ -11,14 +11,16 @@ class StringLowerNode(WillumpGraphNode):
     Equivalent to mapping Python's lower() over a list of strings.
     """
 
-    def __init__(self, input_node: WillumpGraphNode, input_name: str, input_type: WeldType, target_col: str,
-                 output_name: str) -> None:
+    def __init__(self, input_node: WillumpGraphNode, input_name: str, input_type: WeldType, input_col: str,
+                 output_name: str, output_type: WeldType, output_col: str) -> None:
         self._input_node = input_node
         self._input_df_name = input_name
         self._output_name = output_name
         self._input_names = [input_name]
         self._input_type = input_type
-        self._target_col = target_col
+        self._input_col = input_col
+        self._output_type = output_type
+        self._output_col = output_col
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return [self._input_node]
@@ -28,11 +30,12 @@ class StringLowerNode(WillumpGraphNode):
 
     def get_node_weld(self) -> str:
         assert(isinstance(self._input_type, WeldPandas))
-        target_col_num = self._input_type.column_names.index(self._target_col)
+        assert(isinstance(self._output_type, WeldPandas))
+        input_target_col_num = self._input_type.column_names.index(self._input_col)
         output_statement = ""
-        for i in range(len(self._input_type.column_names)):
-            if i != target_col_num:
-                output_statement += "INPUT_NAME.$%d," % i
+        for output_column in self._output_type.column_names:
+            if output_column != self._output_col:
+                output_statement += "INPUT_NAME.$%d," % self._input_type.column_names.index(output_column)
             else:
                 output_statement += "lowered_col,"
         weld_program = \
@@ -55,7 +58,7 @@ class StringLowerNode(WillumpGraphNode):
             let OUTPUT_NAME = {OUTPUT_STATEMENT};
             """
         weld_program = weld_program.replace("OUTPUT_STATEMENT", output_statement)
-        weld_program = weld_program.replace("TARGET_COL", str(target_col_num))
+        weld_program = weld_program.replace("TARGET_COL", str(input_target_col_num))
         weld_program = weld_program.replace("INPUT_NAME", self._input_df_name)
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         return weld_program

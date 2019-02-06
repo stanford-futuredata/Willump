@@ -38,36 +38,36 @@ def load_combi_prep(folder='data_new/', split=None):
     return combi
 
 
-# @willump.evaluation.willump_executor.willump_execute(batch=True)
+@willump.evaluation.willump_executor.willump_execute(batch=True)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,
              as_col, gs_features, gs_col, cs_features, cs_col, ages_features, ages_col, ls_features, ls_col,
              gender_features, gender_col, comps_features, comps_col, lyrs_features, lyrs_col, snames_features,
              snames_col, stabs_features, stabs_col, stypes_features, stypes_col, regs_features, regs_col):
-    c_one_combi = combi.merge(cluster_one, how='left', on=join_col_cluster_one)
-    c_two_combi = c_one_combi.merge(cluster_two, how='left', on=join_col_cluster_two)
-    c_three_combi = c_two_combi.merge(cluster_three, how='left', on=join_col_cluster_three)
-    als_one_combi = c_three_combi.merge(features_one, how='left', on=join_col_one)
-    als_two_combi = als_one_combi.merge(features_two, how='left', on=join_col_two)
-    uc_combi = als_two_combi.merge(uc_features, how='left', on=uc_join_col)
-    sc_combi = uc_combi.merge(sc_features, how='left', on=sc_join_col)
-    ac_combi = sc_combi.merge(ac_features, how='left', on=ac_join_col)
-    us_combi = ac_combi.merge(us_features, how='left', on=us_col)
-    ss_combi = us_combi.merge(ss_features, how='left', on=ss_col)
-    as_combi = ss_combi.merge(as_features, how='left', on=as_col)
-    gs_combi = as_combi.merge(gs_features, how='left', on=gs_col)
-    cs_combi = gs_combi.merge(cs_features, how='left', on=cs_col)
-    ages_combi = cs_combi.merge(ages_features, how='left', on=ages_col)
-    ls_combi = ages_combi.merge(ls_features, how='left', on=ls_col)
-    gender_combi = ls_combi.merge(gender_features, how='left', on=gender_col)
-    comps_combi = gender_combi.merge(comps_features, how='left', on=comps_col)
-    lyrs_combi = comps_combi.merge(lyrs_features, how='left', on=lyrs_col)
-    snames_combi = lyrs_combi.merge(snames_features, how='left', on=snames_col)
-    stabs_combi = snames_combi.merge(stabs_features, how='left', on=stabs_col)
-    stypes_combi = stabs_combi.merge(stypes_features, how='left', on=stypes_col)
-    regs_combi = stypes_combi.merge(regs_features, how='left', on=regs_col)
-    return regs_combi
+    combi = combi.merge(cluster_one, how='left', on=join_col_cluster_one)
+    combi = combi.merge(cluster_two, how='left', on=join_col_cluster_two)
+    combi = combi.merge(cluster_three, how='left', on=join_col_cluster_three)
+    combi = combi.merge(features_one, how='left', on=join_col_one)
+    combi = combi.merge(features_two, how='left', on=join_col_two)
+    combi = combi.merge(uc_features, how='left', on=uc_join_col)
+    combi = combi.merge(sc_features, how='left', on=sc_join_col)
+    combi = combi.merge(ac_features, how='left', on=ac_join_col)
+    combi = combi.merge(us_features, how='left', on=us_col)
+    combi = combi.merge(ss_features, how='left', on=ss_col)
+    combi = combi.merge(as_features, how='left', on=as_col)
+    combi = combi.merge(gs_features, how='left', on=gs_col)
+    combi = combi.merge(cs_features, how='left', on=cs_col)
+    combi = combi.merge(ages_features, how='left', on=ages_col)
+    combi = combi.merge(ls_features, how='left', on=ls_col)
+    combi = combi.merge(gender_features, how='left', on=gender_col)
+    combi = combi.merge(comps_features, how='left', on=comps_col)
+    combi = combi.merge(lyrs_features, how='left', on=lyrs_col)
+    combi = combi.merge(snames_features, how='left', on=snames_col)
+    combi = combi.merge(stabs_features, how='left', on=stabs_col)
+    combi = combi.merge(stypes_features, how='left', on=stypes_col)
+    combi = combi.merge(regs_features, how='left', on=regs_col)
+    return combi
 
 
 def scol_features(folder, combi, col, prefix):
