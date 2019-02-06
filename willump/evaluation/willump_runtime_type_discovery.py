@@ -36,8 +36,8 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             # First, type the arguments.
             argument_name: str = arg.arg
             argument_instrumentation_code: str = \
-                """willump_typing_map["{0}"] = py_var_to_weld_type({0}, {1})\n""" \
-                    .format(argument_name, self.batch)
+                """willump_typing_map["{0}_{2}"] = py_var_to_weld_type({0}, {1})\n""" \
+                    .format(argument_name, self.batch, node.lineno)
             instrumentation_ast: ast.Module = ast.parse(argument_instrumentation_code, "exec")
             instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
             new_body = new_body + instrumentation_statements
@@ -149,7 +149,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
         """
         target_name: str = WillumpGraphBuilder.get_assignment_target_name(target)
         target_analysis_instrumentation_code: str = \
-            """willump_typing_map["{0}"] = py_var_to_weld_type({0}, {1})""".format(target_name, self.batch)
+            """willump_typing_map["{0}_{2}"] = py_var_to_weld_type({0}, {1})""".format(target_name, self.batch, target.lineno)
         instrumentation_ast: ast.Module = ast.parse(target_analysis_instrumentation_code, "exec")
         instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
         return instrumentation_statements

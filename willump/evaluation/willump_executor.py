@@ -14,6 +14,7 @@ import willump.evaluation.willump_weld_generator
 from willump.evaluation.willump_driver_generator import generate_cpp_driver
 from willump.graph.willump_graph import WillumpGraph
 from willump import *
+from willump.willump_utilities import *
 
 from typing import Callable, MutableMapping, Mapping, List, Tuple
 import concurrent.futures
@@ -124,12 +125,14 @@ def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST
             module_to_import.append(module_name)
             argument_string = ""
             for input_name in input_names:
-                argument_string += input_name + ","
+                # Strip line numbers from variable names.
+                argument_string += strip_linenos_from_var(input_name) + ","
             argument_string = argument_string[:-1]  # Remove trailing comma.
             output_names = [item for sublist in output_names_list for item in sublist]  # Flatten
             output_string = ""
             for output_name in output_names:
-                output_string += output_name + ","
+                # Strip line numbers from variable names.
+                output_string += strip_linenos_from_var(output_name) + ","
             python_string = "%s = %s.caller_func(%s)" % (output_string, module_name, argument_string)
             python_ast_module: ast.Module = ast.parse(python_string)
             all_python_program = all_python_program + python_ast_module.body

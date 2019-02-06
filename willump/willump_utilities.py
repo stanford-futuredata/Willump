@@ -37,3 +37,7 @@ def numpy_type_to_weld_type(numpy_array_dtype) -> WeldType:
     else:
         panic("Unrecognized Numpy Type %s" % numpy_array_dtype)
         return WeldType()
+
+
+def strip_linenos_from_var(var_name):
+    return var_name[:var_name.rfind("_")]

@@ -5,6 +5,7 @@ import copy
 
 from weld.types import *
 from willump import *
+from willump.willump_utilities import *
 
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
@@ -220,16 +221,18 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
         input_type = typing_map[input_name]
         if isinstance(input_type, WeldPandas):
             df_temp_name = "%s__df_temp" % input_name
+            # Strip line numbers from variable name.
+            stripped_input_name = strip_linenos_from_var(input_name)
             if batch:
                 pandas_glue_python_args = ""
                 for column, field_type in zip(input_type.column_names, input_type.field_types):
                     if isinstance(field_type, WeldVec) and isinstance(field_type.elemType, WeldStr):
-                        pandas_glue_python_args += "list(%s['%s'].values)," % (input_name, column)
+                        pandas_glue_python_args += "list(%s['%s'].values)," % (stripped_input_name, column)
                     else:
-                        pandas_glue_python_args += "%s['%s'].values," % (input_name, column)
-                pandas_glue_python = "%s = (%s)" % (input_name, pandas_glue_python_args)
+                        pandas_glue_python_args += "%s['%s'].values," % (stripped_input_name, column)
+                pandas_glue_python = "%s = (%s)" % (stripped_input_name, pandas_glue_python_args)
             else:
-                pandas_glue_python = "%s = tuple(%s.values[0])" % (input_name, input_name)
+                pandas_glue_python = "%s = tuple(%s.values[0])" % (stripped_input_name, stripped_input_name)
             pandas_glue_ast: ast.Module = \
                 ast.parse(pandas_glue_python, "exec")
             pandas_input_node = WillumpPythonNode(python_ast=pandas_glue_ast.body[0], input_names=[],
@@ -237,14 +240,15 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
             pandas_input_processing_nodes.append(pandas_input_node)
     for output_name in weld_block_output_set:
         output_type = typing_map[output_name]
+        stripped_output_name = strip_linenos_from_var(output_name)
         if isinstance(output_type, WeldPandas):
             df_creation_arguments = ""
             for i, column_name in enumerate(output_type.column_names):
                 if batch:
-                    df_creation_arguments += "'%s' : %s[%d]," % (column_name, output_name, i)
+                    df_creation_arguments += "'%s' : %s[%d]," % (column_name, stripped_output_name, i)
                 else:
-                    df_creation_arguments += "'%s' : [%s[%d]]," % (column_name, output_name, i)
-            df_creation_statement = "%s = pd.DataFrame({%s})" % (output_name, df_creation_arguments)
+                    df_creation_arguments += "'%s' : [%s[%d]]," % (column_name, stripped_output_name, i)
+            df_creation_statement = "%s = pd.DataFrame({%s})" % (stripped_output_name, df_creation_arguments)
             df_creation_ast: ast.Module = \
                 ast.parse(df_creation_statement, "exec")
             df_creation_node = WillumpPythonNode(python_ast=df_creation_ast.body[0], input_names=[],
@@ -383,7 +387,8 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
                     break
                 else:
                     last_legal_index = j
-            result_python = "%s = %s.result()" % (async_node_output_name, async_node_output_name)
+            result_python = "%s = %s.result()" % (strip_linenos_from_var(async_node_output_name),
+                                                  strip_linenos_from_var(async_node_output_name))
             result_ast: ast.Module = \
                 ast.parse(result_python, "exec")
             pandas_input_node = WillumpPythonNode(python_ast=result_ast.body[0],
