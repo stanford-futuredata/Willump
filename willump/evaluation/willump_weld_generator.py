@@ -100,8 +100,6 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
         If a sequence of operations is being performed to a dataframe and a model is being pushed through all of them,
         find the earliest node pushed through.  This node's input will become the input for all the pushed
         nodes as their original inputs have been pushed through.
-
-        # TODO:  Work on more than just joins.
         """
         if node in nodes_to_base_map:
             return nodes_to_base_map[node]
@@ -318,7 +316,6 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
     """
     Run all asynchronous Python nodes in separate threads.
     """
-
     def find_pyblock_after_n(n: int) -> Optional[Tuple[int, int]]:
         start_index = None
         end_index = None

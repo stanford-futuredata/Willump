@@ -46,7 +46,7 @@ def compile_weld_program(weld_programs: typing.Union[str, List[str]], type_map: 
     if isinstance(weld_programs, str):
         weld_programs = [weld_programs]
         output_names = [output_names]
-    assert(len(weld_programs) == len(output_names))
+    assert (len(weld_programs) == len(output_names))
     global version_number
     # Compile the Weld program to LLVM and dump the LLVM.
     willump_home: str = os.environ["WILLUMP_HOME"]
@@ -89,10 +89,16 @@ willump_typing_map_set: MutableMapping[str, MutableMapping[str, WeldType]] = {}
 willump_static_vars_set: MutableMapping[str, object] = {}
 
 
-def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]],
-                                  aux_data: List[Tuple[int, WeldType]], type_map: MutableMapping[str, WeldType],
-                                  num_workers) \
+def py_weld_program_to_statements(
+        python_weld_program: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]],
+        aux_data: List[Tuple[int, WeldType]], type_map: MutableMapping[str, WeldType],
+        num_workers) \
         -> Tuple[List[ast.AST], List[str]]:
+    """
+    Take in a list of mixed Python and Weld code.  Compile all Weld code into Python C Extensions.  Return
+    the body of a valid Python function that calls all the Python and Weld code.  Return a list of the names
+    of the Python C extensions containing the compiled Weld code.
+    """
     def set_weld_statement_input_names(x: Tuple[List[str], List[str], List[List[str]]]):
         weld_strings, x_input_names, x_output_names = x
         updated_weld_strings = list(map(lambda weld_string: willump.evaluation.willump_weld_generator.set_input_names(
@@ -108,7 +114,7 @@ def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST
     for entry in python_weld_program:
         if isinstance(entry, tuple):
             weld_programs, _, _ = entry
-            assert(num_workers + 1 >= len(weld_programs))
+            assert (num_workers + 1 >= len(weld_programs))
     # Create the thread pool.
     module_name = compile_weld_program("true", {}, [], [], base_filename="thread_pool_creator")
     thread_pool_creator = importlib.import_module(module_name)
@@ -141,6 +147,9 @@ def py_weld_program_to_statements(python_weld_program: List[typing.Union[ast.AST
 
 def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
                               original_functiondef: ast.Module) -> ast.Module:
+    """
+    Take in the body of a valid Python function.  Return a Python AST that can be compiled into that program.
+    """
     new_functiondef = copy.copy(original_functiondef)
     new_functiondef.body[0].body = py_weld_statements
     new_functiondef.body[0].decorator_list = []
@@ -151,11 +160,6 @@ def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
 def willump_execute(batch=True, num_workers=0, async_funcs=()) -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
-
-    Makes assumptions about the input Python outlined in WillumpGraphBuilder.
-
-    Batch is true if batch-executing (multiple inputs and outputs per call) and
-    false if point-executing (one input and output per call).
     """
 
     def willump_execute_inner(func: Callable) -> Callable:
@@ -221,7 +225,7 @@ def willump_execute(batch=True, num_workers=0, async_funcs=()) -> Callable:
                     # TODO:  Remove this once in-Weld whitespace consolidation works.
                     augmented_globals["re"] = importlib.import_module("re")
                     if len(async_funcs) > 0:
-                        augmented_globals[WILLUMP_THREAD_POOL_EXECUTOR] =\
+                        augmented_globals[WILLUMP_THREAD_POOL_EXECUTOR] = \
                             concurrent.futures.ThreadPoolExecutor(max_workers=5)
                     local_namespace = {}
                     # Call the transformed function with its original arguments.

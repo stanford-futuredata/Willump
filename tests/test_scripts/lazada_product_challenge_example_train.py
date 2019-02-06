@@ -4,7 +4,6 @@ import pandas as pd
 import numpy
 import pickle
 import scipy.sparse
-import willump.evaluation.willump_executor
 import scipy.sparse.csr
 from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import mean_squared_error
@@ -15,7 +14,6 @@ def rmse_score(y, pred):
     return numpy.sqrt(mean_squared_error(y, pred))
 
 
-# @willump.evaluation.willump_executor.willump_execute()
 def vectorizer_transform(title_vect, input_df, color_vect):
     np_input = list(input_df.values)
     transformed_result = title_vect.transform(np_input)

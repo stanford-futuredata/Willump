@@ -22,14 +22,9 @@ from weld.types import *
 
 class WillumpGraphBuilder(ast.NodeVisitor):
     """
-    Builds a Willump graph from the Python AST for a FunctionDef.  Typically called from a
-    decorator around that function.  Makes the following assumptions:
+    Builds a Willump graph from the Python AST for a FunctionDef.
 
-    1.  No variable ever changes its type.
-
-    2.  No control flow changes.
-
-    # TODO:  Allow control flow changes.
+    # TODO:  Compile nodes appearing in control flow.
     """
     willump_graph: WillumpGraph
     # A list of all argument names in the order they are passed in.
@@ -84,7 +79,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         Process an assignment AST node into either a Willump Weld node or Willump Python node that
         defines the variable being assigned.
         """
-
         def create_single_output_py_node(in_node, is_async_func=False):
             output_names, py_node = self._create_py_node(in_node, is_async_func=is_async_func)
             assert (len(output_names) == 1)
@@ -179,7 +173,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         return create_single_output_py_node(node)
                 else:
                     return create_single_output_py_node(node)
-            # TODO:  Lots of potential predictors, differentiate them!
             elif ".predict" in called_function:
                 if WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:
                     logit_input_var: str = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
@@ -305,8 +298,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         """
         Process the function return and create a graph which outputs whatever the function
         is returning.
-
-        Assumes function returns a single value, which must be a numpy float64 array.
         """
         return_names, return_py_node = self._create_py_node(node)
         output_node = WillumpOutputNode(return_py_node, return_names)
