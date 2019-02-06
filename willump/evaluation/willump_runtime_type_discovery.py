@@ -29,6 +29,24 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
     def __init__(self, batch: bool = True):
         self.batch = batch
 
+    def process_body(self, body):
+        new_body: List[ast.stmt] = []
+        for body_entry in body:
+            if isinstance(body_entry, ast.Assign):
+                # Type all variables as they are assigned.
+                new_body.append(body_entry)
+                assert (len(body_entry.targets) == 1)  # Assume assignment to only one variable.
+                target: ast.expr = body_entry.targets[0]
+                target_type_statement: List[ast.stmt] = self._analyze_target_type(target)
+                new_body = new_body + target_type_statement
+                # Remember static variables if present.
+                value: ast.expr = body_entry.value
+                extract_static_vars_statements = self._maybe_extract_static_variables(value)
+                new_body = new_body + extract_static_vars_statements
+            else:
+                new_body.append(body_entry)
+        return new_body
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
         new_node = copy.deepcopy(node)
         new_body: List[ast.stmt] = []
@@ -41,23 +59,38 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             instrumentation_ast: ast.Module = ast.parse(argument_instrumentation_code, "exec")
             instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
             new_body = new_body + instrumentation_statements
-        for body_entry in node.body:
-            if isinstance(body_entry, ast.Assign):
-                # Type all variables as they are assigned.
-                new_body.append(body_entry)
-                assert (len(body_entry.targets) == 1)  # Assume assignment to only one variable.
-                target: ast.expr = body_entry.targets[0]
-                target_type_statement: List[ast.stmt] = self._analyze_target_type(target)
-                new_body = new_body + target_type_statement
-                # Remember static variables if present.
-                value: ast.expr = body_entry.value
-                extract_static_vars_statements = self._maybe_extract_static_variables(value)
-                new_body = new_body + extract_static_vars_statements
-            elif isinstance(body_entry, ast.Return):
-                new_body.append(body_entry)
+        new_body += self.process_body(node.body)
         new_node.body = new_body
         # No recursion allowed!
         new_node.decorator_list = []
+        self.generic_visit(new_node)
+        return ast.copy_location(new_node, node)
+
+    def visit_For(self, node: ast.For):
+        new_node = copy.deepcopy(node)
+        new_node.body = self.process_body(node.body)
+        new_node.orelse = self.process_body(node.orelse)
+        self.generic_visit(new_node)
+        return ast.copy_location(new_node, node)
+
+    def visit_If(self, node: ast.If):
+        new_node = copy.deepcopy(node)
+        new_node.body = self.process_body(node.body)
+        new_node.orelse = self.process_body(node.orelse)
+        self.generic_visit(new_node)
+        return ast.copy_location(new_node, node)
+
+    def visit_While(self, node: ast.While):
+        new_node = copy.deepcopy(node)
+        new_node.body = self.process_body(node.body)
+        new_node.orelse = self.process_body(node.orelse)
+        self.generic_visit(new_node)
+        return ast.copy_location(new_node, node)
+
+    def visit_With(self, node: ast.With):
+        new_node = copy.deepcopy(node)
+        new_node.body = self.process_body(node.body)
+        self.generic_visit(new_node)
         return ast.copy_location(new_node, node)
 
     @staticmethod
