@@ -123,9 +123,11 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name):
                     model_name = value.func.value.id
                     static_variable_extraction_code = \
-                        """willump_static_vars["{0}"] = {1}.{2}\n""" \
+                        """if "sklearn.linear_model" in type({0}).__module__:\n""" \
+                            .format(model_name) + \
+                        """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
                             .format(WILLUMP_LINEAR_REGRESSION_WEIGHTS, model_name, "coef_") + \
-                        """willump_static_vars["{0}"] = {1}.{2}\n""" \
+                        """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
                             .format(WILLUMP_LINEAR_REGRESSION_INTERCEPT, model_name, "intercept_")
                     logit_instrumentation_ast: ast.Module = \
                         ast.parse(static_variable_extraction_code, "exec")
@@ -145,11 +147,12 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                         """willump_static_vars["{0}"] = {1}.{2}\n""" \
                             .format(WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno, transformer_name, "lowercase") + \
                         """if type({0}).__name__ == "TfidfVectorizer":\n""".format(transformer_name) + \
-                        """\twillump_static_vars["{0}"] = {1}.{2}\n"""\
+                        """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
                             .format(WILLUMP_TFIDF_IDF_VECTOR + lineno, transformer_name, "idf_")
                     count_vectorizer_instrumentation_ast: ast.Module = \
                         ast.parse(static_variable_extraction_code, "exec")
-                    count_vectorizer_instrumentation_statements: List[ast.stmt] = count_vectorizer_instrumentation_ast.body
+                    count_vectorizer_instrumentation_statements: List[
+                        ast.stmt] = count_vectorizer_instrumentation_ast.body
                     return_statements += count_vectorizer_instrumentation_statements
             elif "merge" in called_function_name:
                 # TODO:  More robust extraction.
@@ -182,7 +185,8 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
         """
         target_name: str = WillumpGraphBuilder.get_assignment_target_name(target)
         target_analysis_instrumentation_code: str = \
-            """willump_typing_map["{0}_{2}"] = py_var_to_weld_type({0}, {1})""".format(target_name, self.batch, target.lineno)
+            """willump_typing_map["{0}_{2}"] = py_var_to_weld_type({0}, {1})""".format(target_name, self.batch,
+                                                                                       target.lineno)
         instrumentation_ast: ast.Module = ast.parse(target_analysis_instrumentation_code, "exec")
         instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
         return instrumentation_statements
