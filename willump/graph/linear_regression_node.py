@@ -1,14 +1,14 @@
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
+from willump.graph.willump_model_node import WillumpModelNode
 
 from weld.types import *
 
-from typing import List, Tuple, Mapping
+from typing import List, Tuple
 import importlib
-import numpy
 
 
-class LinearRegressionNode(WillumpGraphNode):
+class LinearRegressionNode(WillumpModelNode):
     """
     Willump Linear Regression node.  Evaluates a logistic regression model on an input.
 

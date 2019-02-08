@@ -15,7 +15,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
 
     TODO:  Handle case where entry is in left but not in right.
     """
-    input_array_string_name: str
+    left_input_name: str
     left_df_type: WeldPandas
     right_df_type: WeldPandas
     join_col_name: str
@@ -26,7 +26,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
-        self.input_array_string_name = input_name
+        self.left_input_name = input_name
         self._output_name = output_name
         self._right_dataframe = right_dataframe
         self._right_dataframe_name = "AUX_DATA_{0}".format(len(aux_data))
@@ -112,12 +112,10 @@ class WillumpHashJoinNode(WillumpGraphNode):
         self.right_df_type = WeldPandas(types_list, right_df_column_names)
         return [(indexed_right_dataframe, WeldDict(self._join_col_elem_type, self.right_df_type))]
 
-    def push_model(self, model_type: str, model_parameters: Tuple, model_index_map: Mapping[str, int],
-                   new_input_name: str):
+    def push_model(self, model_type: str, model_parameters: Tuple, model_index_map: Mapping[str, int]):
         self._model_type = model_type
         self._model_parameters = model_parameters
         self._model_index_map = model_index_map
-        self.input_array_string_name = new_input_name
 
     def get_node_weld(self) -> str:
         if self._model_type is None:
@@ -127,7 +125,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
                 result_statement = "{"
                 switch = 0
                 for i in range(self._size_left_df):
-                    result_statement += "%s.$%d," % (self.input_array_string_name, i)
+                    result_statement += "%s.$%d," % (self.left_input_name, i)
                 for i, column in enumerate(self._right_dataframe):
                     if column != self.join_col_name:
                         col_type = str(numpy_type_to_weld_type(self._right_dataframe[column].values.dtype))
@@ -154,13 +152,13 @@ class WillumpHashJoinNode(WillumpGraphNode):
                 weld_program = weld_program.replace("MERGE_STATEMENT", merge_statement)
                 weld_program = weld_program.replace("RESULT_STATEMENT", result_statement)
                 weld_program = weld_program.replace("RIGHT_DATAFRAME_NAME", self._right_dataframe_name)
-                weld_program = weld_program.replace("INPUT_NAME", self.input_array_string_name)
+                weld_program = weld_program.replace("INPUT_NAME", self.left_input_name)
                 weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
             else:
                 result_statement = "{"
                 switch = 0
                 for i in range(self._size_left_df):
-                    result_statement += "%s.$%d," % (self.input_array_string_name, i)
+                    result_statement += "%s.$%d," % (self.left_input_name, i)
                 for i, column in enumerate(self._right_dataframe):
                     if column != self.join_col_name:
                         result_statement += "pre_output.$%d," % (i - switch)
@@ -175,7 +173,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
                 weld_program = weld_program.replace("JOIN_COL_LEFT_INDEX", str(self._join_col_left_index))
                 weld_program = weld_program.replace("RIGHT_DATAFRAME_NAME", self._right_dataframe_name)
                 weld_program = weld_program.replace("RESULT_STATEMENT", result_statement)
-                weld_program = weld_program.replace("INPUT_NAME", self.input_array_string_name)
+                weld_program = weld_program.replace("INPUT_NAME", self.left_input_name)
                 weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         else:
             assert(self._model_type == 'linear')
@@ -220,7 +218,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
             weld_program = weld_program.replace("SUM_STATEMENT", sum_statement)
             weld_program = weld_program.replace("JOIN_COL_LEFT_INDEX", str(self._join_col_left_index))
             weld_program = weld_program.replace("RIGHT_DATAFRAME_NAME", self._right_dataframe_name)
-            weld_program = weld_program.replace("INPUT_NAME", self.input_array_string_name)
+            weld_program = weld_program.replace("INPUT_NAME", self.left_input_name)
             weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
             weld_program = weld_program.replace("WEIGHTS_NAME", weights_name)
         return weld_program
@@ -232,5 +230,5 @@ class WillumpHashJoinNode(WillumpGraphNode):
         return [self._output_name]
 
     def __repr__(self):
-        return "Array count-vectorizer node for input {0} output {1}\n" \
-            .format(self.input_array_string_name, self._output_name)
+        return "Hash-join node for input {0} output {1}\n" \
+            .format(self.left_input_name, self._output_name)
