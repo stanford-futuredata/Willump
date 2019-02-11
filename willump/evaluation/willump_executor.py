@@ -223,6 +223,7 @@ def willump_execute(batch=True, num_workers=0, async_funcs=()) -> Callable:
                     for module in modules_to_import:
                         augmented_globals[module] = importlib.import_module(module)
                     # TODO:  Remove this once in-Weld whitespace consolidation works.
+                    augmented_globals["scipy"] = importlib.import_module("scipy")
                     augmented_globals["re"] = importlib.import_module("re")
                     if len(async_funcs) > 0:
                         augmented_globals[WILLUMP_THREAD_POOL_EXECUTOR] = \

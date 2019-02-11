@@ -154,12 +154,10 @@ class PandasGraphInferenceTests(unittest.TestCase):
     def test_pandas_count_vectorizer(self):
         print("\ntest_pandas_count_vectorizer")
         string_array = ["theaancatdog house", "bobthe builder", "an    \t   ox anox an ox"]
-        sample_pandas_count_vectorizer(string_array, vectorizer)
+        correct_output = sample_pandas_count_vectorizer(string_array, vectorizer)
         sample_pandas_count_vectorizer(string_array, vectorizer)
         weld_output = sample_pandas_count_vectorizer(string_array, vectorizer)
-        numpy.testing.assert_almost_equal(weld_output[0], numpy.array([0, 0, 0, 0, 1, 2]))
-        numpy.testing.assert_almost_equal(weld_output[1], numpy.array([0, 4, 3, 5, 0, 2]))
-        numpy.testing.assert_almost_equal(weld_output[2], numpy.array([1, 1, 1, 1, 1, 2]))
+        numpy.testing.assert_almost_equal(weld_output.toarray(), correct_output.toarray())
 
     def test_pandas_join(self):
         print("\ntest_pandas_join")

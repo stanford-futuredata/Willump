@@ -294,6 +294,30 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
     return pandas_input_processing_nodes, pandas_post_processing_nodes
 
 
+def weld_csr_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_set: Set[str],
+                              typing_map: Mapping[str, WeldType]) \
+        -> Tuple[List[WillumpPythonNode], List[WillumpPythonNode]]:
+    """
+    Processing pass creating Python code to marshall CSR-format sparse matrices from Weld into Python.
+
+    # TODO:  Go the other way.
+    """
+    pandas_input_processing_nodes: List[WillumpPythonNode] = []
+    csr_post_processing_nodes: List[WillumpPythonNode] = []
+    for output_name in weld_block_output_set:
+        output_type = typing_map[output_name]
+        stripped_output_name = strip_linenos_from_var(output_name)
+        if isinstance(output_type, WeldCSR):
+            csr_marshall = """{0} = scipy.sparse.csr_matrix(({0}[2], ({0}[0], {0}[1])), shape=({0}[3], {0}[4]))\n""".format(
+                stripped_output_name)
+            csr_creation_ast: ast.Module = \
+                ast.parse(csr_marshall, "exec")
+            csr_creation_node = WillumpPythonNode(python_ast=csr_creation_ast.body[0], input_names=[],
+                                                  output_names=[output_name], in_nodes=[])
+            csr_post_processing_nodes.append(csr_creation_node)
+    return pandas_input_processing_nodes, csr_post_processing_nodes
+
+
 def multithreading_weld_blocks_pass(weld_block_node_list: List[WillumpGraphNode],
                                     weld_block_input_set: Set[str],
                                     weld_block_output_set: Set[str],

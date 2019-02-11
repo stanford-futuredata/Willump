@@ -95,7 +95,7 @@ class TfidfNodeTests(unittest.TestCase):
         graph: WillumpGraph = WillumpGraph(output_node)
         type_map = {"input_str": WeldVec(WeldStr()),
                     "lowered_output_words": WeldCSR((WeldDouble()))}
-        (row, col, data, l, w) = wexec.execute_from_basics(graph,
+        row, col, data, l, w = wexec.execute_from_basics(graph,
                                                 type_map,
                                                 (self.input_str,), ["input_str"], ["lowered_output_words"], aux_data)
         weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
@@ -105,16 +105,16 @@ class TfidfNodeTests(unittest.TestCase):
         print("\ntest_infer_tfidf_vectorizer")
         sample_tfidf_vectorizer(self.input_str, tf_idf_vec_char)
         sample_tfidf_vectorizer(self.input_str, tf_idf_vec_char)
-        row, col, data, l, w = sample_tfidf_vectorizer(self.input_str, tf_idf_vec_char)
-        weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
+        weld_csr_matrix = sample_tfidf_vectorizer(self.input_str, tf_idf_vec_char)
+        weld_matrix = weld_csr_matrix.toarray()
         numpy.testing.assert_almost_equal(weld_matrix, self.correct_output)
 
     def test_infer_tfidf_vectorizer_word(self):
         print("\ntest_infer_tfidf_vectorizer_word")
         sample_tfidf_vectorizer_word(self.input_str, tf_idf_vec_word)
         sample_tfidf_vectorizer_word(self.input_str, tf_idf_vec_word)
-        row, col, data, l, w = sample_tfidf_vectorizer_word(self.input_str, tf_idf_vec_word)
-        weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
+        weld_csr_matrix = sample_tfidf_vectorizer_word(self.input_str, tf_idf_vec_word)
+        weld_matrix = weld_csr_matrix.toarray()
         numpy.testing.assert_almost_equal(weld_matrix, self.correct_output_word)
 
     def test_linear_model_tfidf_vectorizer(self):

@@ -71,8 +71,8 @@ class StackingNodeTests(unittest.TestCase):
         correct_result = scipy.sparse.hstack([transformed_result, transformed_result], format="csr").toarray()
         sample_stack_sparse(string_array, vectorizer)
         sample_stack_sparse(string_array, vectorizer)
-        row, col, data, l, w = sample_stack_sparse(string_array, vectorizer)
-        weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
+        weld_csr_matrix = sample_stack_sparse(string_array, vectorizer)
+        weld_matrix = weld_csr_matrix.toarray()
         numpy.testing.assert_almost_equal(weld_matrix, correct_result)
 
     def test_sparse_stacking_linear_model(self):
@@ -98,8 +98,8 @@ class StackingNodeTests(unittest.TestCase):
         correct_result = scipy.sparse.hstack([result_one, result_two], format="csr").toarray()
         stack_sparse_tfidf(array_one, array_two, vectorizer, tf_idf_vec)
         stack_sparse_tfidf(array_one, array_two, vectorizer, tf_idf_vec)
-        row, col, data, l, w = stack_sparse_tfidf(array_one, array_two, vectorizer, tf_idf_vec)
-        weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
+        weld_csr_matrix = stack_sparse_tfidf(array_one, array_two, vectorizer, tf_idf_vec)
+        weld_matrix = weld_csr_matrix.toarray()
         numpy.testing.assert_almost_equal(weld_matrix, correct_result)
 
     def test_sparse_stacking_linreg_tfidf(self):
