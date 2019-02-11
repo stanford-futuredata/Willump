@@ -44,7 +44,7 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,
              as_col, gs_features, gs_col, cs_features, cs_col, ages_features, ages_col, ls_features, ls_col,
              gender_features, gender_col, comps_features, comps_col, lyrs_features, lyrs_col, snames_features,
-             snames_col, stabs_features, stabs_col, stypes_features, stypes_col, regs_features, regs_col):
+             snames_col, stabs_features, stabs_col, stypes_features, stypes_col, regs_features, regs_col, y_train):
     combi = combi.merge(cluster_one, how='left', on=join_col_cluster_one)
     combi = combi.merge(cluster_two, how='left', on=join_col_cluster_two)
     combi = combi.merge(cluster_three, how='left', on=join_col_cluster_three)
@@ -67,7 +67,10 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
     combi = combi.merge(stabs_features, how='left', on=stabs_col)
     combi = combi.merge(stypes_features, how='left', on=stypes_col)
     combi = combi.merge(regs_features, how='left', on=regs_col)
-    return combi
+    train_data = combi[FEATURES]
+    model = LogisticRegression()
+    model = model.fit(train_data, y_train)
+    return model
 
 
 def scol_features(folder, combi, col, prefix):
@@ -131,7 +134,8 @@ def add_cluster(folder, col, size, overlap=True, positive=True, content=False):
     return cluster, col
 
 
-def add_features(folder, combi):
+def add_features_and_train_model(folder, combi):
+    y = combi["target"].values
     features_uf, join_col_uf = load_als_dataframe(folder, size=UF_SIZE, user=True, artist=False)
     features_sf, join_col_sf = load_als_dataframe(folder, size=SF_SIZE, user=False, artist=False)
     cluster_one, join_col_cluster_one = add_cluster(folder, col='msno', size=UC_SIZE, overlap=True, positive=True,
@@ -179,37 +183,24 @@ def add_features(folder, combi):
     regs_features, regs_col = scol_features(folder, combi, 'registered_via', 'rv_')
 
     num_rows = len(combi)
-    compile_one = do_merge(combi.iloc[0:1].copy(), features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
-                           join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
-                           join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
-                           ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
-                           gs_col, cs_feature, cs_col,
-                           ages_features, ages_col, ls_features, ls_col, gender_features, gender_col, composer_features,
-                           composer_col,
-                           lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
-                           stypes_col, regs_features, regs_col)
-    compile_two = do_merge(combi.iloc[0:1].copy(), features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
-                           join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
-                           join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
-                           ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
-                           gs_col, cs_feature, cs_col,
-                           ages_features, ages_col, ls_features, ls_col, gender_features, gender_col, composer_features,
-                           composer_col,
-                           lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
-                           stypes_col, regs_features, regs_col)
-    compile_three = do_merge(combi.iloc[0:1].copy(), features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
-                             join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
-                             join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
-                             ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
-                             gs_col, cs_feature, cs_col,
-                             ages_features, ages_col, ls_features, ls_col, gender_features, gender_col,
-                             composer_features,
-                             composer_col,
-                             lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
-                             stypes_col, regs_features, regs_col)
 
     start = time.time()
-    combi = do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
+    do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
+             join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
+             join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
+             ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
+             gs_col, cs_feature, cs_col,
+             ages_features, ages_col, ls_features, ls_col, gender_features, gender_col, composer_features,
+             composer_col,
+             lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
+             stypes_col, regs_features, regs_col, y)
+    elapsed_time = time.time() - start
+
+    print('First (Python) training in %f seconds rows %d throughput %f: ' % (
+        elapsed_time, num_rows, num_rows / elapsed_time))
+
+    start = time.time()
+    model = do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
                      join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
                      join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
                      ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
@@ -217,33 +208,21 @@ def add_features(folder, combi):
                      ages_features, ages_col, ls_features, ls_col, gender_features, gender_col, composer_features,
                      composer_col,
                      lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
-                     stypes_col, regs_features, regs_col)
+                     stypes_col, regs_features, regs_col, y)
     elapsed_time = time.time() - start
 
-    print('Feature join in %f seconds rows %d throughput %f: ' % (
+    print('Second (Willump) training in %f seconds rows %d throughput %f: ' % (
         elapsed_time, num_rows, num_rows / elapsed_time))
 
-    return combi
+    return model
 
 
 def create_featureset(folder):
     combi = load_combi_prep(folder=folder, split=None)
     combi = combi.dropna(subset=["target"])
 
-    # partition data by time
-    # combi['time_bin10'] = pd.cut(combi['time'], 10, labels=range(10))
-    # combi['time_bin5'] = pd.cut(combi['time'], 5, labels=range(5))
+    model = add_features_and_train_model(folder, combi)
 
-    # add latent features
-    combi = add_features(folder, combi)
-    model = LogisticRegression()
-    y = combi["target"].values
-    train_data = combi[FEATURES].values
-    model.fit(train_data, y)
-
-    y_pred = model.predict(train_data)
-
-    print("Train AUC: %f" % auc_score(y, y_pred))
     pickle.dump(model, open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "wb"))
 
 

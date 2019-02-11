@@ -12,9 +12,9 @@ class LinearTrainingNode(WillumpTrainingNode):
     def __init__(self, python_ast: ast.AST, input_names: List[str], output_names: List[str],
                  in_nodes: List[WillumpGraphNode], input_weights, input_intercept,
                  is_async_node: bool = False) -> None:
-        super(LinearTrainingNode, self).__init__(python_ast, input_names, output_names, in_nodes, is_async_node)
-        self.input_weights = input_weights
-        self.input_width = len(input_weights)
+        super(LinearTrainingNode, self).__init__(python_ast, input_names, output_names,
+                                                 in_nodes, input_weights[0], is_async_node)
+        self.input_weights = input_weights[0]
         self.input_intercept = input_intercept
 
     def __repr__(self):

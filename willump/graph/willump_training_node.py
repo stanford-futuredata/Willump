@@ -11,8 +11,10 @@ class WillumpTrainingNode(WillumpPythonNode, WillumpModelNode):
     Willump Training Node.  Contains Python code to train a model.
     """
     def __init__(self, python_ast: ast.AST, input_names: List[str], output_names: List[str],
-                 in_nodes: List[WillumpGraphNode], is_async_node: bool = False) -> None:
+                 in_nodes: List[WillumpGraphNode], feature_importances, is_async_node: bool = False) -> None:
         super(WillumpTrainingNode, self).__init__(python_ast, input_names, output_names, in_nodes, is_async_node)
+        self.feature_importances = feature_importances
+        self.input_width = len(feature_importances)
 
     def __repr__(self):
         return "Willump Training Python node with inputs %s\n outputs %s\n and code %s\n" % \
