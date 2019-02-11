@@ -119,7 +119,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 freq_count_instrumentation_statements: List[ast.stmt] = \
                     freq_count_instrumentation_ast.body
                 return_statements += freq_count_instrumentation_statements
-            elif "predict" in called_function_name:
+            elif "predict" in called_function_name or "fit" in called_function_name:
                 if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name):
                     model_name = value.func.value.id
                     static_variable_extraction_code = \

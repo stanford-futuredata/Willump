@@ -41,16 +41,16 @@ color_vectorizer.fit(colors)
 print("Color Vocabulary has length %d" % len(color_vectorizer.vocabulary_))
 
 set_size = len(df)
-mini_df = df.head(10).copy()["title"]
-mini_y = y[:10]
-vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, mini_y)
-vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, mini_y)
-vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, mini_y)
 t0 = time.time()
-model = vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, y)
+vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, y)
 time_elapsed = time.time() - t0
-print(model)
-print("Title Processing Time %fs Num Rows %d Throughput %f rows/sec" %
+print("First (Python) Training Time %fs Num Rows %d Throughput %f rows/sec" %
+      (time_elapsed, set_size, set_size / time_elapsed))
+t0 = time.time()
+trained_model = vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, y)
+time_elapsed = time.time() - t0
+print(trained_model)
+print("Second (Willump Cascade) Training Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
 
-pickle.dump(model, open("tests/test_resources/lazada_challenge_features/lazada_model.pk", "wb"))
+pickle.dump(trained_model, open("tests/test_resources/lazada_challenge_features/lazada_model.pk", "wb"))

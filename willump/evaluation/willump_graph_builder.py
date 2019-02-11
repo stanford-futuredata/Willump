@@ -14,6 +14,7 @@ from willump.graph.willump_hash_join_node import WillumpHashJoinNode
 from willump.graph.willump_python_node import WillumpPythonNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.stack_sparse_node import StackSparseNode
+from willump.graph.linear_training_node import LinearTrainingNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
@@ -158,7 +159,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     input_df_node = self._node_dict[input_df_name]
                     input_df_type = self._type_map[input_df_name]
                     input_col = value.func.value.slice.value.s
-                    if isinstance(value.args[0], ast.Attribute) and value.args[0].attr == "lower" and\
+                    if isinstance(value.args[0], ast.Attribute) and value.args[0].attr == "lower" and \
                             isinstance(target, ast.Subscript) and isinstance(target.slice.value, ast.Str):
                         output_col = target.slice.value.s
                         string_lower_node: StringLowerNode = StringLowerNode(input_node=input_df_node,
@@ -166,7 +167,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                              input_type=input_df_type,
                                                                              input_col=input_col,
                                                                              output_name=output_var_name,
-                                                                             output_type=self._type_map[output_var_name],
+                                                                             output_type=self._type_map[
+                                                                                 output_var_name],
                                                                              output_col=output_col)
                         return output_var_name, string_lower_node
                     else:
@@ -204,10 +206,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     self._static_vars[WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE + lineno]
                 # TODO:  Once the Weld compilation segfault is fixed, replace with Weld node.
                 try:
-                    array_space_combiner_output = self.get_load_name(vectorizer_input_var + "__weld_combined__", node.lineno, self._type_map)
+                    array_space_combiner_output = self.get_load_name(vectorizer_input_var + "__weld_combined__",
+                                                                     node.lineno, self._type_map)
                 except UntypedVariableException:
                     array_space_combiner_output = self.get_store_name(vectorizer_input_var + "__weld_combined__",
-                                                                  node.lineno)
+                                                                      node.lineno)
                 if array_space_combiner_output in self._node_dict:
                     array_space_combiner_node = self._node_dict[array_space_combiner_output]
                 else:
@@ -272,6 +275,26 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                     output_name=output_var_name,
                                                     output_type=output_type)
                 return output_var_name, stack_sparse_node
+            elif ".fit" in called_function:
+                if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name) and \
+                        len(value.args) == 2 and isinstance(value.args[0], ast.Name) and isinstance(value.args[1],
+                        ast.Name) and WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:
+                    x_name = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
+                    model_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
+                    y_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
+                    x_node, model_node, y_node = self._node_dict[x_name], self._node_dict[model_name], self._node_dict[
+                        y_name]
+                    input_weights = self._static_vars[WILLUMP_LINEAR_REGRESSION_WEIGHTS]
+                    input_intercept = self._static_vars[WILLUMP_LINEAR_REGRESSION_INTERCEPT]
+                    training_node = LinearTrainingNode(python_ast=node,
+                                                       in_nodes=[x_node, model_node, y_node],
+                                                       input_names=[x_name, model_name, y_name],
+                                                       output_names=[output_var_name],
+                                                       input_weights=input_weights,
+                                                       input_intercept=input_intercept)
+                    return output_var_name, training_node
+                else:
+                    return create_single_output_py_node(node)
             elif called_function in self._async_funcs:
                 return create_single_output_py_node(node, is_async_func=True)
             else:
