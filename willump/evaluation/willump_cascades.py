@@ -2,6 +2,8 @@ from typing import MutableMapping, List, Tuple, Mapping, Optional
 import copy
 import willump.evaluation.willump_graph_passes as wg_passes
 
+import ast
+from willump import *
 from willump.willump_utilities import *
 
 from willump.graph.willump_graph_node import WillumpGraphNode
@@ -12,10 +14,11 @@ from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
 from willump.graph.willump_training_node import WillumpTrainingNode
 from willump.graph.willump_model_node import WillumpModelNode
+from willump.graph.willump_python_node import WillumpPythonNode
 
 
 def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: List[WillumpGraphNode],
-                             typing_map: MutableMapping[str, int],
+                             typing_map: MutableMapping[str, WeldType],
                              base_discovery_dict, which: str) \
         -> Optional[WillumpGraphNode]:
     """
@@ -34,7 +37,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
         node_input_nodes = node.get_in_nodes()
         node_input_names = node.get_in_names()
         node_output_name = node.get_output_name()
-        new_output_name = node_output_name + ("__cascading__%s" % which)
+        new_output_name = ("cascading__%s__" % which) + node_output_name
         node_output_type = WeldCSR(node.elem_type)
         new_input_nodes, new_input_names = [], []
         for node_input_node, node_input_name in zip(node_input_nodes, node_input_names):
@@ -57,7 +60,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
             assert all(isinstance(new_input_node, WillumpHashJoinNode) for new_input_node in new_input_nodes)
             new_input_names = [new_input_node.get_output_name() for new_input_node in new_input_nodes]
             node_output_name = node.get_output_name()
-            new_output_name = node_output_name + ("__cascading__%s" % which)
+            new_output_name = ("cascading__%s__" % which) + node_output_name
             new_input_types: List[WeldPandas] = [new_input_node.output_type for new_input_node in new_input_nodes]
             selected_columns = node.selected_columns
             new_selected_columns = list(
@@ -166,6 +169,10 @@ def get_combiner_node(node_one: WillumpGraphNode, node_two: WillumpGraphNode, or
 
 def split_model_inputs(model_node: WillumpModelNode, feature_importances) -> \
         Tuple[List[WillumpGraphNode], List[WillumpGraphNode]]:
+    """
+    Use a model's feature importances to divide its inputs into those more and those less important.  Return
+    lists of each.
+    """
     training_node_inputs: Mapping[
         WillumpGraphNode, Union[Tuple[int, int], Mapping[str, int]]] = model_node.get_model_inputs()
     nodes_to_importances: MutableMapping[WillumpGraphNode, float] = {}
@@ -184,7 +191,8 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances) -> \
 
 
 def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
-                       typing_map: MutableMapping[str, WeldType]) -> List[WillumpGraphNode]:
+                       typing_map: MutableMapping[str, WeldType],
+                       training_cascades: dict) -> List[WillumpGraphNode]:
     """
     Take in a program with a model and set model inputs.  Rank features in the model by importance.  Partition
     features into "more important" and "less important."  Construct a small model trained only on more important
@@ -193,17 +201,22 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     """
 
     def recreate_training_node(new_input_node: WillumpGraphNode, orig_node: WillumpTrainingNode,
-                               output_suffix) -> WillumpTrainingNode:
+                               output_prefix) -> WillumpTrainingNode:
+        """
+        Create a node based on orig_node that uses new_input_node as its input and prefixes its output's name
+        with output_prefix.
+        """
         new_input_nodes = copy.copy(orig_node.get_in_nodes())
         new_input_nodes[0] = new_input_node
         new_input_names = copy.copy(orig_node.get_in_names())
         new_input_names[0] = new_input_node.get_output_name()
         node_output_name = orig_node.get_output_names()[0]
-        new_output_name = node_output_name + output_suffix
+        new_output_name = output_prefix + node_output_name
         node_feature_importances = orig_node.get_feature_importances()
         new_python_ast = copy.deepcopy(orig_node.get_python())
         new_python_ast.value.args[0].id = strip_linenos_from_var(new_input_node.get_output_name())
-        new_python_ast.targets[0].id = strip_linenos_from_var(node_output_name) + output_suffix
+        new_python_ast.value.func.value.id = strip_linenos_from_var(new_output_name)
+        new_python_ast.targets[0].id = strip_linenos_from_var(new_output_name)
         return WillumpTrainingNode(python_ast=new_python_ast, input_names=new_input_names, in_nodes=new_input_nodes,
                                    output_names=[new_output_name], feature_importances=node_feature_importances)
 
@@ -213,9 +226,11 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
             break
     else:
         return sorted_nodes
-    more_important_inputs, less_important_inputs = split_model_inputs(training_node,
-                                                                      training_node.get_feature_importances())
+    feature_importances = training_node.get_feature_importances()
+    training_cascades["feature_importances"] = feature_importances
+    more_important_inputs, less_important_inputs = split_model_inputs(training_node, feature_importances)
     training_input_node = training_node.get_in_nodes()[0]
+    # Create Willump graphs and code blocks that produce the more and less important inputs.
     base_discovery_dict = {}
     less_important_inputs_head = graph_from_input_sources(training_input_node, less_important_inputs, typing_map,
                                                           base_discovery_dict, "less")
@@ -225,13 +240,37 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                                           base_discovery_dict, "more")
     more_important_inputs_block = get_training_node_dependencies(more_important_inputs_head, base_discovery_dict)
     combiner_node = get_combiner_node(more_important_inputs_head, less_important_inputs_head, training_input_node)
-    small_training_node = recreate_training_node(more_important_inputs_head, training_node, "_small")
+    small_training_node = recreate_training_node(more_important_inputs_head, training_node, "small_")
     big_training_node = recreate_training_node(combiner_node, training_node, "")
+    # Store the big model for evaluation.
+    big_model_python_name = strip_linenos_from_var(big_training_node.get_output_names()[0])
+    add_big_model_python = "%s[\"big_model\"] = %s" % (WILLUMP_TRAINING_CASCADE_NAME, big_model_python_name)
+    add_big_model_ast: ast.Module = \
+        ast.parse(add_big_model_python, "exec")
+    add_big_model_node = WillumpPythonNode(python_ast=add_big_model_ast.body[0], input_names=[big_model_python_name],
+                                          output_names=[], in_nodes=[big_training_node])
+    # Store the small model for evaluation.
+    small_model_python_name = strip_linenos_from_var(small_training_node.get_output_names()[0])
+    add_small_model_python = "%s[\"small_model\"] = %s" % (WILLUMP_TRAINING_CASCADE_NAME, small_model_python_name)
+    add_small_model_ast: ast.Module = \
+        ast.parse(add_small_model_python, "exec")
+    add_small_model_node = WillumpPythonNode(python_ast=add_small_model_ast.body[0], input_names=[small_model_python_name],
+                                          output_names=[], in_nodes=[small_training_node])
+    # Copy the original model so the small and big models aren't the same.
+    duplicate_model_python = "%s = copy.copy(%s)" % (small_model_python_name, big_model_python_name)
+    duplicate_model_ast: ast.Module = \
+        ast.parse(duplicate_model_python, "exec")
+    duplicate_model_node = WillumpPythonNode(python_ast=duplicate_model_ast.body[0], input_names=[big_model_python_name],
+                                          output_names=[], in_nodes=[big_training_node])
     base_discovery_dict = {}
+    # Remove the original code for creating model inputs to replace with the new code.
     training_dependencies = get_training_node_dependencies(training_input_node, base_discovery_dict)
     for node in training_dependencies:
         sorted_nodes.remove(node)
+    # Add all the new code for creating model inputs and training from them.
     training_node_index = sorted_nodes.index(training_node)
     sorted_nodes = sorted_nodes[:training_node_index] + more_important_inputs_block + less_important_inputs_block \
-                   + [combiner_node, small_training_node, big_training_node] + sorted_nodes[training_node_index + 1:]
+                   + [combiner_node, big_training_node, duplicate_model_node, small_training_node,
+                      add_big_model_node, add_small_model_node]\
+                   + sorted_nodes[training_node_index + 1:]
     return sorted_nodes

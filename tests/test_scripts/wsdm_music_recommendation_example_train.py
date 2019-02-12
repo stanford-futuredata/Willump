@@ -38,7 +38,10 @@ def load_combi_prep(folder='data_new/', split=None):
     return combi
 
 
-@willump.evaluation.willump_executor.willump_execute(batch=True)
+training_cascades = {}
+
+
+@willump.evaluation.willump_executor.willump_execute(batch=True, training_cascades=training_cascades)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,
@@ -224,6 +227,7 @@ def create_featureset(folder):
     model = add_features_and_train_model(folder, combi)
 
     pickle.dump(model, open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "wb"))
+    pickle.dump(training_cascades, open("tests/test_resources/wsdm_cup_features/wsdm_training_cascades.pk", "wb"))
 
 
 if __name__ == '__main__':

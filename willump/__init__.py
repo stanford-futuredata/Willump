@@ -19,6 +19,7 @@ WILLUMP_SUBSCRIPT_INDEX_NAME = "willump_subscript_index"
 
 # Names
 WILLUMP_THREAD_POOL_EXECUTOR = "__willump_threadpool_executor"
+WILLUMP_TRAINING_CASCADE_NAME = "__willump_training_cascade"
 
 
 def panic(error: str):

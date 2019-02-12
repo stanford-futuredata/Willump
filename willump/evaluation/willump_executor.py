@@ -157,7 +157,7 @@ def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
     return new_functiondef
 
 
-def willump_execute(batch=True, num_workers=0, async_funcs=()) -> Callable:
+def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades=None, eval_cascades=None) -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
     """
@@ -212,6 +212,7 @@ def willump_execute(batch=True, num_workers=0, async_funcs=()) -> Callable:
                     # Transform the Willump graph into blocks of Weld and Python code.  Compile the Weld blocks.
                     python_weld_program: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]] = \
                         willump.evaluation.willump_weld_generator.graph_to_weld(python_graph, willump_typing_map,
+                                                                                training_cascades,
                                                                                 batch=batch, num_workers=num_workers)
                     python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
                                                                                              aux_data,
@@ -224,9 +225,10 @@ def willump_execute(batch=True, num_workers=0, async_funcs=()) -> Callable:
                     # Import all of the compiled Weld blocks called from the transformed function.
                     for module in modules_to_import:
                         augmented_globals[module] = importlib.import_module(module)
-                    # TODO:  Remove this once in-Weld whitespace consolidation works.
                     augmented_globals["scipy"] = importlib.import_module("scipy")
                     augmented_globals["re"] = importlib.import_module("re")
+                    augmented_globals["copy"] = importlib.import_module("copy")
+                    augmented_globals[WILLUMP_TRAINING_CASCADE_NAME] = training_cascades
                     if len(async_funcs) > 0:
                         augmented_globals[WILLUMP_THREAD_POOL_EXECUTOR] = \
                             concurrent.futures.ThreadPoolExecutor(max_workers=5)
@@ -249,7 +251,7 @@ def execute_from_basics(graph: WillumpGraph, type_map, inputs: tuple, input_name
     """
     Only for unit tests.  Used to test graph execution separately from inference.
     """
-    w_statements = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map)
+    w_statements = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map, None)
     for entry in w_statements:
         if isinstance(entry, tuple):
             weld_program, _, _ = entry
