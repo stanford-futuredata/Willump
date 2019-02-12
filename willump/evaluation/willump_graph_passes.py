@@ -80,10 +80,11 @@ def push_back_python_nodes_pass(sorted_nodes: List[WillumpGraphNode]) -> List[Wi
 
 
 def find_dataframe_base_node(df_node: WillumpGraphNode,
-                             nodes_to_base_map: MutableMapping[WillumpGraphNode, WillumpGraphNode]):
+                             nodes_to_base_map: MutableMapping[WillumpGraphNode, WillumpHashJoinNode]) \
+        -> WillumpHashJoinNode:
     """
     If a model's input contains a sequence of independent joins of metadata onto the same table of data,
-    identify the data table.
+    identify the first join onto that data table.
     """
     if df_node in nodes_to_base_map:
         return nodes_to_base_map[df_node]
@@ -102,6 +103,7 @@ def find_dataframe_base_node(df_node: WillumpGraphNode,
             break
     for df_node in touched_nodes:
         nodes_to_base_map[df_node] = base_discovery_node
+    assert (isinstance(base_discovery_node, WillumpHashJoinNode))
     return base_discovery_node
 
 
@@ -262,6 +264,10 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         """
         Take in a node and a list of input sources.  Return a node that only depends on the intersection of its
         original input sources and the list of input sources.  Return None if a node depends on no node in the list.
+
+        This function should not modify the original graph or any of its nodes.
+
+        It does modify the type map.
         """
         return_node = None
         if isinstance(node, ArrayCountVectorizerNode) or isinstance(node, ArrayTfIdfNode):
@@ -302,18 +308,25 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         elif isinstance(node, WillumpHashJoinNode):
             base_node = find_dataframe_base_node(node, base_discovery_dict)
             node_input_node = node.get_in_nodes()[0]
-            if node in selected_input_sources and node is not base_node:
-                new_input_node = graph_from_input_sources(node_input_node, selected_input_sources)
-                if new_input_node is None:
-                    new_input_node = base_node
-                    new_input_name = base_node.get_output_names()[0]  # TODO:  Make more general.
-                    new_input_type = base_node.output_type
+            if node in selected_input_sources:
+                if node is base_node:
+                    new_input_node = base_node.get_in_nodes()[0]
+                    new_input_name = base_node.get_in_names()[0]
+                    new_input_type = base_node.left_df_type
                 else:
-                    assert (isinstance(new_input_node, WillumpHashJoinNode))
-                    new_input_name = new_input_node.get_output_name()
-                    new_input_type = new_input_node.output_type
-                return_node = copy.deepcopy(node)
+                    new_input_node = graph_from_input_sources(node_input_node, selected_input_sources)
+                    if new_input_node is None:
+                        new_input_node = base_node.get_in_nodes()[0]
+                        new_input_name = base_node.get_in_names()[0]
+                        new_input_type = base_node.left_df_type
+                    else:
+                        assert (isinstance(new_input_node, WillumpHashJoinNode))
+                        new_input_name = new_input_node.get_output_name()
+                        new_input_type = new_input_node.output_type
+                return_node = copy.copy(node)
+                return_node._input_nodes = copy.copy(node._input_nodes)
                 return_node._input_nodes[0] = new_input_node
+                return_node._input_names = copy.copy(node._input_names)
                 return_node._input_names[0] = new_input_name
                 return_node.left_input_name = new_input_name
                 return_node.left_df_type = new_input_type
@@ -358,8 +371,6 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                 panic("Unrecognized node found when making cascade dependencies: %s" % input_node.__repr__)
         return output_block
 
-    base_discovery_dict = {}
-
     for node in sorted_nodes:
         if isinstance(node, WillumpTrainingNode):
             training_node: WillumpTrainingNode = node
@@ -382,10 +393,13 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     more_important_inputs = ranked_inputs[len(ranked_inputs) // 2:]
     less_important_inputs = ranked_inputs[:len(ranked_inputs) // 2]
     training_input_node = training_node.get_in_nodes()[0]
+    base_discovery_dict = {}
+    less_important_inputs_block = get_training_node_dependencies(
+        graph_from_input_sources(training_input_node, less_important_inputs))
+    base_discovery_dict = {}
     more_important_inputs_block = get_training_node_dependencies(
         graph_from_input_sources(training_input_node, more_important_inputs))
-    # less_important_inputs_block = get_training_node_dependencies(
-    #     graph_from_input_sources(training_input_node, less_important_inputs))
+    base_discovery_dict = {}
     training_dependencies = get_training_node_dependencies(training_input_node)
     for node in training_dependencies:
         sorted_nodes.remove(node)
