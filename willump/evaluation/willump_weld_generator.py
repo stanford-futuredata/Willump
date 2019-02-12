@@ -104,6 +104,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch
     sorted_nodes = wg_passes.push_back_python_nodes_pass(sorted_nodes)
     sorted_nodes = wg_passes.async_python_functions_parallel_pass(sorted_nodes)
     wg_passes.model_input_identification_pass(sorted_nodes)
+    sorted_nodes = wg_passes.model_cascade_pass(sorted_nodes, typing_map)
     weld_python_list: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[str]]]] = []
     weld_block_input_set: Set[str] = set()
     weld_block_aux_input_set: Set[str] = set()

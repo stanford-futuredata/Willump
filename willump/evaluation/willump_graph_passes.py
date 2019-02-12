@@ -18,6 +18,7 @@ from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.willump_hash_join_node import WillumpHashJoinNode
 from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
+from willump.graph.willump_training_node import WillumpTrainingNode
 
 
 def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
@@ -95,7 +96,7 @@ def find_dataframe_base_node(df_node: WillumpGraphNode,
         touched_nodes.append(base_discovery_node)
         base_left_input = base_discovery_node.get_in_nodes()[0]
         if isinstance(base_left_input, WillumpHashJoinNode) and not any(
-                join_col_name in base_left_input.right_df_type.column_names for join_col_name in join_cols_set):
+                join_col_name in base_left_input.right_df_row_type.column_names for join_col_name in join_cols_set):
             base_discovery_node = base_left_input
         else:
             break
@@ -141,7 +142,7 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
             current_node_stack.append((selection_input, (index_start, index_end), selection_map))
         elif isinstance(input_node, WillumpHashJoinNode):
             join_left_columns = input_node.left_df_type.column_names
-            join_right_columns = input_node.right_df_type.column_names
+            join_right_columns = input_node.right_df_row_type.column_names
             output_columns = join_left_columns + join_right_columns
             if curr_selection_map is None:
                 curr_selection_map = {col: index_start + i for i, col in enumerate(output_columns)}
@@ -161,8 +162,12 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
                 for col in curr_selection_map.keys():
                     if col in output_columns:
                         pushed_map[col] = curr_selection_map[col]
-            if len(pushed_map) > 0:
-                model_inputs[input_node] = pushed_map
+            model_inputs[input_node] = pushed_map
+        # TODO:  What to do here?
+        elif isinstance(input_node, WillumpInputNode):
+            pass
+        else:
+            panic("Unrecognized node found when processing model inputs %s" % input_node.__repr__())
     model_node.set_model_inputs(model_inputs)
     return
 
@@ -223,8 +228,8 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
                 join_left_input_node = input_node.get_in_nodes()[0]
                 if join_left_input_node in model_inputs:
                     current_node_stack.append(join_left_input_node)
-                if input_node in model_inputs:
-                    pushed_map: Mapping[str, int] = model_inputs[input_node]
+                pushed_map: Mapping[str, int] = model_inputs[input_node]
+                if len(pushed_map) > 0:
                     assert (isinstance(pushed_map, Mapping))
                     base_node = find_dataframe_base_node(input_node, nodes_to_base_map)
                     input_node.left_input_name = base_node.left_input_name
@@ -241,6 +246,152 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
                                                                 intercept_data_name=model_node.intercept_data_name,
                                                                 output_type=typing_map[model_node.get_output_name()]))
     return weld_block_node_list
+
+
+def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
+                       typing_map: MutableMapping[str, WeldType]) -> List[WillumpGraphNode]:
+    """
+    Take in a program with a model and set model inputs.  Rank features in the model by importance.  Partition
+    features into "more important" and "less important."  Construct a small model trained only on more important
+    features.  Refactor graph so for each input, first predict with small model and check if confidence is above a
+    threshold.  If it is, use small model prediction.  Else, cascade to large model prediction.
+    """
+
+    def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: List[WillumpGraphNode]) \
+            -> Optional[WillumpGraphNode]:
+        """
+        Take in a node and a list of input sources.  Return a node that only depends on the intersection of its
+        original input sources and the list of input sources.  Return None if a node depends on no node in the list.
+        """
+        return_node = None
+        if isinstance(node, ArrayCountVectorizerNode) or isinstance(node, ArrayTfIdfNode):
+            if node in selected_input_sources:
+                return_node = node
+        elif isinstance(node, StackSparseNode):
+            node_input_nodes = node.get_in_nodes()
+            node_input_names = node.get_in_names()
+            node_output_name = node.get_output_name()
+            node_output_type = WeldCSR(node.elem_type)
+            new_input_nodes, new_input_names = [], []
+            for node_input_node, node_input_name in zip(node_input_nodes, node_input_names):
+                return_node = graph_from_input_sources(node_input_node, selected_input_sources)
+                if return_node is not None:
+                    new_input_nodes.append(return_node)
+                    new_input_names.append(node_input_name)
+            return_node = StackSparseNode(input_nodes=new_input_nodes,
+                                          input_names=new_input_names,
+                                          output_name=node_output_name,
+                                          output_type=node_output_type)
+        elif isinstance(node, PandasColumnSelectionNode):
+            node_input_node = node.get_in_nodes()[0]
+            new_input_node = graph_from_input_sources(node_input_node, selected_input_sources)
+            if new_input_node is not None:
+                assert (isinstance(new_input_node, WillumpHashJoinNode))
+                new_input_name = new_input_node.get_output_name()
+                node_output_name = node.get_output_name()
+                new_input_type: WeldPandas = new_input_node.output_type
+                assert (isinstance(new_input_type, WeldPandas))
+                selected_columns = node.selected_columns
+                new_selected_columns = list(filter(lambda x: x in new_input_type.column_names, selected_columns))
+                return_node = PandasColumnSelectionNode(input_node=new_input_node,
+                                                        input_name=new_input_name,
+                                                        output_name=node_output_name,
+                                                        input_type=new_input_type,
+                                                        selected_columns=new_selected_columns)
+                typing_map[return_node.get_output_name()] = return_node.output_type
+        elif isinstance(node, WillumpHashJoinNode):
+            base_node = find_dataframe_base_node(node, base_discovery_dict)
+            node_input_node = node.get_in_nodes()[0]
+            if node in selected_input_sources and node is not base_node:
+                new_input_node = graph_from_input_sources(node_input_node, selected_input_sources)
+                if new_input_node is None:
+                    new_input_node = base_node
+                    new_input_name = base_node.get_output_names()[0]  # TODO:  Make more general.
+                    new_input_type = base_node.output_type
+                else:
+                    assert (isinstance(new_input_node, WillumpHashJoinNode))
+                    new_input_name = new_input_node.get_output_name()
+                    new_input_type = new_input_node.output_type
+                return_node = copy.deepcopy(node)
+                return_node._input_nodes[0] = new_input_node
+                return_node._input_names[0] = new_input_name
+                return_node.left_input_name = new_input_name
+                return_node.left_df_type = new_input_type
+                return_node.output_type = \
+                    WeldPandas(field_types=new_input_type.field_types + node.right_df_type.field_types,
+                               column_names=new_input_type.column_names + node.right_df_type.column_names)
+                typing_map[return_node.get_output_name()] = return_node.output_type
+            elif node is not base_node:
+                return graph_from_input_sources(node_input_node, selected_input_sources)
+            else:
+                pass
+        else:
+            panic("Unrecognized node found when making cascade %s" % node.__repr__())
+        return return_node
+
+    def get_training_node_dependencies(training_input_node: WillumpGraphNode) \
+            -> List[WillumpGraphNode]:
+        """
+        Take in a training node's input.  Return a Weld block that constructs the training node's
+        input from its input sources.
+        """
+        current_node_stack: List[WillumpGraphNode] = [training_input_node]
+        # Nodes through which the model has been pushed which are providing output.
+        output_block: List[WillumpGraphNode] = []
+        while len(current_node_stack) > 0:
+            input_node = current_node_stack.pop()
+            if isinstance(input_node, ArrayCountVectorizerNode) or isinstance(input_node, ArrayTfIdfNode):
+                output_block.insert(0, input_node)
+            elif isinstance(input_node, StackSparseNode):
+                output_block.insert(0, input_node)
+                current_node_stack += input_node.get_in_nodes()
+            elif isinstance(input_node, PandasColumnSelectionNode):
+                output_block.insert(0, input_node)
+                current_node_stack.append(input_node.get_in_nodes()[0])
+            elif isinstance(input_node, WillumpHashJoinNode):
+                base_node = find_dataframe_base_node(input_node, base_discovery_dict)
+                if input_node is not base_node:
+                    output_block.insert(0, input_node)
+                    join_left_input_node = input_node.get_in_nodes()[0]
+                    current_node_stack.append(join_left_input_node)
+            else:
+                panic("Unrecognized node found when making cascade dependencies: %s" % input_node.__repr__)
+        return output_block
+
+    base_discovery_dict = {}
+
+    for node in sorted_nodes:
+        if isinstance(node, WillumpTrainingNode):
+            training_node: WillumpTrainingNode = node
+            break
+    else:
+        return sorted_nodes
+    training_node_inputs: Mapping[WillumpGraphNode, Union[Tuple[int, int], Mapping[str, int]]] \
+        = training_node.get_model_inputs()
+    feature_importances = training_node.get_feature_importances()
+    nodes_to_importances: MutableMapping[WillumpGraphNode, float] = {}
+    for node, indices in training_node_inputs.items():
+        if isinstance(indices, tuple):
+            start, end = indices
+            sum_importance = sum(feature_importances[start:end])
+        else:
+            indices = indices.values()
+            sum_importance = sum([feature_importances[i] for i in indices])
+        nodes_to_importances[node] = sum_importance
+    ranked_inputs = sorted(nodes_to_importances.keys(), key=lambda x: nodes_to_importances[x])
+    more_important_inputs = ranked_inputs[len(ranked_inputs) // 2:]
+    less_important_inputs = ranked_inputs[:len(ranked_inputs) // 2]
+    training_input_node = training_node.get_in_nodes()[0]
+    more_important_inputs_block = get_training_node_dependencies(
+        graph_from_input_sources(training_input_node, more_important_inputs))
+    # less_important_inputs_block = get_training_node_dependencies(
+    #     graph_from_input_sources(training_input_node, less_important_inputs))
+    training_dependencies = get_training_node_dependencies(training_input_node)
+    for node in training_dependencies:
+        sorted_nodes.remove(node)
+    training_node_index = sorted_nodes.index(training_node)
+    sorted_nodes = sorted_nodes[:training_node_index] + more_important_inputs_block + sorted_nodes[training_node_index:]
+    return sorted_nodes
 
 
 def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_set: Set[str],

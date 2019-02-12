@@ -218,6 +218,8 @@ def willump_execute(batch=True, num_workers=0, async_funcs=()) -> Callable:
                                                                                              willump_typing_map,
                                                                                              num_workers=num_workers)
                     compiled_functiondef = py_weld_statements_to_ast(python_statement_list, python_ast)
+                    # import astpretty
+                    # astpretty.pprint(compiled_functiondef, show_offsets=False)
                     augmented_globals = copy.copy(func.__globals__)
                     # Import all of the compiled Weld blocks called from the transformed function.
                     for module in modules_to_import:
