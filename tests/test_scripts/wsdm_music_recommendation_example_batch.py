@@ -38,9 +38,10 @@ def load_combi_prep(folder='data_new/', split=None):
 
 
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
+cascades = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_training_cascades.pk", "rb"))
 
 
-@willump.evaluation.willump_executor.willump_execute(batch=True, num_workers=0)
+@willump.evaluation.willump_executor.willump_execute(batch=True, num_workers=0, eval_cascades=cascades)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,

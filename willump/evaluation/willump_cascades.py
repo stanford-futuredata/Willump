@@ -190,14 +190,13 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances) -> \
     return more_important_inputs, less_important_inputs
 
 
-def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
-                       typing_map: MutableMapping[str, WeldType],
-                       training_cascades: dict) -> List[WillumpGraphNode]:
+def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
+                                typing_map: MutableMapping[str, WeldType],
+                                training_cascades: dict) -> List[WillumpGraphNode]:
     """
-    Take in a program with a model and set model inputs.  Rank features in the model by importance.  Partition
-    features into "more important" and "less important."  Construct a small model trained only on more important
-    features.  Refactor graph so for each input, first predict with small model and check if confidence is above a
-    threshold.  If it is, use small model prediction.  Else, cascade to large model prediction.
+    Take in a program training a model.  Rank features in the model by importance.  Partition
+    features into "more important" and "less important."  Train a small model on only more important features
+    and a big model on all features.
     """
 
     def recreate_training_node(new_input_node: WillumpGraphNode, orig_node: WillumpTrainingNode,
@@ -248,20 +247,22 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     add_big_model_ast: ast.Module = \
         ast.parse(add_big_model_python, "exec")
     add_big_model_node = WillumpPythonNode(python_ast=add_big_model_ast.body[0], input_names=[big_model_python_name],
-                                          output_names=[], in_nodes=[big_training_node])
+                                           output_names=[], in_nodes=[big_training_node])
     # Store the small model for evaluation.
     small_model_python_name = strip_linenos_from_var(small_training_node.get_output_names()[0])
     add_small_model_python = "%s[\"small_model\"] = %s" % (WILLUMP_TRAINING_CASCADE_NAME, small_model_python_name)
     add_small_model_ast: ast.Module = \
         ast.parse(add_small_model_python, "exec")
-    add_small_model_node = WillumpPythonNode(python_ast=add_small_model_ast.body[0], input_names=[small_model_python_name],
-                                          output_names=[], in_nodes=[small_training_node])
+    add_small_model_node = WillumpPythonNode(python_ast=add_small_model_ast.body[0],
+                                             input_names=[small_model_python_name],
+                                             output_names=[], in_nodes=[small_training_node])
     # Copy the original model so the small and big models aren't the same.
     duplicate_model_python = "%s = copy.copy(%s)" % (small_model_python_name, big_model_python_name)
     duplicate_model_ast: ast.Module = \
         ast.parse(duplicate_model_python, "exec")
-    duplicate_model_node = WillumpPythonNode(python_ast=duplicate_model_ast.body[0], input_names=[big_model_python_name],
-                                          output_names=[], in_nodes=[big_training_node])
+    duplicate_model_node = WillumpPythonNode(python_ast=duplicate_model_ast.body[0],
+                                             input_names=[big_model_python_name],
+                                             output_names=[], in_nodes=[big_training_node])
     base_discovery_dict = {}
     # Remove the original code for creating model inputs to replace with the new code.
     training_dependencies = get_training_node_dependencies(training_input_node, base_discovery_dict)
@@ -271,6 +272,28 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     training_node_index = sorted_nodes.index(training_node)
     sorted_nodes = sorted_nodes[:training_node_index] + more_important_inputs_block + less_important_inputs_block \
                    + [combiner_node, big_training_node, duplicate_model_node, small_training_node,
-                      add_big_model_node, add_small_model_node]\
+                      add_big_model_node, add_small_model_node] \
                    + sorted_nodes[training_node_index + 1:]
+    return sorted_nodes
+
+
+def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
+                            typing_map: MutableMapping[str, WeldType],
+                            aux_data: List[Tuple[int, WeldType]],
+                            eval_cascades: dict) -> List[WillumpGraphNode]:
+    """
+    Take in a program with a model.  Use pre-computed feature importances to partition the models' input
+    sources into those more and less important.  Rewrite the program so it first evaluates a pre-trained smaller
+    model on all more-important input sources and checks confidence.  If it is above some threshold, use
+    that prediction, otherwise, predict with a pre-trained bigger model on all inputs.
+    """
+    for node in sorted_nodes:
+        if isinstance(node, WillumpModelNode):
+            model_node: WillumpModelNode = node
+            break
+    else:
+        return sorted_nodes
+    feature_importances = eval_cascades["feature_importances"]
+    big_model = eval_cascades["big_model"]
+    small_model = eval_cascades["small_model"]
     return sorted_nodes

@@ -99,6 +99,7 @@ def py_weld_program_to_statements(
     the body of a valid Python function that calls all the Python and Weld code.  Return a list of the names
     of the Python C extensions containing the compiled Weld code.
     """
+
     def set_weld_statement_input_names(x: Tuple[List[str], List[str], List[List[str]]]):
         weld_strings, x_input_names, x_output_names = x
         updated_weld_strings = list(map(lambda weld_string: willump.evaluation.willump_weld_generator.set_input_names(
@@ -198,7 +199,7 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                 else:
                     # With the types of variables all known, we can compile the function.  First,
                     # infer the Willump graph from the function's AST.
-                    willump_typing_map: Mapping[str, WeldType] = \
+                    willump_typing_map: MutableMapping[str, WeldType] = \
                         willump_typing_map_set[llvm_runner_func]
                     willump_static_vars: Mapping[str, object] = \
                         willump_static_vars_set[llvm_runner_func]
@@ -211,8 +212,11 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                     aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()
                     # Transform the Willump graph into blocks of Weld and Python code.  Compile the Weld blocks.
                     python_weld_program: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]] = \
-                        willump.evaluation.willump_weld_generator.graph_to_weld(python_graph, willump_typing_map,
-                                                                                training_cascades,
+                        willump.evaluation.willump_weld_generator.graph_to_weld(graph=python_graph,
+                                                                                typing_map=willump_typing_map,
+                                                                                training_cascades=training_cascades,
+                                                                                eval_cascades=eval_cascades,
+                                                                                aux_data=aux_data,
                                                                                 batch=batch, num_workers=num_workers)
                     python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
                                                                                              aux_data,
@@ -251,7 +255,7 @@ def execute_from_basics(graph: WillumpGraph, type_map, inputs: tuple, input_name
     """
     Only for unit tests.  Used to test graph execution separately from inference.
     """
-    w_statements = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map, None)
+    w_statements = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map, None, None, aux_data)
     for entry in w_statements:
         if isinstance(entry, tuple):
             weld_program, _, _ = entry

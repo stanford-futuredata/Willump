@@ -14,7 +14,10 @@ def rmse_score(y, pred):
     return numpy.sqrt(mean_squared_error(y, pred))
 
 
-@willump.evaluation.willump_executor.willump_execute(num_workers=1)
+cascades = pickle.load(open("tests/test_resources/lazada_challenge_features/lazada_training_cascades.pk", "rb"))
+
+
+@willump.evaluation.willump_executor.willump_execute(num_workers=1, eval_cascades=cascades)
 def vectorizer_transform(title_vect, input_df, color_vect):
     np_input = list(input_df.values)
     transformed_result = title_vect.transform(np_input)
