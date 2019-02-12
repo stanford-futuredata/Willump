@@ -289,6 +289,7 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                           input_names=new_input_names,
                                           output_name=new_output_name,
                                           output_type=node_output_type)
+            typing_map[new_output_name] = node_output_type
         elif isinstance(node, PandasColumnSelectionNode):
             node_input_nodes = node.get_in_nodes()
             new_input_nodes = [graph_from_input_sources(node_input_node, selected_input_sources, which) for
@@ -308,7 +309,7 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                                         output_name=new_output_name,
                                                         input_types=new_input_types,
                                                         selected_columns=new_selected_columns)
-                typing_map[return_node.get_output_name()] = return_node.output_type
+                typing_map[new_output_name] = return_node.output_type
         elif isinstance(node, WillumpHashJoinNode):
             base_node = find_dataframe_base_node(node, base_discovery_dict)
             node_input_node = node.get_in_nodes()[0]
@@ -395,6 +396,20 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         else:
             panic("Unrecognized nodes being combined: %s %s" % (node_one.__repr__(), node_two.__repr__()))
 
+    def recreate_training_node(new_input_node: WillumpGraphNode, orig_node: WillumpTrainingNode, output_suffix) -> WillumpTrainingNode:
+        new_input_nodes = copy.copy(orig_node.get_in_nodes())
+        new_input_nodes[0] = new_input_node
+        new_input_names = copy.copy(orig_node.get_in_names())
+        new_input_names[0] = new_input_node.get_output_name()
+        node_output_name = orig_node.get_output_names()[0]
+        new_output_name = node_output_name + output_suffix
+        node_feature_importances = orig_node.get_feature_importances()
+        new_python_ast = copy.deepcopy(orig_node.get_python())
+        new_python_ast.value.args[0].id = strip_linenos_from_var(new_input_node.get_output_name())
+        new_python_ast.targets[0].id = strip_linenos_from_var(node_output_name) + output_suffix
+        return WillumpTrainingNode(python_ast=new_python_ast, input_names=new_input_names, in_nodes=new_input_nodes,
+                                   output_names=[new_output_name], feature_importances=node_feature_importances)
+
     for node in sorted_nodes:
         if isinstance(node, WillumpTrainingNode):
             training_node: WillumpTrainingNode = node
@@ -424,13 +439,15 @@ def model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     more_important_inputs_head = graph_from_input_sources(training_input_node, more_important_inputs, "more")
     more_important_inputs_block = get_training_node_dependencies(more_important_inputs_head)
     combiner_node = get_combiner_node(more_important_inputs_head, less_important_inputs_head, training_input_node)
+    small_training_node = recreate_training_node(more_important_inputs_head, training_node, "_small")
+    big_training_node = recreate_training_node(combiner_node, training_node, "")
     base_discovery_dict = {}
     training_dependencies = get_training_node_dependencies(training_input_node)
     for node in training_dependencies:
         sorted_nodes.remove(node)
     training_node_index = sorted_nodes.index(training_node)
     sorted_nodes = sorted_nodes[:training_node_index] + more_important_inputs_block + less_important_inputs_block \
-        + [combiner_node] + sorted_nodes[training_node_index:]
+        + [combiner_node, small_training_node, big_training_node] + sorted_nodes[training_node_index + 1:]
     return sorted_nodes
 
 
