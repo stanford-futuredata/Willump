@@ -7,26 +7,28 @@ from typing import List, Tuple, Mapping
 
 class PandasColumnSelectionNode(WillumpGraphNode):
     """
-    Returns a dataframe containing a selection of columns from another dataframe.
+    Returns a dataframe containing a selection of columns from other dataframes.
     """
     selected_columns: List[str]
-    input_type: WeldType
+    output_type: WeldPandas
 
-    def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str,
-                 input_type: WeldPandas, selected_columns: List[str]) -> None:
+    def __init__(self, input_nodes: List[WillumpGraphNode], input_names: List[str], output_name: str,
+                 input_types: List[WeldPandas], selected_columns: List[str]) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
-        self._input_array_string_name = input_name
         self._output_name = output_name
-        self._input_nodes = [input_node]
-        self.input_type = input_type
+        self._input_nodes = input_nodes
+        self._input_types = input_types
         self.selected_columns = selected_columns
         self._model_type = None
         self._model_parameters = None
         self._model_index_map = None
-        self._input_names = [input_name]
-        col_map = {col: col_type for col, col_type in zip(input_type.column_names, input_type.field_types)}
+        self._input_names = input_names
+        col_map = {}
+        for input_type in input_types:
+            for col, col_type in zip(input_type.column_names, input_type.field_types):
+                col_map[col] = col_type
         self.output_type = WeldPandas(column_names=selected_columns,
                                       field_types=list(map(lambda x: col_map[x], selected_columns)))
 
@@ -42,19 +44,23 @@ class PandasColumnSelectionNode(WillumpGraphNode):
         self._model_index_map = model_index_map
 
     def get_node_weld(self) -> str:
-        assert(isinstance(self.input_type, WeldPandas))
+        assert(all(isinstance(input_type, WeldPandas) for input_type in self._input_types))
         if self._model_type is None:
             selection_string = ""
-            input_columns = self.input_type.column_names
             for column in self.selected_columns:
-                selection_string += "INPUT_NAME.$%d," % input_columns.index(column)
+                for input_name, input_type in zip(self._input_names, self._input_types):
+                    input_columns = input_type.column_names
+                    if column in input_columns:
+                        selection_string += "%s.$%d," % (input_name, input_columns.index(column))
+                        break
             weld_program = "let OUTPUT_NAME = {%s};" % selection_string
         else:
             # TODO:  Handle unbatched case.
             assert(self._model_type == "linear")
+            assert(len(self._input_names) == 1)
             weights_name, = self._model_parameters
             sum_string = ""
-            input_columns = self.input_type.column_names
+            input_columns = self._input_types[0].column_names
             for column in self.selected_columns:
                 sum_string += "lookup(WEIGHTS_NAME, %dL) * f64(lookup(INPUT_NAME.$%d, result_i))+" % (self._model_index_map[column], input_columns.index(column))
             sum_string = sum_string[:-1]
@@ -69,7 +75,7 @@ class PandasColumnSelectionNode(WillumpGraphNode):
                 """
             weld_program = weld_program.replace("SUM_STRING", sum_string)
             weld_program = weld_program.replace("WEIGHTS_NAME", weights_name)
-        weld_program = weld_program.replace("INPUT_NAME", self._input_array_string_name)
+            weld_program = weld_program.replace("INPUT_NAME", self._input_names[0])
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         return weld_program
 
@@ -80,5 +86,5 @@ class PandasColumnSelectionNode(WillumpGraphNode):
         return [self._output_name]
 
     def __repr__(self):
-        return "Pandas column selection node for input {0} output {1}\n" \
-            .format(self._input_array_string_name, self._output_name)
+        return "Pandas column selection node for inputs {0} output {1}\n" \
+            .format(self._input_names, self._output_name)

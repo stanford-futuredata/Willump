@@ -134,12 +134,13 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             if isinstance(value.slice.value, ast.Name) and isinstance(value.value, ast.Name):
                 input_var_name = self.get_load_name(value.value.id, value.lineno, self._type_map)
                 column_names = self._static_vars[WILLUMP_SUBSCRIPT_INDEX_NAME + str(value.lineno)]
-                if isinstance(self._type_map[input_var_name], WeldPandas) and isinstance(column_names, list):
+                input_var_type = self._type_map[input_var_name]
+                if isinstance(input_var_type, WeldPandas) and isinstance(column_names, list):
                     pandas_column_selection_node = \
-                        PandasColumnSelectionNode(input_node=self._node_dict[input_var_name],
-                                                  input_name=input_var_name,
+                        PandasColumnSelectionNode(input_nodes=[self._node_dict[input_var_name]],
+                                                  input_names=[input_var_name],
                                                   output_name=output_var_name,
-                                                  input_type=self._type_map[input_var_name],
+                                                  input_types=[input_var_type],
                                                   selected_columns=column_names)
                     return output_var_name, pandas_column_selection_node
                 else:
