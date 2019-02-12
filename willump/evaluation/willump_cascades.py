@@ -15,6 +15,7 @@ from willump.graph.array_tfidf_node import ArrayTfIdfNode
 from willump.graph.willump_training_node import WillumpTrainingNode
 from willump.graph.willump_model_node import WillumpModelNode
 from willump.graph.willump_python_node import WillumpPythonNode
+from willump.graph.linear_regression_node import LinearRegressionNode
 
 
 def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: List[WillumpGraphNode],
@@ -112,7 +113,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
     return return_node
 
 
-def get_training_node_dependencies(training_input_node: WillumpGraphNode, base_discovery_dict) \
+def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_discovery_dict) \
         -> List[WillumpGraphNode]:
     """
     Take in a training node's input.  Return a Weld block that constructs the training node's
@@ -233,11 +234,11 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     base_discovery_dict = {}
     less_important_inputs_head = graph_from_input_sources(training_input_node, less_important_inputs, typing_map,
                                                           base_discovery_dict, "less")
-    less_important_inputs_block = get_training_node_dependencies(less_important_inputs_head, base_discovery_dict)
+    less_important_inputs_block = get_model_node_dependencies(less_important_inputs_head, base_discovery_dict)
     base_discovery_dict = {}
     more_important_inputs_head = graph_from_input_sources(training_input_node, more_important_inputs, typing_map,
                                                           base_discovery_dict, "more")
-    more_important_inputs_block = get_training_node_dependencies(more_important_inputs_head, base_discovery_dict)
+    more_important_inputs_block = get_model_node_dependencies(more_important_inputs_head, base_discovery_dict)
     combiner_node = get_combiner_node(more_important_inputs_head, less_important_inputs_head, training_input_node)
     small_training_node = recreate_training_node(more_important_inputs_head, training_node, "small_")
     big_training_node = recreate_training_node(combiner_node, training_node, "")
@@ -265,7 +266,7 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                              output_names=[], in_nodes=[big_training_node])
     base_discovery_dict = {}
     # Remove the original code for creating model inputs to replace with the new code.
-    training_dependencies = get_training_node_dependencies(training_input_node, base_discovery_dict)
+    training_dependencies = get_model_node_dependencies(training_input_node, base_discovery_dict)
     for node in training_dependencies:
         sorted_nodes.remove(node)
     # Add all the new code for creating model inputs and training from them.
@@ -287,6 +288,18 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     model on all more-important input sources and checks confidence.  If it is above some threshold, use
     that prediction, otherwise, predict with a pre-trained bigger model on all inputs.
     """
+
+    def recreate_model_node(orig_model_node: WillumpModelNode, new_input_node: WillumpGraphNode, new_model, aux_data) \
+            -> WillumpModelNode:
+        assert (isinstance(orig_model_node, LinearRegressionNode))
+        output_name = orig_model_node.get_output_name()
+        output_type = orig_model_node.output_type
+        return LinearRegressionNode(input_node=new_input_node, input_name=new_input_node.get_output_name(),
+                                    input_type=typing_map[new_input_node.get_output_name()],
+                                    output_name=output_name, output_type=output_type,
+                                    logit_weights=new_model.coef_, logit_intercept=new_model.intercept_,
+                                    aux_data=aux_data)
+
     for node in sorted_nodes:
         if isinstance(node, WillumpModelNode):
             model_node: WillumpModelNode = node
@@ -296,4 +309,27 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     feature_importances = eval_cascades["feature_importances"]
     big_model = eval_cascades["big_model"]
     small_model = eval_cascades["small_model"]
+    more_important_inputs, less_important_inputs = split_model_inputs(model_node, feature_importances)
+    model_input_node = model_node.get_in_nodes()[0]
+    # Create Willump graphs and code blocks that produce the more and less important inputs.
+    base_discovery_dict = {}
+    less_important_inputs_head = graph_from_input_sources(model_input_node, less_important_inputs, typing_map,
+                                                          base_discovery_dict, "less")
+    less_important_inputs_block = get_model_node_dependencies(less_important_inputs_head, base_discovery_dict)
+    base_discovery_dict = {}
+    more_important_inputs_head = graph_from_input_sources(model_input_node, more_important_inputs, typing_map,
+                                                          base_discovery_dict, "more")
+    more_important_inputs_block = get_model_node_dependencies(more_important_inputs_head, base_discovery_dict)
+    combiner_node = get_combiner_node(more_important_inputs_head, less_important_inputs_head, model_input_node)
+    # New model!
+    new_model_node = recreate_model_node(model_node, combiner_node, big_model, aux_data)
+    base_discovery_dict = {}
+    # Remove the original code for creating model inputs to replace with the new code.
+    training_dependencies = get_model_node_dependencies(model_input_node, base_discovery_dict)
+    for node in training_dependencies:
+        sorted_nodes.remove(node)
+    # Add all the new code for creating model inputs and training from them.
+    model_node_index = sorted_nodes.index(model_node)
+    sorted_nodes = sorted_nodes[:model_node_index] + more_important_inputs_block + less_important_inputs_block \
+                   + [combiner_node, new_model_node] + sorted_nodes[model_node_index + 1:]
     return sorted_nodes

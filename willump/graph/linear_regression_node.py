@@ -18,6 +18,7 @@ class LinearRegressionNode(WillumpModelNode):
     intercept_data_name: str
     input_width: int
     batch: bool
+    output_type: WeldType
 
     def __init__(self, input_node: WillumpGraphNode, input_name: str, input_type: WeldType, output_name: str,
                  output_type: WeldType,
@@ -35,7 +36,7 @@ class LinearRegressionNode(WillumpModelNode):
         self._input_nodes.append(WillumpInputNode(self.intercept_data_name))
         self._input_names = [input_name, self.weights_data_name, self.intercept_data_name]
         self._input_type = input_type
-        self._output_type = output_type
+        self.output_type = output_type
         self.batch = batch
         self.input_width = len(logit_weights[0])
         for entry in self._process_aux_data(logit_weights, logit_intercept):
@@ -68,8 +69,8 @@ class LinearRegressionNode(WillumpModelNode):
         return [(weld_weights, WeldVec(WeldDouble())), (weld_intercept, WeldVec(WeldDouble()))]
 
     def get_node_weld(self) -> str:
-        assert (isinstance(self._output_type, WeldVec))
-        output_elem_type_str = str(self._output_type.elemType)
+        assert (isinstance(self.output_type, WeldVec))
+        output_elem_type_str = str(self.output_type.elemType)
         if isinstance(self._input_type, WeldVec):
             elem_type = self._input_type.elemType.elemType
             weld_program = \
