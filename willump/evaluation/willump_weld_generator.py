@@ -1,9 +1,10 @@
-from typing import List, Set, Tuple, Mapping
+from typing import List, Set, Tuple, MutableMapping
 import typing
 import ast
 
 from willump.willump_utilities import *
 import willump.evaluation.willump_graph_passes as wg_passes
+import willump.evaluation.willump_cascades as w_cascades
 
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
@@ -89,7 +90,7 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
     return preprocess_python + weld_string_nodes + postprocess_python
 
 
-def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch: bool = True, num_workers=0) -> \
+def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType], batch: bool = True, num_workers=0) -> \
         List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]]:
     """
     Convert a Willump graph into a sequence of Willump statements.
@@ -104,7 +105,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: Mapping[str, WeldType], batch
     sorted_nodes = wg_passes.push_back_python_nodes_pass(sorted_nodes)
     sorted_nodes = wg_passes.async_python_functions_parallel_pass(sorted_nodes)
     wg_passes.model_input_identification_pass(sorted_nodes)
-    sorted_nodes = wg_passes.model_cascade_pass(sorted_nodes, typing_map)
+    sorted_nodes = w_cascades.model_cascade_pass(sorted_nodes, typing_map)
     weld_python_list: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[str]]]] = []
     weld_block_input_set: Set[str] = set()
     weld_block_aux_input_set: Set[str] = set()
