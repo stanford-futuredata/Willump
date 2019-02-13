@@ -92,7 +92,8 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
 
 
 def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType], training_cascades: Optional[dict],
-    eval_cascades: Optional[dict], aux_data: List[Tuple[int, WeldType]], batch: bool = True, num_workers=0) -> \
+    eval_cascades: Optional[dict], aux_data: List[Tuple[int, WeldType]], cascade_threshold: float,
+                  batch: bool = True, num_workers=0) -> \
         List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]]:
     """
     Convert a Willump graph into a sequence of Willump statements.
@@ -112,7 +113,8 @@ def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType]
         sorted_nodes = w_cascades.training_model_cascade_pass(sorted_nodes, typing_map, training_cascades)
     if eval_cascades is not None:
         assert(training_cascades is None)
-        sorted_nodes = w_cascades.eval_model_cascade_pass(sorted_nodes, typing_map, aux_data, eval_cascades)
+        sorted_nodes = w_cascades.eval_model_cascade_pass(sorted_nodes, typing_map, aux_data, eval_cascades,
+                                                          cascade_threshold)
     weld_python_list: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[str]]]] = []
     weld_block_input_set: Set[str] = set()
     weld_block_aux_input_set: Set[str] = set()

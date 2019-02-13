@@ -287,7 +287,8 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
 def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                             typing_map: MutableMapping[str, WeldType],
                             aux_data: List[Tuple[int, WeldType]],
-                            eval_cascades: dict) -> List[WillumpGraphNode]:
+                            eval_cascades: dict,
+                            cascade_threshold: float) -> List[WillumpGraphNode]:
     """
     Take in a program with a model.  Use pre-computed feature importances to partition the models' input
     sources into those more and less important.  Rewrite the program so it first evaluates a pre-trained smaller
@@ -316,6 +317,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                                     input_type=typing_map[new_input_node.get_output_name()],
                                                     output_name=output_name, output_type=output_type,
                                                     logit_weights=new_model.coef_, logit_intercept=new_model.intercept_,
+                                                    threshold=cascade_threshold,
                                                     aux_data=aux_data)
 
     for node in sorted_nodes:

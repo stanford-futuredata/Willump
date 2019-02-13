@@ -14,11 +14,13 @@ class CascadeLinearRegressionNodeSmall(LinearRegressionNode):
 
     def __init__(self, input_node: WillumpGraphNode, input_name: str, input_type: WeldType, output_name: str,
                  output_type: WeldType,
-                 logit_weights, logit_intercept, aux_data: List[Tuple[int, WeldType]], batch=True) -> None:
+                 logit_weights, logit_intercept, aux_data: List[Tuple[int, WeldType]], threshold: float, batch=True) -> None:
         super(CascadeLinearRegressionNodeSmall, self).__init__(input_node, input_name, input_type, output_name, output_type,
                                                                logit_weights, logit_intercept, aux_data, batch)
         self.output_type = WeldVec(WeldChar())
-        self.threshold = 1.0
+        assert(threshold <= 1.0)
+        assert(threshold >= 0.5)
+        self.threshold = threshold
 
     def get_node_weld(self) -> str:
         if isinstance(self._input_type, WeldCSR):
