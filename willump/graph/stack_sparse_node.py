@@ -11,6 +11,7 @@ class StackSparseNode(WillumpGraphNode):
     """
 
     elem_type: WeldType
+    output_type: WeldType
 
     def __init__(self, input_nodes: List[WillumpGraphNode], input_names: List[str], output_name: str,
                  output_type: WeldType) -> None:
@@ -21,6 +22,7 @@ class StackSparseNode(WillumpGraphNode):
         self._output_name = output_name
         assert(isinstance(output_type, WeldCSR))
         self.elem_type = output_type.elemType
+        self.output_type = output_type
         self._input_names = input_names
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:

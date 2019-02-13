@@ -48,48 +48,33 @@ class CascadeLinearRegressionNodeSmall(LinearRegressionNode):
                     merge(bs, prediction)
                 ));
                 """
-            weld_program = weld_program.replace("THRESHOLD", str(self.threshold))
-            weld_program = weld_program.replace("WEIGHTS_NAME", self.weights_data_name)
-            weld_program = weld_program.replace("INTERCEPT_NAME", self.intercept_data_name)
-            weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
-            weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         else:
             assert (isinstance(self._input_type, WeldPandas))
-            if self.batch:
-                sum_string = ""
-                for i in range(len(self._input_type.column_names)):
-                    sum_string += "lookup(WEIGHTS_NAME, %dL) * f64(lookup(INPUT_NAME.$%d, result_i))+" % (i, i)
-                sum_string = sum_string[:-1]
-                weld_program = \
-                    """
-                    let intercept: f64 = lookup(INTERCEPT_NAME, 0L);
-                    let OUTPUT_NAME: vec[OUTPUT_TYPE] = result(for(rangeiter(0L, len(INPUT_NAME.$0), 1L),
-                        appender[OUTPUT_TYPE],
-                        | results: appender[OUTPUT_TYPE], iter_num: i64, result_i: i64 |
-                            let sum: f64 = SUM_STRING;
-                            merge(results, select(sum + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0)))
-                    ));
-                    """
-            else:
-                sum_string = ""
-                for i in range(len(self._input_type.column_names)):
-                    sum_string += "lookup(WEIGHTS_NAME, %dL) * f64(INPUT_NAME.$%d)+" % (i, i)
-                sum_string = sum_string[:-1]
-                weld_program = \
-                    """
-                    let intercept: f64 = lookup(INTERCEPT_NAME, 0L);
-                    let sum: f64 = SUM_STRING;
-                    let OUTPUT_NAME: vec[OUTPUT_TYPE] = result(merge(appender[OUTPUT_TYPE], 
-                        select(sum + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))));
-                    """
+            assert self.batch
+            sum_string = ""
+            for i in range(len(self._input_type.column_names)):
+                sum_string += "lookup(WEIGHTS_NAME, %dL) * f64(lookup(INPUT_NAME.$%d, result_i))+" % (i, i)
+            sum_string = sum_string[:-1]
+            weld_program = \
+                """
+                let intercept: f64 = lookup(INTERCEPT_NAME, 0L);
+                let OUTPUT_NAME: vec[i8] = result(for(rangeiter(0L, len(INPUT_NAME.$0), 1L),
+                    appender[i8],
+                    | results: appender[i8], iter_num: i64, result_i: i64 |
+                        let sum: f64 = SUM_STRING + intercept;
+                        let prob = 1.0 / (1.0 + exp( -1.0 * f64(sum)));
+                        let prediction = select(prob > THRESHOLD, 1c, select(prob < 1.0 - THRESHOLD, 0c, 2c));
+                        merge(results, prediction)
+                ));
+                """
             weld_program = weld_program.replace("SUM_STRING", sum_string)
-            # weld_program = weld_program.replace("OUTPUT_TYPE", output_elem_type_str)
-            weld_program = weld_program.replace("WEIGHTS_NAME", self.weights_data_name)
-            weld_program = weld_program.replace("INTERCEPT_NAME", self.intercept_data_name)
-            weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
-            weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
+        weld_program = weld_program.replace("WEIGHTS_NAME", self.weights_data_name)
+        weld_program = weld_program.replace("INTERCEPT_NAME", self.intercept_data_name)
+        weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
+        weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
+        weld_program = weld_program.replace("THRESHOLD", str(self.threshold))
         return weld_program
 
     def __repr__(self):
-        return "Partial Linear regression node for input {0} output {1}\n" \
+        return "Small-model Linear regression node for input {0} output {1}\n" \
             .format(self._input_string_name, self._output_name)

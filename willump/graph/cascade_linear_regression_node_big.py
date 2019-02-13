@@ -15,11 +15,12 @@ class CascadeLinearRegressionNodeBig(LinearRegressionNode):
     def __init__(self, input_node: WillumpGraphNode, input_name: str, input_type: WeldType, output_name: str,
                  output_type: WeldType,
                  logit_weights, logit_intercept, aux_data: List[Tuple[int, WeldType]],
-                 small_model_output_name: str, batch=True) -> None:
+                 small_model_output_name: str, small_model_input_type: WeldType, batch=True) -> None:
         super(CascadeLinearRegressionNodeBig, self).__init__(input_node, input_name, input_type, output_name,
                                                              output_type,
                                                              logit_weights, logit_intercept, aux_data, batch)
         self._small_model_output_name = small_model_output_name
+        self._small_model_input_type = small_model_input_type
 
     def get_node_weld(self) -> str:
         assert (isinstance(self.output_type, WeldVec))
@@ -55,49 +56,47 @@ class CascadeLinearRegressionNodeBig(LinearRegressionNode):
                     ))
                 ));
                 """
-            weld_program = weld_program.replace("SMALL_MODEL_OUTPUT_NAME", self._small_model_output_name)
-            weld_program = weld_program.replace("WEIGHTS_NAME", self.weights_data_name)
-            weld_program = weld_program.replace("INTERCEPT_NAME", self.intercept_data_name)
-            weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
-            weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
-            weld_program = weld_program.replace("OUTPUT_TYPE", output_elem_type_str)
         else:
             assert (isinstance(self._input_type, WeldPandas))
-            if self.batch:
-                sum_string = ""
-                for i in range(len(self._input_type.column_names)):
-                    sum_string += "lookup(WEIGHTS_NAME, %dL) * f64(lookup(INPUT_NAME.$%d, result_i))+" % (i, i)
-                sum_string = sum_string[:-1]
-                weld_program = \
-                    """
-                    let intercept: f64 = lookup(INTERCEPT_NAME, 0L);
-                    let OUTPUT_NAME: vec[OUTPUT_TYPE] = result(for(rangeiter(0L, len(INPUT_NAME.$0), 1L),
-                        appender[OUTPUT_TYPE],
-                        | results: appender[OUTPUT_TYPE], iter_num: i64, result_i: i64 |
-                            let sum: f64 = SUM_STRING;
-                            merge(results, select(sum + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0)))
-                    ));
-                    """
-            else:
-                sum_string = ""
-                for i in range(len(self._input_type.column_names)):
-                    sum_string += "lookup(WEIGHTS_NAME, %dL) * f64(INPUT_NAME.$%d)+" % (i, i)
-                sum_string = sum_string[:-1]
-                weld_program = \
-                    """
-                    let intercept: f64 = lookup(INTERCEPT_NAME, 0L);
-                    let sum: f64 = SUM_STRING;
-                    let OUTPUT_NAME: vec[OUTPUT_TYPE] = result(merge(appender[OUTPUT_TYPE], 
-                        select(sum + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))));
-                    """
+            assert (isinstance(self._small_model_input_type, WeldPandas))
+            assert self.batch
+            sum_string = ""
+            for i, col_name in enumerate(self._input_type.column_names):
+                if col_name in self._small_model_input_type.column_names:
+                    sum_string += "lookup(WEIGHTS_NAME, %dL) * f64(lookup(INPUT_NAME.$%d, more_important_iter))+" % (i, i)
+                else:
+                    sum_string += "lookup(WEIGHTS_NAME, %dL) * f64(lookup(INPUT_NAME.$%d, less_important_iter))+" % (i, i)
+            sum_string = sum_string[:-1]
+            weld_program = \
+                """
+                let intercept: f64 = lookup(INTERCEPT_NAME, 0L);
+                let df_size = len(SMALL_MODEL_OUTPUT_NAME);
+                let pre_output = iterate({0L, 0L, appender[OUTPUT_TYPE]},
+                | input |
+                    let more_important_iter = input.$0;
+                    let less_important_iter = input.$1;
+                    let results = input.$2;
+                    if(more_important_iter == df_size,
+                        {{more_important_iter, less_important_iter, results}, false},
+                        let small_model_output = lookup(SMALL_MODEL_OUTPUT_NAME, more_important_iter);
+                        if(small_model_output != 2c,
+                            {{more_important_iter + 1L, less_important_iter, merge(results, OUTPUT_TYPE(small_model_output))}, true},
+                            let sum = intercept + SUM_STRING;
+                            {{more_important_iter + 1L, less_important_iter + 1L, merge(results, select(sum > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0)))}, true}
+                        )
+                    )
+                );
+                let OUTPUT_NAME = result(pre_output.$2);
+                """
             weld_program = weld_program.replace("SUM_STRING", sum_string)
-            weld_program = weld_program.replace("OUTPUT_TYPE", output_elem_type_str)
-            weld_program = weld_program.replace("WEIGHTS_NAME", self.weights_data_name)
-            weld_program = weld_program.replace("INTERCEPT_NAME", self.intercept_data_name)
-            weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
-            weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
+        weld_program = weld_program.replace("SMALL_MODEL_OUTPUT_NAME", self._small_model_output_name)
+        weld_program = weld_program.replace("OUTPUT_TYPE", output_elem_type_str)
+        weld_program = weld_program.replace("WEIGHTS_NAME", self.weights_data_name)
+        weld_program = weld_program.replace("INTERCEPT_NAME", self.intercept_data_name)
+        weld_program = weld_program.replace("INPUT_NAME", self._input_string_name)
+        weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         return weld_program
 
     def __repr__(self):
-        return "Partial Linear regression node for input {0} output {1}\n" \
+        return "Big-model Linear regression node for input {0} output {1}\n" \
             .format(self._input_string_name, self._output_name)

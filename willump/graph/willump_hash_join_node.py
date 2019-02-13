@@ -5,7 +5,7 @@ from willump.willump_utilities import *
 from weld.types import *
 
 import pandas as pd
-from typing import List, Tuple, Mapping
+from typing import List, Tuple, Mapping, Optional
 import importlib
 
 
@@ -22,6 +22,9 @@ class WillumpHashJoinNode(WillumpGraphNode):
     join_col_name: str
     batch: bool
     output_type: WeldType
+
+    # Protected Cascade Variables
+    _small_model_output_name: Optional[str] = None
 
     def __init__(self, input_node: WillumpGraphNode, input_name: str, left_input_type: WeldType, output_name: str, join_col_name: str,
                  right_dataframe, aux_data: List[Tuple[int, WeldType]], batch=True) -> None:
@@ -125,9 +128,16 @@ class WillumpHashJoinNode(WillumpGraphNode):
         self._model_parameters = model_parameters
         self._model_index_map = model_index_map
 
+    def push_cascade(self, small_model_output_name: str):
+        self._small_model_output_name = small_model_output_name
+
     def get_node_weld(self) -> str:
         join_col_left_index = self.left_df_type.column_names.index(self.join_col_name)
         if self._model_type is None:
+            if self._small_model_output_name is None:
+                cascade_statement = "true"
+            else:
+                cascade_statement = "lookup(%s, i) == 2c" % self._small_model_output_name
             if self.batch:
                 struct_builder_statement = "{"
                 merge_statement = "{"
@@ -151,8 +161,11 @@ class WillumpHashJoinNode(WillumpGraphNode):
                     let pre_output = (for(INPUT_NAME.$JOIN_COL_LEFT_INDEX,
                         STRUCT_BUILDER,
                         |bs, i: i64, x |
-                            let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, x);
-                            MERGE_STATEMENT
+                            if(CASCADE_STATEMENT,
+                                let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, x);
+                                MERGE_STATEMENT,
+                                bs
+                            )
                     ));
                     let OUTPUT_NAME = RESULT_STATEMENT;
                     """
@@ -163,6 +176,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
                 weld_program = weld_program.replace("RIGHT_DATAFRAME_NAME", self._right_dataframe_name)
                 weld_program = weld_program.replace("INPUT_NAME", self.left_input_name)
                 weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
+                weld_program = weld_program.replace("CASCADE_STATEMENT", cascade_statement)
             else:
                 result_statement = "{"
                 switch = 0
