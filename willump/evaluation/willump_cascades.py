@@ -15,12 +15,14 @@ from willump.graph.array_tfidf_node import ArrayTfIdfNode
 from willump.graph.willump_training_node import WillumpTrainingNode
 from willump.graph.willump_model_node import WillumpModelNode
 from willump.graph.willump_python_node import WillumpPythonNode
+from willump.graph.cascade_linear_regression_node_big import CascadeLinearRegressionNodeBig
+from willump.graph.cascade_linear_regression_node_small import CascadeLinearRegressionNodeSmall
 from willump.graph.linear_regression_node import LinearRegressionNode
 
 
 def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: List[WillumpGraphNode],
                              typing_map: MutableMapping[str, WeldType],
-                             base_discovery_dict, which: str) \
+                             base_discovery_dict, which: str, small_model_output_name=None) \
         -> Optional[WillumpGraphNode]:
     """
     Take in a node and a list of input sources.  Return a node that only depends on the intersection of its
@@ -33,6 +35,8 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
     return_node = None
     if isinstance(node, ArrayCountVectorizerNode) or isinstance(node, ArrayTfIdfNode):
         if node in selected_input_sources:
+            if small_model_output_name is not None:
+                node.push_cascade(small_model_output_name)
             return_node = node
     elif isinstance(node, StackSparseNode):
         node_input_nodes = node.get_in_nodes()
@@ -43,7 +47,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
         new_input_nodes, new_input_names = [], []
         for node_input_node, node_input_name in zip(node_input_nodes, node_input_names):
             return_node = graph_from_input_sources(node_input_node, selected_input_sources, typing_map,
-                                                   base_discovery_dict, which)
+                                                   base_discovery_dict, which, small_model_output_name)
             if return_node is not None:
                 new_input_nodes.append(return_node)
                 new_input_names.append(return_node.get_output_name())
@@ -55,7 +59,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
     elif isinstance(node, PandasColumnSelectionNode):
         node_input_nodes = node.get_in_nodes()
         new_input_nodes = [graph_from_input_sources(node_input_node, selected_input_sources,
-                                                    typing_map, base_discovery_dict, which) for
+                                                    typing_map, base_discovery_dict, which, small_model_output_name) for
                            node_input_node in node_input_nodes]
         if not all(new_input_node is None for new_input_node in new_input_nodes):
             assert all(isinstance(new_input_node, WillumpHashJoinNode) for new_input_node in new_input_nodes)
@@ -83,7 +87,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                 new_input_type = base_node.left_df_type
             else:
                 new_input_node = graph_from_input_sources(node_input_node, selected_input_sources,
-                                                          typing_map, base_discovery_dict, which)
+                                                          typing_map, base_discovery_dict, which, small_model_output_name)
                 if new_input_node is None:
                     new_input_node = base_node.get_in_nodes()[0]
                     new_input_name = base_node.get_in_names()[0]
@@ -105,7 +109,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
             typing_map[return_node.get_output_name()] = return_node.output_type
         elif node is not base_node:
             return graph_from_input_sources(node_input_node, selected_input_sources, typing_map, base_discovery_dict,
-                                            which)
+                                            which, small_model_output_name)
         else:
             pass
     else:
@@ -289,16 +293,26 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     that prediction, otherwise, predict with a pre-trained bigger model on all inputs.
     """
 
-    def recreate_model_node(orig_model_node: WillumpModelNode, new_input_node: WillumpGraphNode, new_model, aux_data) \
+    def recreate_model_node(orig_model_node: WillumpModelNode, new_input_node: WillumpGraphNode, new_model, aux_data,
+                            small_model_output_name) \
             -> WillumpModelNode:
         assert (isinstance(orig_model_node, LinearRegressionNode))
-        output_name = orig_model_node.get_output_name()
-        output_type = orig_model_node.output_type
-        return LinearRegressionNode(input_node=new_input_node, input_name=new_input_node.get_output_name(),
-                                    input_type=typing_map[new_input_node.get_output_name()],
-                                    output_name=output_name, output_type=output_type,
-                                    logit_weights=new_model.coef_, logit_intercept=new_model.intercept_,
-                                    aux_data=aux_data)
+        if small_model_output_name is not None:
+            output_name = orig_model_node.get_output_name()
+            output_type = orig_model_node.output_type
+            return CascadeLinearRegressionNodeBig(input_node=new_input_node, input_name=new_input_node.get_output_name(),
+                                        input_type=typing_map[new_input_node.get_output_name()],
+                                        output_name=output_name, output_type=output_type,
+                                        logit_weights=new_model.coef_, logit_intercept=new_model.intercept_,
+                                        aux_data=aux_data, small_model_output_name=small_model_output_name)
+        else:
+            output_name = "small__" + orig_model_node.get_output_name()
+            output_type = orig_model_node.output_type  # Does nothing.
+            return CascadeLinearRegressionNodeSmall(input_node=new_input_node, input_name=new_input_node.get_output_name(),
+                                                    input_type=typing_map[new_input_node.get_output_name()],
+                                                    output_name=output_name, output_type=output_type,
+                                                    logit_weights=new_model.coef_, logit_intercept=new_model.intercept_,
+                                                    aux_data=aux_data)
 
     for node in sorted_nodes:
         if isinstance(node, WillumpModelNode):
@@ -311,18 +325,23 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     small_model = eval_cascades["small_model"]
     more_important_inputs, less_important_inputs = split_model_inputs(model_node, feature_importances)
     model_input_node = model_node.get_in_nodes()[0]
-    # Create Willump graphs and code blocks that produce the more and less important inputs.
-    base_discovery_dict = {}
-    less_important_inputs_head = graph_from_input_sources(model_input_node, less_important_inputs, typing_map,
-                                                          base_discovery_dict, "less")
-    less_important_inputs_block = get_model_node_dependencies(less_important_inputs_head, base_discovery_dict)
+    # Create Willump graphs and code blocks that produce the more important inputs.
     base_discovery_dict = {}
     more_important_inputs_head = graph_from_input_sources(model_input_node, more_important_inputs, typing_map,
                                                           base_discovery_dict, "more")
     more_important_inputs_block = get_model_node_dependencies(more_important_inputs_head, base_discovery_dict)
+    # The small model predicts all examples from the more important inputs.
+    new_small_model_node = recreate_model_node(model_node, more_important_inputs_head, small_model, aux_data, None)
+    small_model_output_name = new_small_model_node.get_output_name()
+    # Less important inputs are materialized only if the small model lacks confidence in an example.
+    base_discovery_dict = {}
+    less_important_inputs_head = graph_from_input_sources(model_input_node, less_important_inputs, typing_map,
+                                                          base_discovery_dict, "less",
+                                                          small_model_output_name=small_model_output_name)
+    less_important_inputs_block = get_model_node_dependencies(less_important_inputs_head, base_discovery_dict)
+    # The big model predicts "hard" (for the small model) examples from all inputs.
     combiner_node = get_combiner_node(more_important_inputs_head, less_important_inputs_head, model_input_node)
-    # New model!
-    new_model_node = recreate_model_node(model_node, combiner_node, big_model, aux_data)
+    new_big_model_node = recreate_model_node(model_node, combiner_node, big_model, aux_data, small_model_output_name)
     base_discovery_dict = {}
     # Remove the original code for creating model inputs to replace with the new code.
     training_dependencies = get_model_node_dependencies(model_input_node, base_discovery_dict)
@@ -330,6 +349,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         sorted_nodes.remove(node)
     # Add all the new code for creating model inputs and training from them.
     model_node_index = sorted_nodes.index(model_node)
-    sorted_nodes = sorted_nodes[:model_node_index] + more_important_inputs_block + less_important_inputs_block \
-                   + [combiner_node, new_model_node] + sorted_nodes[model_node_index + 1:]
+    sorted_nodes = sorted_nodes[:model_node_index] + more_important_inputs_block + [new_small_model_node] + \
+                   less_important_inputs_block \
+                   + [combiner_node, new_big_model_node] + sorted_nodes[model_node_index + 1:]
     return sorted_nodes

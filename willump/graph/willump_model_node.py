@@ -22,3 +22,6 @@ class WillumpModelNode(WillumpGraphNode):
 
     def get_model_inputs(self) -> Mapping[WillumpGraphNode, Union[Tuple[int, int], Mapping[str, int]]]:
         return self._model_inputs
+
+    def get_output_name(self):
+        ...

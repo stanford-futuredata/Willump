@@ -20,6 +20,9 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
     _model_parameters: Tuple
     _start_index: int
 
+    # Protected Cascade Variables
+    _small_model_output_name: Optional[str] = None
+
     def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str,
                  input_vocab_dict: Mapping[str, int], aux_data: List[Tuple[int, WeldType]],
                  ngram_range: Tuple[int, int]) -> None:
@@ -74,32 +77,42 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
         self._model_parameters = model_parameters
         self._start_index = start_index
 
+    def push_cascade(self, small_model_output_name: str):
+        self._small_model_output_name = small_model_output_name
+
     def get_node_weld(self) -> str:
         if self._model_type is None:
+            if self._small_model_output_name is None:
+                cascade_statement = "true"
+            else:
+                cascade_statement = "lookup(%s, i_out) == 2c" % self._small_model_output_name
             weld_program = \
                 """
                 let list_dicts: vec[dict[i64, i64]] = result(for(INPUT_NAME,
                     appender[dict[i64, i64]],
                     | count_dicts: appender[dict[i64, i64]], i_out: i64, string: vec[i8] |
-                        let string_len: i64 = len(string);
-                        let string_dict: dict[i64, i64] = result(for(string,
-                            dictmerger[i64, i64, +],
-                            | count_dict:  dictmerger[i64, i64, +], i_string: i64, char: i8 |
-                            for(rangeiter(NGRAM_MINL, NGRAM_MAXL + 1L, 1L),
-                                count_dict,
-                                | count_dict_inner: dictmerger[i64, i64, +], num_iter, iter_value |
-                                    if(i_string + iter_value <= string_len,
-                                        let word: vec[i8] = slice(string, i_string, iter_value);
-                                        let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
-                                        if(exists_and_key.$0,
-                                            merge(count_dict_inner, {exists_and_key.$1, 1L}),
-                                            count_dict_inner
-                                        ),
-                                        count_dict_inner    
-                                    )
-                            )
-                        ));
-                        merge(count_dicts, string_dict)
+                        if(CASCADE_STATEMENT,
+                            let string_len: i64 = len(string);
+                            let string_dict: dict[i64, i64] = result(for(string,
+                                dictmerger[i64, i64, +],
+                                | count_dict:  dictmerger[i64, i64, +], i_string: i64, char: i8 |
+                                for(rangeiter(NGRAM_MINL, NGRAM_MAXL + 1L, 1L),
+                                    count_dict,
+                                    | count_dict_inner: dictmerger[i64, i64, +], num_iter, iter_value |
+                                        if(i_string + iter_value <= string_len,
+                                            let word: vec[i8] = slice(string, i_string, iter_value);
+                                            let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
+                                            if(exists_and_key.$0,
+                                                merge(count_dict_inner, {exists_and_key.$1, 1L}),
+                                                count_dict_inner
+                                            ),
+                                            count_dict_inner    
+                                        )
+                                )
+                            ));
+                            merge(count_dicts, string_dict),
+                            merge(count_dicts, result(dictmerger[i64, i64, +])) # Skip row by merging blank dict.
+                        )
                 ));
                 let vec_dict_vecs: vec[vec[{i64, i64}]] = map(list_dicts, 
                     | string_dict: dict[i64, i64] | 
@@ -120,6 +133,7 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
                 let OUTPUT_NAME: {vec[i64], vec[i64], vec[i64], i64, i64} = {ros.$0, ros.$1, ros.$2, 
                     len(INPUT_NAME), VOCAB_SIZEL}; # Row numbers, index numbers, frequencies, height, width
                 """
+            weld_program = weld_program.replace("CASCADE_STATEMENT", cascade_statement)
         else:
             assert(self._model_type == "linear")
             weights_data_name, = self._model_parameters
