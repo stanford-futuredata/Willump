@@ -8,16 +8,27 @@ import scipy.sparse.csr
 from sklearn.metrics import mean_squared_error
 from sklearn.feature_extraction.text import TfidfVectorizer
 import scipy.sparse
+import argparse
 
 
 def rmse_score(y, pred):
     return numpy.sqrt(mean_squared_error(y, pred))
 
 
-cascades = pickle.load(open("tests/test_resources/lazada_challenge_features/lazada_training_cascades.pk", "rb"))
+parser = argparse.ArgumentParser()
+parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+args = parser.parse_args()
+if args.cascades is None:
+    cascades = None
+    cascade_threshold = 1.0
+else:
+    assert (0.5 <= args.cascades <= 1.0)
+    cascades = pickle.load(open("tests/test_resources/lazada_challenge_features/lazada_training_cascades.pk", "rb"))
+    cascade_threshold = args.cascades
 
 
-@willump.evaluation.willump_executor.willump_execute(num_workers=1, eval_cascades=cascades, cascade_threshold=1.0)
+@willump.evaluation.willump_executor.willump_execute(num_workers=1, eval_cascades=cascades,
+                                                     cascade_threshold=cascade_threshold)
 def vectorizer_transform(title_vect, input_df, color_vect):
     np_input = list(input_df.values)
     transformed_result = title_vect.transform(np_input)
@@ -39,7 +50,8 @@ title_vectorizer = CountVectorizer(analyzer='char', ngram_range=(2, 6), min_df=0
 title_vectorizer.fit(df["title"].tolist())
 print("Vocabulary has length %d" % len(title_vectorizer.vocabulary_))
 
-colors = [x.strip() for x in open("tests/test_resources/lazada_challenge_features/colors.txt", encoding="windows-1252").readlines()]
+colors = [x.strip() for x in
+          open("tests/test_resources/lazada_challenge_features/colors.txt", encoding="windows-1252").readlines()]
 c = list(filter(lambda x: len(x.split()) > 1, colors))
 c = list(map(lambda x: x.replace(" ", ""), c))
 colors.extend(c)
