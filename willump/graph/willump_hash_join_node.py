@@ -148,7 +148,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
                 for i, column in enumerate(self._right_dataframe):
                     if column != self.join_col_name:
                         col_type = str(numpy_type_to_weld_type(self._right_dataframe[column].values.dtype))
-                        struct_builder_statement += "appender[%s]," % col_type
+                        struct_builder_statement += "appender[%s](col_len)," % col_type
                         merge_statement += "merge(bs.$%d, right_dataframe_row.$%d)," % (i - switch, i - switch)
                         result_statement += "result(pre_output.$%d)," % (i - switch)
                     else:
@@ -158,6 +158,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
                 result_statement = result_statement[:-1] + "}"
                 weld_program = \
                     """
+                    let col_len = len(INPUT_NAME.$JOIN_COL_LEFT_INDEX);
                     let pre_output = (for(INPUT_NAME.$JOIN_COL_LEFT_INDEX,
                         STRUCT_BUILDER,
                         |bs, i: i64, x |

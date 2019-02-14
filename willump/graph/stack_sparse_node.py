@@ -34,9 +34,14 @@ class StackSparseNode(WillumpGraphNode):
     def get_node_weld(self) -> str:
         if len(self._input_names) == 1:
             return "let %s = %s;" % (self._output_name, self._input_names[0])
+        num_rows = ""
+        for input_name in self._input_names:
+            num_rows += "len(%s.$0)+" % input_name
+        num_rows = num_rows[:-1]
         weld_program = \
             """
-            let stacker = {appender[i64], appender[i64], appender[ELEM_TYPE]};
+            let num_rows: i64 = NUM_ROWS;
+            let stacker = {appender[i64](num_rows), appender[i64](num_rows), appender[ELEM_TYPE](num_rows)};
             let stack_width: i64 = 0L;
             """
         for input_node, input_name in zip(self._input_nodes, self._input_names):
@@ -59,6 +64,7 @@ class StackSparseNode(WillumpGraphNode):
             let OUTPUT_NAME: {vec[i64], vec[i64], vec[ELEM_TYPE], i64, i64} = {result(stacker.$0), 
                 result(stacker.$1), result(stacker.$2), stack_height, stack_width};
             """
+        weld_program = weld_program.replace("NUM_ROWS", num_rows)
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         weld_program = weld_program.replace("ELEM_TYPE", str(self.elem_type))
         return weld_program
