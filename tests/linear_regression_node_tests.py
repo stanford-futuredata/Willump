@@ -12,7 +12,7 @@ from willump.graph.linear_regression_node import LinearRegressionNode
 from weld.types import *
 
 
-class StringSplitNodeTests(unittest.TestCase):
+class LinearRegressionNodeTests(unittest.TestCase):
     def test_binary_logistic_regression_vec_input(self):
         print("\ntest_binary_logistic_regression_vec_input")
         input_vec = numpy.array([[0, 0, 0, 1, 1, 0], [0, 0, 0, 0, 3, 0]], dtype=numpy.int64)
@@ -33,3 +33,24 @@ class StringSplitNodeTests(unittest.TestCase):
                                                 aux_data)
         numpy.testing.assert_equal(
             weld_output, numpy.array([1, 0], dtype=numpy.int64))
+
+    def test_binary_logistic_regression_predict_proba(self):
+        print("\ntest_binary_logistic_regression_predict_proba")
+        input_vec = numpy.array([[0, 0, 0, 1, 1, 0], [0, 0, 0, 0, 3, 0]], dtype=numpy.int64)
+        input_node: WillumpInputNode = WillumpInputNode("input_str")
+        aux_data = []
+        logistic_regression_weights = numpy.array([[0.1, 0.2, 0.3, 0.4, -0.5, 0.6]],
+                                                  dtype=numpy.float64)
+        logistic_regression_intercept = numpy.array([1.0],
+                                                  dtype=numpy.float64)
+        logistic_regression_node: LinearRegressionNode = \
+            LinearRegressionNode(input_node, "input_str", WeldVec(WeldVec(WeldLong())), "logit_output", WeldVec(WeldDouble()),
+                                 logistic_regression_weights, logistic_regression_intercept, aux_data, predict_proba=True)
+        output_node: WillumpOutputNode = WillumpOutputNode(logistic_regression_node, ["logit_output"])
+        graph: WillumpGraph = WillumpGraph(output_node)
+        type_map = {"input_str": WeldVec(WeldVec(WeldLong())),
+                    "logit_output": WeldVec(WeldDouble())}
+        weld_output = wexec.execute_from_basics(graph, type_map, (input_vec,), ["input_str"], ["logit_output"],
+                                                aux_data)
+        numpy.testing.assert_almost_equal(
+            weld_output, numpy.array([0.7109495,  0.37754067], dtype=numpy.float64))
