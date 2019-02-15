@@ -71,7 +71,7 @@ class CascadeColumnSelectionNode(WillumpGraphNode):
                         break
         weld_program = \
             """
-            let output_len = SMALL_OUTPUT_NAME_len;
+            let output_len = len(SMALL_OUTPUT_NAME);
             let pre_output = for(SMALL_OUTPUT_NAME,
                 {APPENDER_LIST},
                 | bs, i: i64, x: i8 |

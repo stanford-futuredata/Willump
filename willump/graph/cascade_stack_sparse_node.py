@@ -46,6 +46,23 @@ class CascadeStackSparseNode(WillumpGraphNode):
             let num_rows: i64 = NUM_ROWS;
             let stacker = {appender[i64](num_rows), appender[i64](num_rows), appender[ELEM_TYPE](num_rows)};
             let stack_width: i64 = 0L;
+            let df_size = len(SMALL_MODEL_OUTPUT);
+            let pre_mapping = iterate({0L, 0L, dictmerger[i64, i64, +]},
+                | input |
+                    let more_important_iter = input.$0;
+                    let less_important_iter = input.$1;
+                    let output_dict = input.$2;
+                    if(more_important_iter == df_size,
+                        {{more_important_iter, less_important_iter, output_dict}, false},
+                        let small_model_output = lookup(SMALL_MODEL_OUTPUT, more_important_iter);
+                        if(small_model_output != 2c,
+                            {{more_important_iter + 1L, less_important_iter, output_dict}, true},
+                            {{more_important_iter + 1L, less_important_iter + 1L, merge(output_dict, {more_important_iter, less_important_iter})}, true}
+                        )
+                    )
+            );  
+            let small_model_output_len = pre_mapping.$1;
+            let small_model_output_mapping = result(pre_mapping.$2);
             """
         for more_important_input_name in self._more_important_names:
             weld_program += \
@@ -54,7 +71,7 @@ class CascadeStackSparseNode(WillumpGraphNode):
                     stacker,
                     | bs, i, x: i64 |
                     let row_number = lookup(INPUT_NAME.$0, x);
-                    let mod_row_number_presence = optlookup(SMALL_MODEL_OUTPUT_mapping, row_number);
+                    let mod_row_number_presence = optlookup(small_model_output_mapping, row_number);
                     if(mod_row_number_presence.$0, 
                         {merge(bs.$0,mod_row_number_presence.$1), 
                           merge(bs.$1, lookup(INPUT_NAME.$1, x) + stack_width), 
@@ -83,7 +100,7 @@ class CascadeStackSparseNode(WillumpGraphNode):
             weld_program = weld_program.replace("INPUT_NAME", less_important_input_name)
         weld_program += \
             """
-            let stack_height: i64 = SMALL_MODEL_OUTPUT_len;
+            let stack_height: i64 = small_model_output_len;
             let OUTPUT_NAME: {vec[i64], vec[i64], vec[ELEM_TYPE], i64, i64} = {result(stacker.$0), 
                 result(stacker.$1), result(stacker.$2), stack_height, stack_width};
             """

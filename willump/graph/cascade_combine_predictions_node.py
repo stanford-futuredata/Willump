@@ -34,15 +34,21 @@ class CascadeCombinePredictionsNode(WillumpGraphNode):
         weld_program = \
             """
             let output_len: i64 = len(SMALL_MODEL_OUTPUT);
-            let OUTPUT_NAME: vec[ELEM_TYPE] = result(for(SMALL_MODEL_OUTPUT,
-                appender[ELEM_TYPE](output_len),
-                | bs, i: i64, x: i8|
-                    if(x == 2c,
-                        let big_model_output_index = lookup(SMALL_MODEL_OUTPUT_mapping, i);
-                        merge(bs, ELEM_TYPE(lookup(BIG_MODEL_OUTPUT, big_model_output_index))),
-                        merge(bs, ELEM_TYPE(x))
+            let pre_output = iterate({0L, 0L, appender[ELEM_TYPE](output_len)},
+                | input |
+                    let more_important_iter = input.$0;
+                    let less_important_iter = input.$1;
+                    let output_array = input.$2;
+                    if(more_important_iter == output_len,
+                        {{more_important_iter, less_important_iter, output_array}, false},
+                        let small_model_output = lookup(SMALL_MODEL_OUTPUT, more_important_iter);
+                        if(small_model_output != 2c,
+                            {{more_important_iter + 1L, less_important_iter, merge(output_array, ELEM_TYPE(small_model_output))}, true},
+                            {{more_important_iter + 1L, less_important_iter + 1L, merge(output_array, ELEM_TYPE(lookup(BIG_MODEL_OUTPUT, less_important_iter)))}, true}
+                        )
                     )
-            ));
+            );  
+            let OUTPUT_NAME: vec[ELEM_TYPE] = result(pre_output.$2);
             """
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         weld_program = weld_program.replace("SMALL_MODEL_OUTPUT", self._small_model_predictions_name)
