@@ -7,6 +7,7 @@ import pickle
 from sklearn.ensemble import GradientBoostingClassifier
 import willump.evaluation.willump_executor
 from wsdm_features_list import FEATURES
+import argparse
 
 # LATENT VECTOR SIZES
 UF_SIZE = 32
@@ -40,7 +41,10 @@ def load_combi_prep(folder='data_new/', split=None):
 
 training_cascades = {}
 
-trees = False
+parser = argparse.ArgumentParser()
+parser.add_argument("-t", "--trees", help="Train trees?", action="store_true")
+args = parser.parse_args()
+trees: bool = args.trees
 
 
 @willump.evaluation.willump_executor.willump_execute(batch=True, training_cascades=training_cascades)
@@ -221,8 +225,6 @@ def add_features_and_train_model(folder, combi):
 
     print('Second (Willump) training in %f seconds rows %d throughput %f: ' % (
         elapsed_time, num_rows, num_rows / elapsed_time))
-
-    print(training_cascades)
 
     return model
 

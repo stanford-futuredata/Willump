@@ -9,10 +9,14 @@ from sklearn.linear_model import SGDClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 import willump.evaluation.willump_executor
 from sklearn.ensemble import GradientBoostingClassifier
+import argparse
 
 training_cascades = {}
 
-trees = False
+parser = argparse.ArgumentParser()
+parser.add_argument("-t", "--trees", help="Train trees?", action="store_true")
+args = parser.parse_args()
+trees: bool = args.trees
 
 
 @willump.evaluation.willump_executor.willump_execute(num_workers=0, training_cascades=training_cascades)
