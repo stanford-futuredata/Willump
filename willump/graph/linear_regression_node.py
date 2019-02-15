@@ -140,9 +140,9 @@ class LinearRegressionNode(WillumpModelNode):
             assert (isinstance(self._input_type, WeldPandas))
             if self._predict_proba:
                 assert (output_elem_type_str == "f64")
-                output_statement = "1.0 / (1.0 + exp( -1.0 * (sum + intercept)))"
+                output_statement = "1.0 / (1.0 + exp( -1.0 * sum))"
             else:
-                output_statement = "select(sum + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))"
+                output_statement = "select(sum > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))"
             if self.batch:
                 sum_string = ""
                 for i in range(len(self._input_type.column_names)):
@@ -154,8 +154,8 @@ class LinearRegressionNode(WillumpModelNode):
                     let OUTPUT_NAME: vec[OUTPUT_TYPE] = result(for(rangeiter(0L, len(INPUT_NAME.$0), 1L),
                         appender[OUTPUT_TYPE],
                         | results: appender[OUTPUT_TYPE], iter_num: i64, result_i: i64 |
-                            let sum: f64 = SUM_STRING;
-                            merge(results, select(sum + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0)))
+                            let sum: f64 = SUM_STRING + intercept;
+                            merge(results, OUTPUT_STATEMENT)
                     ));
                     """
             else:
