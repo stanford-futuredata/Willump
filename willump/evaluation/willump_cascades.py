@@ -19,6 +19,7 @@ from willump.graph.cascade_threshold_proba_node import CascadeThresholdProbaNode
 from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.cascade_stack_sparse_node import CascadeStackSparseNode
 from willump.graph.cascade_combine_predictions_node import CascadeCombinePredictionsNode
+from willump.graph.cascade_column_selection_node import CascadeColumnSelectionNode
 
 
 def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: List[WillumpGraphNode],
@@ -355,10 +356,15 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         elif isinstance(mi_head, PandasColumnSelectionNode):
             assert (isinstance(li_head, PandasColumnSelectionNode))
             assert (isinstance(orig_node, PandasColumnSelectionNode))
-            return PandasColumnSelectionNode(input_nodes=[mi_head, li_head],
-                                             input_names=[mi_head.get_output_name(), li_head.get_output_name()],
+            return CascadeColumnSelectionNode(more_important_nodes=[mi_head],
+                                              more_important_names=[mi_head.get_output_name()],
+                                              more_important_types=[mi_head.output_type],
+                                              less_important_nodes=[li_head],
+                                              less_important_names=[li_head.get_output_name()],
+                                              less_important_types=[li_head.output_type],
                                              output_name=orig_node.get_output_name(),
-                                             input_types=[mi_head.output_type, li_head.output_type],
+                                              small_model_output_node=small_model_output_node,
+                                              small_model_output_name=small_model_output_node.get_output_name(),
                                              selected_columns=orig_node.selected_columns)
         else:
             panic("Unrecognized nodes being combined: %s %s" % (mi_head.__repr__(), li_head.__repr__()))
