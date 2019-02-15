@@ -25,9 +25,11 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
     for entry in weld_block_output_set.copy():
         appears_later = False
         for future_node in future_nodes:
-            for input_name in future_node.get_in_names():
-                if entry == input_name:
-                    appears_later = True
+            if any(entry == input_name for input_name in future_node.get_in_names()):
+                appears_later = True
+                break
+            if any(entry == output_name for output_name in future_node.get_output_names()):
+                break
         if not appears_later:
             weld_block_output_set.remove(entry)
     # Do optimization passes over the block.
