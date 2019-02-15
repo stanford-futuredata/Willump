@@ -45,7 +45,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
         # Define the Weld input struct and output struct.
         input_struct = ""
         for i, input_type in enumerate(input_types):
-            if isinstance(input_type, WeldPandas):
+            if isinstance(input_type, WeldPandas) or isinstance(input_type, WeldCSR):
                 inner_struct = ""
                 for inner_i, inner_type in enumerate(input_type.field_types):
                     inner_struct += "{0} _{1};\n".format(wtype_to_c_type(inner_type), inner_i)
@@ -186,7 +186,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                 buffer += "PyObject* %s = NULL;\n" % input_name
             else:
                 panic("Unsupported input type {0}".format(str(input_type)))
-        elif isinstance(input_type, WeldPandas):
+        elif isinstance(input_type, WeldPandas) or isinstance(input_type, WeldCSR):
             buffer += "PyObject* {0} = NULL;\n".format(input_name)
         elif wtype_is_scalar(input_type):
             buffer += "%s %s;\n" % (str(input_type), input_name)
@@ -202,7 +202,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                 format_string += "O!"
             else:
                 format_string += "O"
-        elif isinstance(input_type, WeldPandas):
+        elif isinstance(input_type, WeldPandas) or isinstance(input_type, WeldCSR):
             format_string += "O"
         elif isinstance(input_type, WeldLong) or isinstance(input_type, WeldInt) or \
                 isinstance(input_type, WeldInt16) or isinstance(input_type, WeldChar):
@@ -212,7 +212,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
     acceptor_string = ""
     for i, input_type in enumerate(input_types):
         input_name = "driver_input{0}".format(i)
-        if isinstance(input_type, WeldStr) or wtype_is_scalar(input_type) or isinstance(input_type, WeldPandas):
+        if isinstance(input_type, WeldStr) or wtype_is_scalar(input_type) or isinstance(input_type, WeldPandas) or isinstance(input_type, WeldCSR):
             acceptor_string += ", &{0}".format(input_name)
         elif isinstance(input_type, WeldVec):
             if not isinstance(input_type.elemType, WeldStr):
@@ -296,7 +296,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                                weld_input_name, input_len_name, i, input_array_name)
             else:
                 panic("Unrecognized elemType in input WeldVec %s" % str(input_type.elemType))
-        elif isinstance(input_type, WeldPandas):
+        elif isinstance(input_type, WeldPandas) or isinstance(input_type, WeldCSR):
             buffer += \
                 """
                 struct struct_in_%d %s; {
