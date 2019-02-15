@@ -21,6 +21,7 @@ WILLUMP_TREES_FEATURE_IMPORTANCES = "willump_trees_feature_importances"
 # Names
 WILLUMP_THREAD_POOL_EXECUTOR = "__willump_threadpool_executor"
 WILLUMP_TRAINING_CASCADE_NAME = "__willump_training_cascade"
+SMALL_MODEL_NAME = "__willump_small_model"
 
 
 def panic(error: str):

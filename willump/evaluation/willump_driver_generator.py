@@ -299,7 +299,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
         elif isinstance(input_type, WeldPandas):
             buffer += \
                 """
-                struct struct_in_%d %s;
+                struct struct_in_%d %s; {
                 """ % (i, weld_input_name)
             for inner_i, field_type in enumerate(input_type.field_types):
                 buffer += \
@@ -345,6 +345,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                             """ % (weld_input_name, inner_i, inner_i)
                 else:
                     panic("Unrecognized struct field type %s" % str(field_type))
+            buffer += "}\n"
         elif wtype_is_scalar(input_type):
             buffer += "%s %s = %s;\n" % (wtype_to_c_type(input_type), weld_input_name, input_name)
         buffer += "weld_input._%d = %s;\n" % (i, weld_input_name)

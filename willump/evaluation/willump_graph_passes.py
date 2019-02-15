@@ -273,14 +273,21 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
                         pandas_glue_python_args += "list(%s['%s'].values)," % (stripped_input_name, column)
                     else:
                         pandas_glue_python_args += "%s['%s'].values," % (stripped_input_name, column)
-                pandas_glue_python = "%s = (%s)" % (stripped_input_name, pandas_glue_python_args)
+                pandas_glue_python = "%s, %s = (%s), %s" % (stripped_input_name, df_temp_name, pandas_glue_python_args, stripped_input_name)
             else:
-                pandas_glue_python = "%s = tuple(%s.values[0])" % (stripped_input_name, stripped_input_name)
+                pandas_glue_python = "%s, %s = tuple(%s.values[0]), %s" % (stripped_input_name, df_temp_name, stripped_input_name, stripped_input_name)
             pandas_glue_ast: ast.Module = \
                 ast.parse(pandas_glue_python, "exec")
             pandas_input_node = WillumpPythonNode(python_ast=pandas_glue_ast.body[0], input_names=[],
                                                   output_names=[input_name], in_nodes=[])
             pandas_input_processing_nodes.append(pandas_input_node)
+            reversion_python = "%s = %s" % (stripped_input_name, df_temp_name)
+            reversion_python_ast = ast.parse(reversion_python, "exec")
+            reversion_python_node = WillumpPythonNode(python_ast=reversion_python_ast.body[0], input_names=[df_temp_name],
+                                                  output_names=[stripped_input_name], in_nodes=[])
+            if stripped_input_name not in map(strip_linenos_from_var, weld_block_output_set):
+                pandas_post_processing_nodes.append(reversion_python_node)
+
     for output_name in weld_block_output_set:
         output_type = typing_map[output_name]
         stripped_output_name = strip_linenos_from_var(output_name)

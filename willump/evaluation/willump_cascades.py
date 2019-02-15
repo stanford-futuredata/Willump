@@ -20,6 +20,7 @@ from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.cascade_stack_sparse_node import CascadeStackSparseNode
 from willump.graph.cascade_combine_predictions_node import CascadeCombinePredictionsNode
 from willump.graph.cascade_column_selection_node import CascadeColumnSelectionNode
+from willump.graph.trees_model_node import TreesModelNode
 
 
 def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: List[WillumpGraphNode],
@@ -140,11 +141,11 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
             current_node_stack += input_node.get_in_nodes()
         elif isinstance(input_node, PandasColumnSelectionNode):
             output_block.insert(0, input_node)
-            current_node_stack.append(input_node.get_in_nodes()[0])
+            current_node_stack += input_node.get_in_nodes()
         elif isinstance(input_node, WillumpHashJoinNode):
             base_node = wg_passes.find_dataframe_base_node(input_node, base_discovery_dict)
+            output_block.insert(0, input_node)
             if input_node is not base_node:
-                output_block.insert(0, input_node)
                 join_left_input_node = input_node.get_in_nodes()[0]
                 current_node_stack.append(join_left_input_node)
         else:
@@ -301,32 +302,52 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
 
     def get_small_model_nodes(orig_model_node: WillumpModelNode, new_input_node: WillumpGraphNode, new_model, aux_data) \
             -> Tuple[WillumpModelNode, CascadeThresholdProbaNode]:
-        assert (isinstance(orig_model_node, LinearRegressionNode))
         proba_output_name = "small__proba_" + orig_model_node.get_output_name()
         output_type = WeldVec(WeldDouble())
-        predict_proba_node = LinearRegressionNode(input_node=new_input_node,
-                                                  input_name=new_input_node.get_output_name(),
-                                                  input_type=typing_map[new_input_node.get_output_name()],
-                                                  output_name=proba_output_name, output_type=output_type,
-                                                  logit_weights=new_model.coef_, logit_intercept=new_model.intercept_,
-                                                  aux_data=aux_data, predict_proba=True)
+        typing_map[proba_output_name] = output_type
+        if isinstance(orig_model_node, LinearRegressionNode):
+            predict_proba_node = LinearRegressionNode(input_node=new_input_node,
+                                                      input_name=new_input_node.get_output_name(),
+                                                      input_type=typing_map[new_input_node.get_output_name()],
+                                                      output_name=proba_output_name, output_type=output_type,
+                                                      logit_weights=new_model.coef_,
+                                                      logit_intercept=new_model.intercept_,
+                                                      aux_data=aux_data, predict_proba=True)
+        elif isinstance(orig_model_node, TreesModelNode):
+            predict_proba_node = TreesModelNode(input_node=new_input_node,
+                                                input_name=new_input_node.get_output_name(),
+                                                output_name=proba_output_name,
+                                                model_name=SMALL_MODEL_NAME,
+                                                input_width=orig_model_node.input_width, predict_proba=True)
+        else:
+            assert False
         threshold_output_name = "small_preds_" + orig_model_node.get_output_name()
         threshold_node = CascadeThresholdProbaNode(input_node=predict_proba_node, input_name=proba_output_name,
                                                    output_name=threshold_output_name,
                                                    threshold=cascade_threshold)
+        typing_map[threshold_output_name] = WeldVec(WeldChar())
         return predict_proba_node, threshold_node
 
     def get_big_model_nodes(orig_model_node: WillumpModelNode, new_input_node: WillumpGraphNode, new_model, aux_data,
                             small_model_output_node: CascadeThresholdProbaNode, small_model_output_name: str) \
             -> Tuple[WillumpModelNode, CascadeCombinePredictionsNode]:
-        assert (isinstance(orig_model_node, LinearRegressionNode))
         output_name = orig_model_node.get_output_name()
         output_type = orig_model_node.output_type
-        big_model_output = LinearRegressionNode(input_node=new_input_node, input_name=new_input_node.get_output_name(),
-                                                input_type=typing_map[new_input_node.get_output_name()],
-                                                output_name=output_name, output_type=output_type,
-                                                logit_weights=new_model.coef_, logit_intercept=new_model.intercept_,
-                                                aux_data=aux_data)
+        if isinstance(orig_model_node, LinearRegressionNode):
+            big_model_output = LinearRegressionNode(input_node=new_input_node,
+                                                    input_name=new_input_node.get_output_name(),
+                                                    input_type=typing_map[new_input_node.get_output_name()],
+                                                    output_name=output_name, output_type=output_type,
+                                                    logit_weights=new_model.coef_, logit_intercept=new_model.intercept_,
+                                                    aux_data=aux_data)
+        elif isinstance(orig_model_node, TreesModelNode):
+            big_model_output = TreesModelNode(input_node=new_input_node,
+                                              input_name=new_input_node.get_output_name(),
+                                              output_name=output_name,
+                                              model_name=orig_model_node.model_name,
+                                              input_width=orig_model_node.input_width)
+        else:
+            assert False
         combining_node = CascadeCombinePredictionsNode(big_model_predictions_node=big_model_output,
                                                        big_model_predictions_name=output_name,
                                                        small_model_predictions_node=small_model_output_node,
@@ -362,10 +383,10 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                               less_important_nodes=[li_head],
                                               less_important_names=[li_head.get_output_name()],
                                               less_important_types=[li_head.output_type],
-                                             output_name=orig_node.get_output_name(),
+                                              output_name=orig_node.get_output_name(),
                                               small_model_output_node=small_model_output_node,
                                               small_model_output_name=small_model_output_node.get_output_name(),
-                                             selected_columns=orig_node.selected_columns)
+                                              selected_columns=orig_node.selected_columns)
         else:
             panic("Unrecognized nodes being combined: %s %s" % (mi_head.__repr__(), li_head.__repr__()))
 
@@ -398,8 +419,9 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     # The big model predicts "hard" (for the small model) examples from all inputs.
     combiner_node = get_combiner_node_eval(more_important_inputs_head, less_important_inputs_head, model_input_node,
                                            threshold_node)
-    new_big_model_node, preds_combiner_node = get_big_model_nodes(model_node, combiner_node, big_model, aux_data, threshold_node,
-                                             small_model_preds_name)
+    new_big_model_node, preds_combiner_node = get_big_model_nodes(model_node, combiner_node, big_model, aux_data,
+                                                                  threshold_node,
+                                                                  small_model_preds_name)
     base_discovery_dict = {}
     # Remove the original code for creating model inputs to replace with the new code.
     training_dependencies = get_model_node_dependencies(model_input_node, base_discovery_dict)

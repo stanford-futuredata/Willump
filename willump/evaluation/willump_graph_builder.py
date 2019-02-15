@@ -202,7 +202,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     feature_importances = self._static_vars[WILLUMP_TREES_FEATURE_IMPORTANCES]
                     trees_node = TreesModelNode(input_node=trees_input_node, input_name=trees_input_var,
                                                 output_name=output_var_name, model_name=model_name,
-                                                feature_importances=feature_importances)
+                                                input_width=len(feature_importances))
                     return output_var_name, trees_node
                 else:
                     return create_single_output_py_node(node)
