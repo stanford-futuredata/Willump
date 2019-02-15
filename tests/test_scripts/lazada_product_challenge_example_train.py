@@ -8,8 +8,11 @@ import scipy.sparse.csr
 from sklearn.linear_model import SGDClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 import willump.evaluation.willump_executor
+from sklearn.ensemble import GradientBoostingClassifier
 
 training_cascades = {}
+
+trees = False
 
 
 @willump.evaluation.willump_executor.willump_execute(num_workers=0, training_cascades=training_cascades)
@@ -18,7 +21,10 @@ def vectorizer_transform(title_vect, input_df, color_vect, y_df):
     transformed_result = title_vect.transform(np_input)
     color_result = color_vect.transform(np_input)
     combined_result = scipy.sparse.hstack([transformed_result, color_result], format="csr")
-    model = SGDClassifier(loss='log', penalty='l1', max_iter=1000, verbose=0, tol=0.0001)
+    if trees:
+        model = GradientBoostingClassifier()
+    else:
+        model = SGDClassifier(loss='log', penalty='l1', max_iter=1000, verbose=0, tol=0.0001)
     model = model.fit(combined_result, y_df)
     return model
 

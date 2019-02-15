@@ -6,9 +6,7 @@ import ast
 
 class WillumpPythonNode(WillumpGraphNode):
     """
-    Willump Python node.  Represents arbitrary Python.  Can have any number of inputs.
-
-    TODO:  Can also have any number of outputs.
+    Willump Python node.  Represents arbitrary Python.  Can have any number of inputs and outputs.
     """
     is_async_node: bool
 

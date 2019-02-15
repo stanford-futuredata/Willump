@@ -133,6 +133,15 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                         ast.parse(static_variable_extraction_code, "exec")
                     logit_instrumentation_statements: List[ast.stmt] = logit_instrumentation_ast.body
                     return_statements += logit_instrumentation_statements
+                    static_variable_extraction_code = \
+                        """if "sklearn.ensemble" in type({0}).__module__:\n""" \
+                            .format(model_name) + \
+                        """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
+                            .format(WILLUMP_TREES_FEATURE_IMPORTANCES, model_name, "feature_importances_")
+                    trees_instrumentation_ast: ast.Module = \
+                        ast.parse(static_variable_extraction_code, "exec")
+                    trees_instrumentation_statements: List[ast.stmt] = trees_instrumentation_ast.body
+                    return_statements += trees_instrumentation_statements
             elif "transform" in called_function_name:
                 if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name):
                     lineno = str(value.lineno)

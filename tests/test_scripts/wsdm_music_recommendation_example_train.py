@@ -4,7 +4,7 @@ import time
 from sklearn.linear_model import LogisticRegression
 from sklearn import metrics
 import pickle
-import os
+from sklearn.ensemble import GradientBoostingClassifier
 import willump.evaluation.willump_executor
 from wsdm_features_list import FEATURES
 
@@ -40,6 +40,8 @@ def load_combi_prep(folder='data_new/', split=None):
 
 training_cascades = {}
 
+trees = False
+
 
 @willump.evaluation.willump_executor.willump_execute(batch=True, training_cascades=training_cascades)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
@@ -71,7 +73,10 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
     combi = combi.merge(stypes_features, how='left', on=stypes_col)
     combi = combi.merge(regs_features, how='left', on=regs_col)
     train_data = combi[FEATURES]
-    model = LogisticRegression()
+    if trees:
+        model = GradientBoostingClassifier()
+    else:
+        model = LogisticRegression()
     model = model.fit(train_data, y_train)
     return model
 
@@ -216,6 +221,8 @@ def add_features_and_train_model(folder, combi):
 
     print('Second (Willump) training in %f seconds rows %d throughput %f: ' % (
         elapsed_time, num_rows, num_rows / elapsed_time))
+
+    print(training_cascades)
 
     return model
 

@@ -16,6 +16,8 @@ from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.linear_training_node import LinearTrainingNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
+from willump.graph.trees_training_node import TreesTrainingNode
+from willump.graph.trees_model_node import TreesModelNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 from weld.types import *
@@ -80,6 +82,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         Process an assignment AST node into either a Willump Weld node or Willump Python node that
         defines the variable being assigned.
         """
+
         def create_single_output_py_node(in_node, is_async_func=False):
             output_names, py_node = self._create_py_node(in_node, is_async_func=is_async_func)
             assert (len(output_names) == 1)
@@ -192,6 +195,15 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         logit_intercept=logit_intercept, aux_data=self.aux_data, batch=self.batch
                     )
                     return output_var_name, logit_node
+                elif WILLUMP_TREES_FEATURE_IMPORTANCES in self._static_vars:
+                    trees_input_var: str = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
+                    trees_input_node: WillumpGraphNode = self._node_dict[trees_input_var]
+                    model_name = value.func.value.id
+                    feature_importances = self._static_vars[WILLUMP_TREES_FEATURE_IMPORTANCES]
+                    trees_node = TreesModelNode(input_node=trees_input_node, input_name=trees_input_var,
+                                                output_name=output_var_name, model_name=model_name,
+                                                feature_importances=feature_importances)
+                    return output_var_name, trees_node
                 else:
                     return create_single_output_py_node(node)
             elif ".transform" in called_function:
@@ -279,21 +291,33 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             elif ".fit" in called_function:
                 if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name) and \
                         len(value.args) == 2 and isinstance(value.args[0], ast.Name) and isinstance(value.args[1],
-                        ast.Name) and WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:
+                                                                                                    ast.Name):
                     x_name = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
                     model_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
                     y_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
                     x_node, model_node, y_node = self._node_dict[x_name], self._node_dict[model_name], self._node_dict[
                         y_name]
-                    input_weights = self._static_vars[WILLUMP_LINEAR_REGRESSION_WEIGHTS]
-                    input_intercept = self._static_vars[WILLUMP_LINEAR_REGRESSION_INTERCEPT]
-                    training_node = LinearTrainingNode(python_ast=node,
-                                                       in_nodes=[x_node, model_node, y_node],
-                                                       input_names=[x_name, model_name, y_name],
-                                                       output_names=[output_var_name],
-                                                       input_weights=input_weights,
-                                                       input_intercept=input_intercept)
-                    return output_var_name, training_node
+                    if WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:
+                        input_weights = self._static_vars[WILLUMP_LINEAR_REGRESSION_WEIGHTS]
+                        input_intercept = self._static_vars[WILLUMP_LINEAR_REGRESSION_INTERCEPT]
+                        training_node = LinearTrainingNode(python_ast=node,
+                                                           in_nodes=[x_node, model_node, y_node],
+                                                           input_names=[x_name, model_name, y_name],
+                                                           output_names=[output_var_name],
+                                                           input_weights=input_weights,
+                                                           input_intercept=input_intercept)
+                        return output_var_name, training_node
+                    elif WILLUMP_TREES_FEATURE_IMPORTANCES in self._static_vars:
+                        feature_importances = self._static_vars[WILLUMP_TREES_FEATURE_IMPORTANCES]
+                        training_node = TreesTrainingNode(python_ast=node,
+                                                          in_nodes=[x_node, model_node, y_node],
+                                                          input_names=[x_name, model_name, y_name],
+                                                          output_names=[output_var_name],
+                                                          feature_importances=feature_importances)
+                        return output_var_name, training_node
+                    else:
+                        return create_single_output_py_node(node)
+
                 else:
                     return create_single_output_py_node(node)
             elif called_function in self._async_funcs:
