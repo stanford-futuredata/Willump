@@ -35,6 +35,23 @@ class CascadeThresholdProbaNode(WillumpGraphNode):
                     # 0 for predict false, 1 for predict true, 2 for not confident
                     merge(bs, select(x > THRESHOLD, 1c, select(x < 1.0 - THRESHOLD, 0c, 2c)))
             ));
+            let df_size = len(OUTPUT_NAME);
+            let pre_mapping = iterate({0L, 0L, dictmerger[i64, i64, +]},
+                | input |
+                    let more_important_iter = input.$0;
+                    let less_important_iter = input.$1;
+                    let output_dict = input.$2;
+                    if(more_important_iter == df_size,
+                        {{more_important_iter, less_important_iter, output_dict}, false},
+                        let small_model_output = lookup(OUTPUT_NAME, more_important_iter);
+                        if(small_model_output != 2c,
+                            {{more_important_iter + 1L, less_important_iter, output_dict}, true},
+                            {{more_important_iter + 1L, less_important_iter + 1L, merge(output_dict, {more_important_iter, less_important_iter})}, true}
+                        )
+                    )
+            );  
+            let OUTPUT_NAME_len = pre_mapping.$1;
+            let OUTPUT_NAME_mapping = result(pre_mapping.$2);
             """
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         weld_program = weld_program.replace("INPUT_NAME", self._input_name)

@@ -117,7 +117,7 @@ class ArrayTfIdfNode(WillumpGraphNode):
                                     )
                                 ));
                                 merge(count_dicts, string_dict),
-                                merge(count_dicts, result(dictmerger[i64, i64, +])) # Skip row by merging blank dict.
+                                count_dicts
                             )
                     ));
                 """
