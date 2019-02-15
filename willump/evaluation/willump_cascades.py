@@ -318,7 +318,8 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                                 input_name=new_input_node.get_output_name(),
                                                 output_name=proba_output_name,
                                                 model_name=SMALL_MODEL_NAME,
-                                                input_width=orig_model_node.input_width, predict_proba=True)
+                                                input_width=orig_model_node.input_width, predict_proba=True,
+                                                output_type=output_type)
         else:
             assert False
         threshold_output_name = "small_preds_" + orig_model_node.get_output_name()
@@ -345,7 +346,8 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                               input_name=new_input_node.get_output_name(),
                                               output_name=output_name,
                                               model_name=orig_model_node.model_name,
-                                              input_width=orig_model_node.input_width)
+                                              input_width=orig_model_node.input_width,
+                                              output_type=output_type)
         else:
             assert False
         combining_node = CascadeCombinePredictionsNode(big_model_predictions_node=big_model_output,

@@ -16,14 +16,14 @@ class TreesModelNode(WillumpModelNode, WillumpPythonNode):
     output_type: WeldType
 
     def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str, model_name: str,
-                 input_width,
+                 input_width, output_type,
                  predict_proba=False) -> None:
         python_ast = self._make_python_ast(input_name, output_name, model_name, predict_proba)
         super(TreesModelNode, self).__init__(python_ast, [input_name], [output_name], [input_node])
         self.input_width = input_width
         self.model_name = model_name
         self._output_name = output_name
-        self.output_type = WeldVec(WeldDouble())
+        self.output_type = output_type
 
     @staticmethod
     def _make_python_ast(input_name: str, output_name: str, model_name: str, predict_proba: bool) -> ast.AST:
