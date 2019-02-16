@@ -17,6 +17,7 @@ SC_SIZE = 25
 USC_SIZE = 25
 from wsdm_features_list import FEATURES
 import argparse
+from sklearn.model_selection import train_test_split
 
 
 def auc_score(y_valid, y_pred):
@@ -83,6 +84,7 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
     combi = combi.merge(stypes_features, how='left', on=stypes_col)
     combi = combi.merge(regs_features, how='left', on=regs_col)
     combi = combi[FEATURES]
+    combi = combi.fillna(0)
     preds = model.predict(combi)
     return preds
 
@@ -127,7 +129,6 @@ def add_cluster(folder, col, size, overlap=True, positive=True, content=False):
     if not positive:
         file_name += '_nopos'
 
-    # cluster = pd.read_csv( folder + 'content_' + name +'.{}.csv'.format(size) )
     cluster = pd.read_csv(folder + file_name + '.{}.csv'.format(size))
 
     cluster[name + '_' + str(size)] = cluster.cluster_id
@@ -232,9 +233,7 @@ def create_featureset(folder):
     combi = combi.dropna(subset=["target"])
     y = combi["target"].values
 
-    # partition data by time
-    # combi['time_bin10'] = pd.cut(combi['time'], 10, labels=range(10))
-    # combi['time_bin5'] = pd.cut(combi['time'], 5, labels=range(5))
+    _, combi, _, y = train_test_split(combi, y, test_size=0.33, random_state=42)
 
     # add latent features
     y_pred = add_features_and_predict(folder, combi)

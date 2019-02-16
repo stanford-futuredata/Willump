@@ -7,6 +7,7 @@ import pickle
 from sklearn.ensemble import GradientBoostingClassifier
 import willump.evaluation.willump_executor
 from wsdm_features_list import FEATURES
+from sklearn.model_selection import train_test_split
 import argparse
 
 # LATENT VECTOR SIZES
@@ -77,6 +78,7 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
     combi = combi.merge(stypes_features, how='left', on=stypes_col)
     combi = combi.merge(regs_features, how='left', on=regs_col)
     train_data = combi[FEATURES]
+    train_data = train_data.fillna(0)
     if trees:
         model = GradientBoostingClassifier()
     else:
@@ -148,6 +150,9 @@ def add_cluster(folder, col, size, overlap=True, positive=True, content=False):
 
 def add_features_and_train_model(folder, combi):
     y = combi["target"].values
+
+    combi, _, y, _ = train_test_split(combi, y, test_size=0.33, random_state=42)
+
     features_uf, join_col_uf = load_als_dataframe(folder, size=UF_SIZE, user=True, artist=False)
     features_sf, join_col_sf = load_als_dataframe(folder, size=SF_SIZE, user=False, artist=False)
     cluster_one, join_col_cluster_one = add_cluster(folder, col='msno', size=UC_SIZE, overlap=True, positive=True,
