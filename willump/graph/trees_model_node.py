@@ -3,7 +3,7 @@ from willump.graph.willump_python_node import WillumpPythonNode
 from willump.graph.willump_model_node import WillumpModelNode
 
 import ast
-from willump.willump_utilities import strip_linenos_from_var
+from willump.willump_utilities import strip_linenos_from_var, weld_scalar_type_to_numpy_type
 from weld.types import *
 
 
@@ -13,12 +13,13 @@ class TreesModelNode(WillumpModelNode, WillumpPythonNode):
     """
     input_width: int
     model_name: str
-    output_type: WeldType
+    output_type: WeldVec
 
     def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str, model_name: str,
-                 input_width, output_type,
+                 input_width: int, output_type: WeldVec,
                  predict_proba=False) -> None:
-        python_ast = self._make_python_ast(input_name, output_name, model_name, predict_proba)
+        assert(isinstance(output_type, WeldVec))
+        python_ast = self._make_python_ast(input_name, output_name, model_name, predict_proba, output_type)
         super(TreesModelNode, self).__init__(python_ast, [input_name], [output_name], [input_node])
         self.input_width = input_width
         self.model_name = model_name
@@ -26,17 +27,27 @@ class TreesModelNode(WillumpModelNode, WillumpPythonNode):
         self.output_type = output_type
 
     @staticmethod
-    def _make_python_ast(input_name: str, output_name: str, model_name: str, predict_proba: bool) -> ast.AST:
+    def _make_python_ast(input_name: str, output_name: str, model_name: str, predict_proba: bool, output_type: WeldVec)\
+            -> ast.AST:
         if predict_proba:
             proba = "_proba"
             proba_selection = "[:,1]"
         else:
             proba = ""
             proba_selection = ""
-        prediction_string = "%s = %s.predict%s(%s)%s" % (strip_linenos_from_var(output_name),
-                                                       model_name, proba, strip_linenos_from_var(input_name),
-                                                       proba_selection)
-        prediction_ast: ast.Module = ast.parse(prediction_string)
+        stripped_output_name = strip_linenos_from_var(output_name)
+        stripped_input_name = strip_linenos_from_var(input_name)
+        prediction_string = "%s = %s.predict%s(%s)%s" % (stripped_output_name,
+                                                         model_name, proba, stripped_input_name,
+                                                         proba_selection)
+        prediction_control_string = \
+            """if %s.shape[0] > 0:\n""" \
+            """\t%s\n""" \
+            """else:\n""" \
+            """\t%s = scipy.zeros(0, dtype=scipy.%s)\n""" % (stripped_input_name, prediction_string,
+                                                             stripped_output_name,
+                                                             weld_scalar_type_to_numpy_type(output_type.elemType))
+        prediction_ast: ast.Module = ast.parse(prediction_control_string)
         return prediction_ast.body[0]
 
     def get_output_name(self):

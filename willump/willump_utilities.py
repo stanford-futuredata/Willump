@@ -39,5 +39,22 @@ def numpy_type_to_weld_type(numpy_array_dtype) -> WeldType:
         return WeldType()
 
 
+def weld_scalar_type_to_numpy_type(w_type: WeldType) -> str:
+    if isinstance(w_type, WeldChar):
+        return "int8"
+    elif isinstance(w_type, WeldInt16):
+        return "int16"
+    elif isinstance(w_type, WeldInt):
+        return "int32"
+    elif isinstance(w_type, WeldLong):
+        return "int64"
+    elif isinstance(w_type, WeldFloat):
+        return "float32"
+    elif isinstance(w_type, WeldDouble):
+        return "float64"
+    else:
+        assert False
+
+
 def strip_linenos_from_var(var_name):
     return var_name[:var_name.rfind("_")]
