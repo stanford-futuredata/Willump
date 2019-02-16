@@ -10,7 +10,7 @@ from willump.graph.string_lower_node import StringLowerNode
 from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.array_binop_node import ArrayBinopNode
-from willump.graph.willump_hash_join_node import WillumpHashJoinNode
+from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.willump_python_node import WillumpPythonNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.stack_sparse_node import StackSparseNode
@@ -318,7 +318,16 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         return output_var_name, training_node
                     else:
                         return create_single_output_py_node(node)
-
+                else:
+                    return create_single_output_py_node(node)
+            elif ".fillna" in called_function and isinstance(value.func, ast.Attribute) and \
+                    isinstance(value.func.value, ast.Name):
+                input_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
+                input_node = self._node_dict[input_name]
+                if isinstance(input_node, WillumpHashJoinNode) or isinstance(input_node, PandasColumnSelectionNode):
+                    input_node._output_name = output_var_name
+                    # NaNs within Hash Join nodes are handled by the nodes.
+                    return output_var_name, self._node_dict[input_name]
                 else:
                     return create_single_output_py_node(node)
             elif called_function in self._async_funcs:

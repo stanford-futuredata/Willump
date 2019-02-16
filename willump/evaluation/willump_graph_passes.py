@@ -15,7 +15,7 @@ from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.combine_linear_regression_node import CombineLinearRegressionNode
 from willump.graph.willump_model_node import WillumpModelNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
-from willump.graph.willump_hash_join_node import WillumpHashJoinNode
+from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
 

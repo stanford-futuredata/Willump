@@ -8,7 +8,7 @@ import willump.evaluation.willump_executor as wexec
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
-from willump.graph.willump_hash_join_node import WillumpHashJoinNode
+from willump.graph.hash_join_node import WillumpHashJoinNode
 from weld.types import *
 
 model = sklearn.linear_model.LogisticRegression(solver='lbfgs')
@@ -33,12 +33,30 @@ def sample_pushing_merge_two(left, right, right2):
     predicted_result = model.predict(feature_columns)
     return predicted_result
 
+
 @wexec.willump_execute()
 def sample_pushing_merge_three(left, right, right2, right3):
     new1 = left.merge(right, how="left", on="join_column")
     new2 = new1.merge(right2, how="left", on="join_column")
     new3 = new2.merge(right3, how="left", on="join_column")
     feature_columns = new3[FEATURES]
+    predicted_result = model.predict(feature_columns)
+    return predicted_result
+
+
+@wexec.willump_execute()
+def sample_merge_with_null(left, right):
+    new = left.merge(right, how="left", on="join_column")
+    new = new.fillna(0)
+    return new
+
+
+@wexec.willump_execute()
+def sample_merge_with_pushed_null(left, right):
+    new = left.merge(right, how="left", on="join_column")
+    new = new.fillna(0)
+    feature_columns = new[FEATURES]
+    feature_columns = feature_columns.fillna(0)
     predicted_result = model.predict(feature_columns)
     return predicted_result
 
@@ -51,7 +69,8 @@ class HashJoinNodeTests(unittest.TestCase):
         input_node: WillumpInputNode = WillumpInputNode("input_table")
         aux_data = []
         hash_join_node: WillumpHashJoinNode = \
-            WillumpHashJoinNode(input_node=input_node, input_name="input_table", output_name="output", join_col_name="join_column",
+            WillumpHashJoinNode(input_node=input_node, input_name="input_table", output_name="output",
+                                join_col_name="join_column",
                                 right_dataframe=right_table, aux_data=aux_data,
                                 left_input_type=WeldPandas(
                                     [WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
@@ -84,7 +103,8 @@ class HashJoinNodeTests(unittest.TestCase):
         input_node: WillumpInputNode = WillumpInputNode("input_table")
         aux_data = []
         hash_join_node: WillumpHashJoinNode = \
-            WillumpHashJoinNode(input_node=input_node, input_name="input_table", output_name="output", join_col_name="join_column",
+            WillumpHashJoinNode(input_node=input_node, input_name="input_table", output_name="output",
+                                join_col_name="join_column",
                                 right_dataframe=right_table, aux_data=aux_data,
                                 left_input_type=WeldPandas([WeldLong(), WeldLong(), WeldLong()],
                                                            ["join_column", "data1", "data2"]), batch=False)
@@ -141,3 +161,27 @@ class HashJoinNodeTests(unittest.TestCase):
         sample_pushing_merge_three(left_table, right_table, right_table2, right_table3)
         weld_output = sample_pushing_merge_three(left_table, right_table, right_table2, right_table3)
         numpy.testing.assert_equal(weld_output, correct_answer)
+
+    def test_merge_with_null(self):
+        print("\ntest_merge_with_null")
+        left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv")
+        left_table["join_column"] = [1, 2, 2, 5, 1]
+        right_table = pd.read_csv("tests/test_resources/toy_metadata_csv.csv")
+        correct_answer = sample_merge_with_null(left_table, right_table)
+        sample_merge_with_null(left_table, right_table)
+        weld_output = sample_merge_with_null(left_table, right_table)
+        numpy.testing.assert_almost_equal(weld_output.values, correct_answer.values)
+
+    def test_merge_with_null_pushing(self):
+        print("\ntest_merge_with_null_pushing")
+        global FEATURES
+        FEATURES = ["data1", "data2", "metadata1", "metadata2"]
+        model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4]], dtype=numpy.float64)
+        left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv")
+        left_table["join_column"] = [1, 2, 2, 5, 1]
+        right_table = pd.read_csv("tests/test_resources/toy_metadata_csv.csv")
+        correct_output = sample_merge_with_pushed_null(left_table, right_table)
+        sample_merge_with_pushed_null(left_table, right_table)
+        weld_output = sample_merge_with_pushed_null(left_table, right_table)
+        numpy.testing.assert_equal(
+            weld_output, correct_output)

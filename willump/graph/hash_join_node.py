@@ -4,16 +4,13 @@ from willump.willump_utilities import *
 
 from weld.types import *
 
-import pandas as pd
 from typing import List, Tuple, Mapping, Optional
 import importlib
 
 
 class WillumpHashJoinNode(WillumpGraphNode):
     """
-    Implements a left join between two dataframes on a specific column.
-
-    TODO:  Handle case where entry is in left but not in right.
+    Implements a left join between two dataframes on a specific column.  Fills missing rows with zeros.
     """
     left_input_name: str
     left_df_type: WeldPandas
@@ -141,6 +138,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
             if self.batch:
                 struct_builder_statement = "{"
                 merge_statement = "{"
+                merge_zeros_statement = "{"
                 result_statement = "{"
                 switch = 0
                 for i in range(len(self.left_df_type.column_names)):
@@ -151,11 +149,13 @@ class WillumpHashJoinNode(WillumpGraphNode):
                         struct_builder_statement += "appender[%s](col_len)," % col_type
                         merge_statement += "merge(bs.$%d, right_dataframe_row.$%d)," % (i - switch, i - switch)
                         result_statement += "result(pre_output.$%d)," % (i - switch)
+                        merge_zeros_statement += "merge(bs.$%d, %s(0))," % (i - switch, col_type)
                     else:
                         switch = 1
                 struct_builder_statement = struct_builder_statement[:-1] + "}"
                 merge_statement = merge_statement[:-1] + "}"
                 result_statement = result_statement[:-1] + "}"
+                merge_zeros_statement = merge_zeros_statement[:-1] + "}"
                 weld_program = \
                     """
                     let col_len = len(INPUT_NAME.$JOIN_COL_LEFT_INDEX);
@@ -163,8 +163,12 @@ class WillumpHashJoinNode(WillumpGraphNode):
                         STRUCT_BUILDER,
                         |bs, i: i64, x |
                             if(CASCADE_STATEMENT,
-                                let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, x);
-                                MERGE_STATEMENT,
+                                let right_dataframe_row_present = optlookup(RIGHT_DATAFRAME_NAME, x);
+                                if(right_dataframe_row_present.$0,
+                                    let right_dataframe_row = right_dataframe_row_present.$1;
+                                    MERGE_STATEMENT,
+                                    MERGE_ZEROS_STATEMENT
+                                ),    
                                 bs
                             )
                     ));
@@ -178,6 +182,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
                 weld_program = weld_program.replace("INPUT_NAME", self.left_input_name)
                 weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
                 weld_program = weld_program.replace("CASCADE_STATEMENT", cascade_statement)
+                weld_program = weld_program.replace("MERGE_ZEROS_STATEMENT", merge_zeros_statement)
             else:
                 result_statement = "{"
                 switch = 0
@@ -222,8 +227,12 @@ class WillumpHashJoinNode(WillumpGraphNode):
                     let OUTPUT_NAME: vec[f64] = result(for(INPUT_NAME.$JOIN_COL_LEFT_INDEX,
                         appender[f64],
                         |bs, i: i64, x |
-                            let right_dataframe_row = lookup(RIGHT_DATAFRAME_NAME, x);
-                            merge(bs, SUM_STATEMENT)
+                            let right_dataframe_row_present = optlookup(RIGHT_DATAFRAME_NAME, x);
+                            if(right_dataframe_row_present.$0,
+                                let right_dataframe_row = right_dataframe_row_present.$1;
+                                merge(bs, SUM_STATEMENT),
+                                merge(bs, 0.0)
+                            )
                     ));
                     """
             else:
