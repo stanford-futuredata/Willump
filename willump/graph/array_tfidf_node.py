@@ -130,8 +130,8 @@ class ArrayTfIdfNode(WillumpGraphNode):
                         | count_dicts: appender[dict[i64, i64]], i_out: i64, string: vec[i8] |
                             let string_len: i64 = len(string);
                             let start_index: appender[i64] = select(lookup(string, 0L) == 32c, 
-                                appender[i64],
-                                merge(appender[i64], 0L));
+                                appender[i64](100L),  # TODO:  Talk to Shoumik about this.
+                                merge(appender[i64](100L), 0L));
                             # The indices of every word's start.  We have already replaced all whitespaces with 
                             # single spaces.
                             let word_indices_app: appender[i64] = for(string,
@@ -246,8 +246,8 @@ class ArrayTfIdfNode(WillumpGraphNode):
                 weld_program += \
                     """
                         let start_index: appender[i64] = select(lookup(string, 0L) == 32c, 
-                            appender[i64],
-                            merge(appender[i64], 0L));
+                            appender[i64](100L),
+                            merge(appender[i64](100L), 0L));
                         # The indices of every word's start.  We have already replaced all whitespaces with 
                         # single spaces.
                         let word_indices_app: appender[i64] = for(string,

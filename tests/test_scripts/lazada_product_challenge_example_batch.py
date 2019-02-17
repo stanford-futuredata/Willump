@@ -56,7 +56,7 @@ c = list(filter(lambda x: len(x.split()) > 1, colors))
 c = list(map(lambda x: x.replace(" ", ""), c))
 colors.extend(c)
 
-color_vectorizer = TfidfVectorizer(analyzer='char', ngram_range=(4, 4), decode_error='replace', lowercase=False)
+color_vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1, 1), decode_error='replace', lowercase=False)
 color_vectorizer.fit(colors)
 print("Color Vocabulary has length %d" % len(color_vectorizer.vocabulary_))
 

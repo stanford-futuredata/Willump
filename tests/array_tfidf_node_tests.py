@@ -23,7 +23,7 @@ tf_idf_vec_char = \
                     lowercase=False)
 
 tf_idf_vec_word = \
-    TfidfVectorizer(analyzer='word', ngram_range=(1, 3), vocabulary=simple_vocab_dict,
+    TfidfVectorizer(analyzer='word', ngram_range=(1, 1),
                     lowercase=False)
 
 
@@ -48,7 +48,6 @@ def sample_tfidf_vectorizer_word(array_one, input_vect):
 model = sklearn.linear_model.LogisticRegression(solver='lbfgs')
 model.intercept_ = numpy.array([0.2], dtype=numpy.float64)
 model.classes_ = numpy.array([0, 1], dtype=numpy.int64)
-model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -1.5, 0.6]], dtype=numpy.float64)
 
 
 @wexec.willump_execute()
@@ -73,10 +72,14 @@ def tf_idf_vectorizer_then_regression_word(array_one, input_vect):
 
 class TfidfNodeTests(unittest.TestCase):
     def setUp(self):
-        self.input_str = [" catdogcat", "the dog house ", "elephantcat", "Bbbbbbb", "an ox cat house", "ananan",
-                          "      an ox cat house   ",
-                          # "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"  #TODO:  Talk to Shoumik about this.
-                          ]
+        self.input_str = [
+            " catdogcat", "the dog house ", "elephantcat", "Bbbbbbb", "an ox cat house", "ananan",
+            "      an ox cat house   ",
+            "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"  # TODO:  Talk to Shoumik about this.
+            "Summer new British printing round neck short sleeve male T-shirt(black)-intl",
+            "UniSilver TIME Lunarchia Pair Women's Silver / Pink Mother-of-Pearl Analog Stainless Steel Watch KW1367-2909",
+            "Foldable Selfie Stick Monopod (Green) With 3 in 1 Macro/Fish-eye/Wide Clip Lens for Mobile Phone and Tablets (Green)"
+        ]
         tf_idf_vec_char.fit(self.input_str)
         tf_idf_vec_word.fit(self.input_str)
         self.idf_vec = tf_idf_vec_char.idf_
@@ -96,8 +99,9 @@ class TfidfNodeTests(unittest.TestCase):
         type_map = {"input_str": WeldVec(WeldStr()),
                     "lowered_output_words": WeldCSR((WeldDouble()))}
         row, col, data, l, w = wexec.execute_from_basics(graph,
-                                                type_map,
-                                                (self.input_str,), ["input_str"], ["lowered_output_words"], aux_data)
+                                                         type_map,
+                                                         (self.input_str,), ["input_str"], ["lowered_output_words"],
+                                                         aux_data)
         weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
         numpy.testing.assert_almost_equal(weld_matrix, self.correct_output)
 
@@ -119,6 +123,7 @@ class TfidfNodeTests(unittest.TestCase):
 
     def test_linear_model_tfidf_vectorizer(self):
         print("\ntest_linear_model_tfidf_vectorizer")
+        model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -1.5, 0.6]], dtype=numpy.float64)
         tf_idf_vectorizer_then_regression(self.input_str, tf_idf_vec_char)
         tf_idf_vectorizer_then_regression(self.input_str, tf_idf_vec_char)
         preds = tf_idf_vectorizer_then_regression(self.input_str, tf_idf_vec_char)
@@ -127,6 +132,7 @@ class TfidfNodeTests(unittest.TestCase):
 
     def test_linear_model_tfidf_vectorizer_word(self):
         print("\ntest_linear_model_tfidf_vectorizer_word")
+        model.coef_ = numpy.random.random(len(tf_idf_vec_word.vocabulary_)).reshape(1, -1)
         tf_idf_vectorizer_then_regression_word(self.input_str, tf_idf_vec_word)
         tf_idf_vectorizer_then_regression_word(self.input_str, tf_idf_vec_word)
         preds = tf_idf_vectorizer_then_regression_word(self.input_str, tf_idf_vec_word)

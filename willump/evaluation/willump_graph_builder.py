@@ -218,32 +218,41 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 vectorizer_input_node: WillumpGraphNode = self._node_dict[vectorizer_input_var]
                 vectorizer_ngram_range: Tuple[int, int] = \
                     self._static_vars[WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE + lineno]
-                # TODO:  Once the Weld compilation segfault is fixed, replace with Weld node.
-                try:
-                    array_space_combiner_output = self.get_load_name(vectorizer_input_var + "__weld_combined__",
-                                                                     node.lineno, self._type_map)
-                except UntypedVariableException:
-                    array_space_combiner_output = self.get_store_name(vectorizer_input_var + "__weld_combined__",
-                                                                      node.lineno)
-                if array_space_combiner_output in self._node_dict:
-                    array_space_combiner_node = self._node_dict[array_space_combiner_output]
+                if analyzer == "char":
+                    preprocessed_input_prefix = "char__preprocessed__"
                 else:
-                    array_space_combiner_python = "%s = list(map(lambda x: re.sub(r'\s+', ' ', x), %s))" \
-                                                  % (strip_linenos_from_var(array_space_combiner_output),
-                                                     strip_linenos_from_var(vectorizer_input_var))
-                    array_space_combiner_ast: ast.Module = ast.parse(array_space_combiner_python)
-                    array_space_combiner_node: WillumpPythonNode = WillumpPythonNode(
-                        python_ast=array_space_combiner_ast.body[0],
+                    assert (analyzer == "word")
+                    preprocessed_input_prefix = "word__preprocessed__"
+                try:
+                    preprocessed_input_name = self.get_load_name(preprocessed_input_prefix + vectorizer_input_var,
+                                                                 node.lineno, self._type_map)
+                except UntypedVariableException:
+                    preprocessed_input_name = self.get_store_name(preprocessed_input_prefix + vectorizer_input_var,
+                                                                  node.lineno)
+                if preprocessed_input_name in self._node_dict:
+                    input_preprocessing_node = self._node_dict[preprocessed_input_name]
+                else:
+                    if analyzer == "char":
+                        input_preprocessing_python = "%s = list(map(lambda x: re.sub(r'\s+', ' ', x), %s))" \
+                                                      % (strip_linenos_from_var(preprocessed_input_name),
+                                                         strip_linenos_from_var(vectorizer_input_var))
+                    else:
+                        input_preprocessing_python = "%s = list(map(lambda x: re.sub(r'\W+', ' ', x), %s))" \
+                                                      % (strip_linenos_from_var(preprocessed_input_name),
+                                                         strip_linenos_from_var(vectorizer_input_var))
+                    input_preprocessing_ast: ast.Module = ast.parse(input_preprocessing_python)
+                    input_preprocessing_node: WillumpPythonNode = WillumpPythonNode(
+                        python_ast=input_preprocessing_ast.body[0],
                         input_names=[vectorizer_input_var],
-                        output_names=[array_space_combiner_output],
+                        output_names=[preprocessed_input_name],
                         in_nodes=[vectorizer_input_node])
-                    self._type_map[array_space_combiner_output] = self._type_map[vectorizer_input_var]
-                    self._node_dict[array_space_combiner_output] = array_space_combiner_node
+                    self._type_map[preprocessed_input_name] = self._type_map[vectorizer_input_var]
+                    self._node_dict[preprocessed_input_name] = input_preprocessing_node
                 if WILLUMP_TFIDF_IDF_VECTOR + lineno in self._static_vars:
                     idf_vector = self._static_vars[WILLUMP_TFIDF_IDF_VECTOR + lineno]
                     tfidf_node: ArrayTfIdfNode = ArrayTfIdfNode(
-                        input_node=array_space_combiner_node,
-                        input_name=array_space_combiner_output,
+                        input_node=input_preprocessing_node,
+                        input_name=preprocessed_input_name,
                         output_name=output_var_name,
                         input_idf_vector=idf_vector,
                         input_vocab_dict=vocab_dict, aux_data=self.aux_data,
@@ -254,8 +263,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 else:
                     assert (analyzer == "char")  # TODO:  Get other analyzers working.
                     array_cv_node: ArrayCountVectorizerNode = ArrayCountVectorizerNode(
-                        input_node=array_space_combiner_node,
-                        input_name=array_space_combiner_output,
+                        input_node=input_preprocessing_node,
+                        input_name=preprocessed_input_name,
                         output_name=output_var_name,
                         input_vocab_dict=vocab_dict, aux_data=self.aux_data,
                         ngram_range=vectorizer_ngram_range
