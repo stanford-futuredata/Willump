@@ -1,12 +1,10 @@
-from sklearn.feature_extraction.text import CountVectorizer
 import time
 import pandas as pd
 import willump.evaluation.willump_executor
 import pickle
 import numpy
 import scipy.sparse.csr
-from sklearn.metrics import mean_squared_error
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
 import scipy.sparse
 
 
@@ -28,32 +26,21 @@ df = pd.read_csv("tests/test_resources/lazada_challenge_features/lazada_data_tra
 model = pickle.load(open("tests/test_resources/lazada_challenge_features/lazada_model.pk", "rb"))
 y = numpy.loadtxt("tests/test_resources/lazada_challenge_features/conciseness_train.labels", dtype=int)
 
-title_vectorizer = CountVectorizer(analyzer='char', ngram_range=(2, 6), min_df=0.005, max_df=1.0,
-                                   lowercase=False, stop_words=None, binary=False, decode_error='replace')
-title_vectorizer.fit(df["title"].tolist())
-print("Vocabulary has length %d" % len(title_vectorizer.vocabulary_))
+_, df, _, y = train_test_split(df, y, test_size=0.33, random_state=42)
 
-colors = [x.strip() for x in open("tests/test_resources/lazada_challenge_features/colors.txt", encoding="windows-1252").readlines()]
-c = list(filter(lambda x: len(x.split()) > 1, colors))
-c = list(map(lambda x: x.replace(" ", ""), c))
-colors.extend(c)
 
-color_vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1, 1), decode_error='replace', lowercase=False)
-color_vectorizer.fit(colors)
+title_vectorizer, color_vectorizer, brand_vectorizer = pickle.load(
+    open("tests/test_resources/lazada_challenge_features/lazada_vectorizers.pk", "rb"))
+print("Title Vocabulary has length %d" % len(title_vectorizer.vocabulary_))
 print("Color Vocabulary has length %d" % len(color_vectorizer.vocabulary_))
-
-brands = [x.strip() for x in open("tests/test_resources/lazada_challenge_features/brands_from_lazada_portal.txt", encoding="windows-1252").readlines()]
-brand_vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1, 1), decode_error='replace', lowercase=False)
-brand_vectorizer.fit(brands)
 print("Brand Vocabulary has length %d" % len(brand_vectorizer.vocabulary_))
-
 set_size = len(df)
 mini_df = df.loc[0:0].copy()["title"]
 vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, brand_vectorizer)
 vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, brand_vectorizer)
 vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, brand_vectorizer)
 entry_list = []
-for i in range(set_size):
+for i in df.index:
     entry_list.append(df.loc[i:i]["title"])
 t0 = time.time()
 for entry in entry_list:

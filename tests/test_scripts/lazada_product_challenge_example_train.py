@@ -10,6 +10,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import willump.evaluation.willump_executor
 from sklearn.ensemble import GradientBoostingClassifier
 import argparse
+from sklearn.model_selection import train_test_split
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", help="Use cascades?", action="store_true")
@@ -42,6 +43,8 @@ df = pd.read_csv("tests/test_resources/lazada_challenge_features/lazada_data_tra
                  names=['country', 'sku_id', 'title', 'category_lvl_1', 'category_lvl_2', 'category_lvl_3',
                         'short_description', 'price', 'product_type'])
 y = numpy.loadtxt("tests/test_resources/lazada_challenge_features/conciseness_train.labels", dtype=int)
+
+df, _, y, _ = train_test_split(df, y, test_size=0.33, random_state=42)
 
 title_vectorizer = CountVectorizer(analyzer='char', ngram_range=(2, 6), min_df=0.005, max_df=1.0,
                                    lowercase=False, stop_words=None, binary=False, decode_error='replace')
@@ -76,5 +79,6 @@ print(trained_model)
 print("Second (Willump Cascade) Training Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
 
+pickle.dump((title_vectorizer, color_vectorizer, brand_vectorizer), open("tests/test_resources/lazada_challenge_features/lazada_vectorizers.pk", "wb"))
 pickle.dump(trained_model, open("tests/test_resources/lazada_challenge_features/lazada_model.pk", "wb"))
 pickle.dump(training_cascades, open("tests/test_resources/lazada_challenge_features/lazada_training_cascades.pk", "wb"))
