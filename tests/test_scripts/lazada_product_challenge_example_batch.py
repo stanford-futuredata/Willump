@@ -27,13 +27,14 @@ else:
     cascade_threshold = args.cascades
 
 
-@willump.evaluation.willump_executor.willump_execute(num_workers=1, eval_cascades=cascades,
+@willump.evaluation.willump_executor.willump_execute(num_workers=2, eval_cascades=cascades,
                                                      cascade_threshold=cascade_threshold)
-def vectorizer_transform(title_vect, input_df, color_vect):
+def vectorizer_transform(title_vect, input_df, color_vect, brand_vect):
     np_input = list(input_df.values)
     transformed_result = title_vect.transform(np_input)
     color_result = color_vect.transform(np_input)
-    combined_result = scipy.sparse.hstack([transformed_result, color_result], format="csr")
+    brand_result = brand_vect.transform(np_input)
+    combined_result = scipy.sparse.hstack([transformed_result, color_result, brand_result], format="csr")
     predictions = model.predict(combined_result)
     return predictions
 
@@ -60,13 +61,18 @@ color_vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1, 1), decode_e
 color_vectorizer.fit(colors)
 print("Color Vocabulary has length %d" % len(color_vectorizer.vocabulary_))
 
+brands = [x.strip() for x in open("tests/test_resources/lazada_challenge_features/brands_from_lazada_portal.txt", encoding="windows-1252").readlines()]
+brand_vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1, 1), decode_error='replace', lowercase=False)
+brand_vectorizer.fit(brands)
+print("Brand Vocabulary has length %d" % len(brand_vectorizer.vocabulary_))
+
 set_size = len(df)
 mini_df = df.head(2).copy()["title"]
-vectorizer_transform(title_vectorizer, mini_df, color_vectorizer)
-vectorizer_transform(title_vectorizer, mini_df, color_vectorizer)
-vectorizer_transform(title_vectorizer, mini_df, color_vectorizer)
+vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, brand_vectorizer)
+vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, brand_vectorizer)
+vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, brand_vectorizer)
 t0 = time.time()
-preds = vectorizer_transform(title_vectorizer, df["title"], color_vectorizer)
+preds = vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, brand_vectorizer)
 time_elapsed = time.time() - t0
 print("Title Processing Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
