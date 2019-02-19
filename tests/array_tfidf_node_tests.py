@@ -19,7 +19,7 @@ with open("tests/test_resources/simple_vocabulary.txt") as simple_vocab:
     simple_vocab_dict = {word: index for index, word in
                          enumerate(simple_vocab.read().splitlines())}
 tf_idf_vec_char = \
-    TfidfVectorizer(analyzer='char', ngram_range=(2, 5), vocabulary=simple_vocab_dict,
+    TfidfVectorizer(analyzer='char', ngram_range=(2, 6),
                     lowercase=False)
 
 tf_idf_vec_word = \
@@ -79,31 +79,15 @@ class TfidfNodeTests(unittest.TestCase):
             "Summer new British printing round neck short sleeve male T-shirt(black)-intl",
             "UniSilver TIME Lunarchia Pair Women's Silver / Pink Mother-of-Pearl Analog Stainless Steel Watch KW1367-2909",
             "Foldable Selfie Stick Monopod (Green) With 3 in 1 Macro/Fish-eye/Wide Clip Lens for Mobile Phone and Tablets (Green)"
+            "on the server Farstriders."
+            "Where do you come from?"
+            "\"\nTell that stuff to AMIB, will ya!?  \"",
         ]
         tf_idf_vec_char.fit(self.input_str)
         tf_idf_vec_word.fit(self.input_str)
         self.idf_vec = tf_idf_vec_char.idf_
         self.correct_output = tf_idf_vec_char.transform(self.input_str).toarray()
         self.correct_output_word = tf_idf_vec_word.transform(self.input_str).toarray()
-
-    def test_basic_tfidf(self):
-        print("\ntest_basic_tfidf")
-        aux_data = []
-        input_node: WillumpInputNode = WillumpInputNode("input_str")
-        array_cv_node: ArrayTfIdfNode = \
-            ArrayTfIdfNode(input_node, "input_str", output_name='lowered_output_words', input_idf_vector=self.idf_vec,
-                           input_vocab_dict=simple_vocab_dict,
-                           aux_data=aux_data, ngram_range=(2, 5))
-        output_node: WillumpOutputNode = WillumpOutputNode(array_cv_node, ["lowered_output_words"])
-        graph: WillumpGraph = WillumpGraph(output_node)
-        type_map = {"input_str": WeldVec(WeldStr()),
-                    "lowered_output_words": WeldCSR((WeldDouble()))}
-        row, col, data, l, w = wexec.execute_from_basics(graph,
-                                                         type_map,
-                                                         (self.input_str,), ["input_str"], ["lowered_output_words"],
-                                                         aux_data)
-        weld_matrix = scipy.sparse.csr_matrix((data, (row, col)), shape=(l, w)).toarray()
-        numpy.testing.assert_almost_equal(weld_matrix, self.correct_output)
 
     def test_infer_tfidf_vectorizer(self):
         print("\ntest_infer_tfidf_vectorizer")
@@ -123,7 +107,7 @@ class TfidfNodeTests(unittest.TestCase):
 
     def test_linear_model_tfidf_vectorizer(self):
         print("\ntest_linear_model_tfidf_vectorizer")
-        model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -1.5, 0.6]], dtype=numpy.float64)
+        model.coef_ = numpy.random.random(len(tf_idf_vec_char.vocabulary_)).reshape(1, -1)
         tf_idf_vectorizer_then_regression(self.input_str, tf_idf_vec_char)
         tf_idf_vectorizer_then_regression(self.input_str, tf_idf_vec_char)
         preds = tf_idf_vectorizer_then_regression(self.input_str, tf_idf_vec_char)

@@ -233,7 +233,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     input_preprocessing_node = self._node_dict[preprocessed_input_name]
                 else:
                     if analyzer == "char":
-                        input_preprocessing_python = "%s = list(map(lambda x: re.sub(r'\s+', ' ', x), %s))" \
+                        input_preprocessing_python = "%s = list(map(lambda x: re.sub(r'\s\s+', ' ', x), %s))" \
                                                       % (strip_linenos_from_var(preprocessed_input_name),
                                                          strip_linenos_from_var(vectorizer_input_var))
                     else:
