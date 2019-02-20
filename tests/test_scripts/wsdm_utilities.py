@@ -1,3 +1,6 @@
+import pandas as pd
+import numpy as np
+
 # LATENT VECTOR SIZES
 UF_SIZE = 32
 UF2_SIZE = 32
@@ -149,7 +152,7 @@ FEATURES = FEATURES + AC_FEATURES
 FEATURES = FEATURES + LANGUAGE_FEATURES  # pos included
 FEATURES = FEATURES + AGE_FEATURES  # pos included
 FEATURES = FEATURES + GENDER_FEATURES  # pos included
-FEATURES = FEATURES + REG_VIA_FEATURES  #pos included
+FEATURES = FEATURES + REG_VIA_FEATURES  # pos included
 FEATURES = FEATURES + COMPOSER_FEATURES  # + COMPOSER_FEATURES_RATIO + COMPOSER_FEATURES_POS
 FEATURES = FEATURES + LYRICIST_FEATURES  # + LYRICIST_FEATURES_RATIO #+ LYRICIST_FEATURES_POS
 
@@ -167,3 +170,73 @@ FEATURES = FEATURES + SOURCE_TYPE_FEATURES  # pos included
 FEATURES = FEATURES + CITY_FEATURES  # pos included
 
 
+def load_combi_prep(folder='data_new/', split=None):
+    name = 'combi_extra' + ('.' + str(split) if split is not None else '') + '.pkl'
+    combi = pd.read_pickle(folder + name)
+    return combi
+
+
+def load_als_dataframe(folder, size, user, artist):
+    if user:
+        if artist:
+            name = 'user2'
+            key = 'uf2_'
+        else:
+            name = 'user'
+            key = 'uf_'
+    else:
+        if artist:
+            name = 'artist'
+            key = 'af_'
+        else:
+            name = 'song'
+            key = 'sf_'
+    csv_name = folder + 'als' + '_' + name + '_features' + '.{}.csv'.format(size)
+    features = pd.read_csv(csv_name)
+
+    for i in range(size):
+        features[key + str(i)] = features[key + str(i)].astype(np.float32)
+    oncol = 'msno' if user else 'song_id' if not artist else 'artist_name'
+    return features, oncol
+
+
+def scol_features_eval(folder, col, prefix):
+    csv_name = folder + prefix + 'cluster' + '_' + col + '_features' + '.csv'
+    tmp = pd.read_csv(csv_name)
+    return tmp, col
+
+
+def add_cluster(folder, col, size, overlap=True, positive=True, content=False):
+    name = 'cluster_' + col
+    file_name = 'alsclusterEMB32_' + col
+    if content:
+        file_name = 'content_' + file_name
+    if overlap:
+        file_name += '_ol'
+    if not positive:
+        file_name += '_nopos'
+
+    # cluster = pd.read_csv( folder + 'content_' + name +'.{}.csv'.format(size) )
+    cluster = pd.read_csv(folder + file_name + '.{}.csv'.format(size))
+
+    cluster[name + '_' + str(size)] = cluster.cluster_id
+    del cluster['cluster_id']
+
+    return cluster, col
+
+
+def scol_features(folder, combi, col, prefix):
+    tmp = pd.DataFrame()
+    group = combi.groupby([col])
+    group_pos = combi[combi.target == 1].groupby(col)
+    tmp[prefix + 'played'] = group.size().astype(np.int32)
+    tmp[prefix + 'played_pos'] = group_pos.size().astype(np.int32)
+    tmp[prefix + 'played_pos'] = tmp[prefix + 'played_pos'].fillna(0)
+    tmp[prefix + 'played_rel'] = (tmp[prefix + 'played'] / tmp[prefix + 'played'].max()).astype(np.float32)
+    tmp[prefix + 'played_rel_global'] = (tmp[prefix + 'played'] / len(combi)).astype(np.float32)
+    tmp[prefix + 'played_pos_rel'] = (tmp[prefix + 'played_pos'] / tmp[prefix + 'played_pos'].max()).astype(np.float32)
+    tmp[prefix + 'played_ratio'] = (tmp[prefix + 'played_pos'] / tmp[prefix + 'played']).astype(np.float32)
+    tmp[col] = tmp.index
+    csv_name = folder + prefix + 'cluster' + '_' + col + '_features' + '.csv'
+    tmp.to_csv(csv_name)
+    return tmp, col

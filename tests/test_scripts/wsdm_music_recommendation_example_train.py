@@ -1,43 +1,20 @@
-import pandas as pd
-import numpy as np
-import time
-from sklearn.linear_model import LogisticRegression
-from sklearn import metrics
-import pickle
-from sklearn.ensemble import GradientBoostingClassifier
-import willump.evaluation.willump_executor
-from wsdm_features_list import FEATURES
-from sklearn.model_selection import train_test_split
 import argparse
+import pickle
+import time
 
-# LATENT VECTOR SIZES
-UF_SIZE = 32
-UF2_SIZE = 32
-SF_SIZE = 32
-AF_SIZE = 32
-# CLUSTER SIZES
-UC_SIZE = 25
-SC_SIZE = 25
-USC_SIZE = 25
+from sklearn import metrics
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+
+import willump.evaluation.willump_executor
+from wsdm_utilities import *
 
 
 def auc_score(y_valid, y_pred):
     fpr, tpr, thresholds = metrics.roc_curve(y_valid, y_pred, pos_label=1)
     auc = metrics.auc(fpr, tpr)
     return auc
-
-
-def load_combi_prep(folder='data_new/', split=None):
-    print('LOAD COMBI')
-
-    start = time.time()
-
-    name = 'combi_extra' + ('.' + str(split) if split is not None else '') + '.pkl'
-    combi = pd.read_pickle(folder + name)
-
-    print('loaded in: ', (time.time() - start))
-
-    return combi
 
 
 training_cascades = {}
@@ -104,50 +81,6 @@ def scol_features(folder, combi, col, prefix):
     return tmp, col
 
 
-def load_als_dataframe(folder, size, user, artist):
-    if user:
-        if artist:
-            name = 'user2'
-            key = 'uf2_'
-        else:
-            name = 'user'
-            key = 'uf_'
-    else:
-        if artist:
-            name = 'artist'
-            key = 'af_'
-        else:
-            name = 'song'
-            key = 'sf_'
-    csv_name = folder + 'als' + '_' + name + '_features' + '.{}.csv'.format(size)
-    features = pd.read_csv(csv_name)
-
-    for i in range(size):
-        features[key + str(i)] = features[key + str(i)].astype(np.float32)
-    oncol = 'msno' if user else 'song_id' if not artist else 'artist_name'
-    return features, oncol
-
-
-def add_cluster(folder, col, size, overlap=True, positive=True, content=False):
-    global total_join_time
-    name = 'cluster_' + col
-    file_name = 'alsclusterEMB32_' + col
-    if content:
-        file_name = 'content_' + file_name
-    if overlap:
-        file_name += '_ol'
-    if not positive:
-        file_name += '_nopos'
-
-    # cluster = pd.read_csv( folder + 'content_' + name +'.{}.csv'.format(size) )
-    cluster = pd.read_csv(folder + file_name + '.{}.csv'.format(size))
-
-    cluster[name + '_' + str(size)] = cluster.cluster_id
-    del cluster['cluster_id']
-
-    return cluster, col
-
-
 def add_features_and_train_model(folder, combi):
     y = combi["target"].values
 
@@ -166,38 +99,55 @@ def add_features_and_train_model(folder, combi):
     uc_combi = uc_combi.merge(cluster_three, how='left', on=join_col_cluster_three)
     # USER CLUSTER FEATURES
     uc_features, uc_join_col = scol_features(folder, uc_combi, 'cluster_msno_' + str(UC_SIZE), 'uc_')
+    uc_features = uc_features.reset_index(drop=True)
     # SONG CLUSTER FEATURES
     sc_features, sc_join_col = scol_features(folder, uc_combi, 'cluster_song_id_' + str(SC_SIZE), 'sc_')
+    sc_features = sc_features.reset_index(drop=True)
     # ARTIST CLUSTER FEATURES
     ac_features, ac_join_col = scol_features(folder, uc_combi, 'cluster_artist_name_' + str(UC_SIZE), 'ac_')
+    ac_features = ac_features.reset_index(drop=True)
     # USER FEATURES
     us_features, us_col = scol_features(folder, combi, 'msno', 'u_')
+    us_features = us_features.reset_index(drop=True)
     # SONG FEATURES
     ss_features, ss_col = scol_features(folder, combi, 'song_id', 's_')
+    ss_features = ss_features.reset_index(drop=True)
     # ARTIST FEATURES
     as_features, as_col = scol_features(folder, combi, 'artist_name', 'a_')
+    as_features = as_features.reset_index(drop=True)
     # GENRE FEATURES
     gs_features, gs_col = scol_features(folder, combi, 'genre_max', 'gmax_')
+    gs_features = gs_features.reset_index(drop=True)
     # CITY FEATURES
     cs_feature, cs_col = scol_features(folder, combi, 'city', 'c_')
+    cs_feature = cs_feature.reset_index(drop=True)
     # AGE FEATURES
     ages_features, ages_col = scol_features(folder, combi, 'bd', 'age_')
+    ages_features = ages_features.reset_index(drop=True)
     # LANGUAGE FEATURES
     ls_features, ls_col = scol_features(folder, combi, 'language', 'lang_')
+    ls_features = ls_features.reset_index(drop=True)
     # GENDER FEATURES
     gender_features, gender_col = scol_features(folder, combi, 'gender', 'gen_')
+    gender_features = gender_features.reset_index(drop=True)
     # COMPOSER FEATURES
     composer_features, composer_col = scol_features(folder, combi, 'composer', 'comp_')
+    composer_features = composer_features.reset_index(drop=True)
     # LYRICIST FEATURES
     lyrs_features, lyrs_col = scol_features(folder, combi, 'lyricist', 'ly_')
+    lyrs_features = lyrs_features.reset_index(drop=True)
     # SOURCE NAME FEATURES
     sns_features, sns_col = scol_features(folder, combi, 'source_screen_name', 'sn_')
+    sns_features = sns_features.reset_index(drop=True)
     # SOURCE TAB FEATURES
     stabs_features, stabs_col = scol_features(folder, combi, 'source_system_tab', 'sst_')
+    stabs_features = stabs_features.reset_index(drop=True)
     # SOURCE TYPE FEATURES
     stypes_features, stypes_col = scol_features(folder, combi, 'source_type', 'st_')
+    stypes_features = stypes_features.reset_index(drop=True)
     # SOURCE TYPE FEATURES
     regs_features, regs_col = scol_features(folder, combi, 'registered_via', 'rv_')
+    regs_features = regs_features.reset_index(drop=True)
 
     num_rows = len(combi)
 
