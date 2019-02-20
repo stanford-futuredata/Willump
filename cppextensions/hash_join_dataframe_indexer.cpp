@@ -61,7 +61,7 @@ caller_func(PyObject *self, PyObject* args)
     struct WeldInputArgs weld_input_args;
     weld_input_args.input = &weld_input;
     weld_input_args.nworkers = 1;
-    weld_input_args.memlimit = 100000000;
+    weld_input_args.memlimit = 10000000000;
     weld_input_args.run_id = weld_runst_init(weld_input_args.nworkers, weld_input_args.memlimit);
 
     WeldOutputArgs* weld_output_args = WELD_ENTRY_POINT(&weld_input_args);

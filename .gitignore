@@ -1,5 +1,6 @@
 # Custom
-*huge.csv
+tests/test_resources/home_credit_default_risk/*.csv
+
 
 # PyCharm
 .idea/

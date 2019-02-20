@@ -134,7 +134,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             else:
                 return create_single_output_py_node(node)
         elif isinstance(value, ast.Subscript):
-            if isinstance(value.slice.value, ast.Name) and isinstance(value.value, ast.Name):
+            if isinstance(value.slice, ast.Index) and isinstance(value.slice.value, ast.Name) and \
+                    isinstance(value.value, ast.Name):
                 input_var_name = self.get_load_name(value.value.id, value.lineno, self._type_map)
                 column_names = self._static_vars[WILLUMP_SUBSCRIPT_INDEX_NAME + str(value.lineno)]
                 input_var_type = self._type_map[input_var_name]

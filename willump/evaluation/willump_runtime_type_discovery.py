@@ -97,7 +97,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
     def _maybe_extract_static_variables(value: ast.expr) -> List[ast.stmt]:
         return_statements: List[ast.stmt] = []
         if isinstance(value, ast.Subscript):
-            if isinstance(value.slice.value, ast.Name):
+            if isinstance(value.slice, ast.Index) and isinstance(value.slice.value, ast.Name):
                 index_name = value.slice.value.id
                 static_variable_extraction_code = \
                     """willump_static_vars["{0}"] = {1}""" \

@@ -19,6 +19,8 @@ def weld_scalar_type_fp(weld_type_str: str = None, weld_type: WeldType = None) -
 def numpy_type_to_weld_type(numpy_array_dtype) -> WeldType:
     if numpy_array_dtype == numpy.int8:
         return WeldChar()
+    elif numpy_array_dtype == numpy.uint8:
+        return WeldUnsignedChar()
     elif numpy_array_dtype == numpy.int16:
         return WeldInt16()
     elif numpy_array_dtype == numpy.int32:
@@ -42,6 +44,8 @@ def numpy_type_to_weld_type(numpy_array_dtype) -> WeldType:
 def weld_scalar_type_to_numpy_type(w_type: WeldType) -> str:
     if isinstance(w_type, WeldChar):
         return "int8"
+    elif isinstance(w_type, WeldUnsignedChar):
+        return "uint8"
     elif isinstance(w_type, WeldInt16):
         return "int16"
     elif isinstance(w_type, WeldInt):
