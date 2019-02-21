@@ -32,8 +32,6 @@ class StackSparseNode(WillumpGraphNode):
         return self._input_names
 
     def get_node_weld(self) -> str:
-        # if len(self._input_names) == 1:
-        #     return "let %s = %s;" % (self._output_name, self._input_names[0])
         num_rows = ""
         for input_name in self._input_names:
             num_rows += "len(%s.$0)+" % input_name

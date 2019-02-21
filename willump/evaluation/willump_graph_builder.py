@@ -19,6 +19,8 @@ from willump.graph.array_tfidf_node import ArrayTfIdfNode
 from willump.graph.trees_training_node import TreesTrainingNode
 from willump.graph.trees_model_node import TreesModelNode
 from willump.graph.pandas_series_to_dataframe_node import PandasSeriesToDataFrameNode
+from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
+from willump.graph.identity_node import IdentityNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 from weld.types import *
@@ -341,6 +343,20 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     return output_var_name, self._node_dict[input_name]
                 else:
                     return create_single_output_py_node(node)
+            elif ".concat" in called_function and len(value.args) == 1 and isinstance(value.args[0], ast.List) \
+                    and all(isinstance(arg_node, ast.Name) for arg_node in value.args[0].elts):
+                arg_names: List[str] = [self.get_load_name(arg_node.id, value.lineno, self._type_map)
+                                        for arg_node in value.args[0].elts]
+                if all(isinstance(self._type_map[arg_name], WeldSeriesPandas) for arg_name in arg_names):
+                    input_nodes = [self._node_dict[arg_name] for arg_name in arg_names]
+                    output_type = self._type_map[output_var_name]
+                    assert (isinstance(output_type, WeldSeriesPandas))
+                    series_concat_node = PandasSeriesConcatenationNode(input_nodes=input_nodes, input_names=arg_names,
+                                                                       output_name=output_var_name,
+                                                                       output_type=output_type)
+                    return output_var_name, series_concat_node
+                else:
+                    return create_single_output_py_node(node)
             elif called_function in self._async_funcs:
                 return create_single_output_py_node(node, is_async_func=True)
             elif called_function in self._cached_funcs:
@@ -353,10 +369,19 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 input_name = self.get_load_name(value.value.func.value.id, value.lineno, self._type_map)
                 input_node = self._node_dict[input_name]
                 input_type = self._type_map[input_name]
-                assert(isinstance(input_type, WeldSeriesPandas))
+                assert (isinstance(input_type, WeldSeriesPandas))
                 series_to_df_node = PandasSeriesToDataFrameNode(input_node=input_node, input_name=input_name,
                                                                 input_type=input_type, output_name=output_var_name)
                 return output_var_name, series_to_df_node
+            elif value.attr == "values" and isinstance(value.value, ast.Name):
+                input_name = self.get_load_name(value.value.id, value.lineno, self._type_map)
+                if isinstance(self._type_map[input_name], WeldSeriesPandas):
+                    input_node = self._node_dict[input_name]
+                    identity_node = IdentityNode(input_name=input_name, input_node=input_node,
+                                                 output_name=output_var_name)
+                    return output_var_name, identity_node
+                else:
+                    return create_single_output_py_node(node)
             else:
                 return create_single_output_py_node(node)
         else:

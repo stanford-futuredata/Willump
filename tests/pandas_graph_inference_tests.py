@@ -138,6 +138,13 @@ def pandas_series_to_df(pandas_series):
     return df
 
 
+@wexec.willump_execute()
+def pandas_series_concat(series_one, series_two):
+    combined_series = pd.concat([series_one, series_two], axis=0)
+    combined_series = combined_series.values
+    return combined_series
+
+
 class PandasGraphInferenceTests(unittest.TestCase):
     def test_unpacked_pandas(self):
         print("\ntest_unpacked_pandas")
@@ -264,3 +271,15 @@ class PandasGraphInferenceTests(unittest.TestCase):
         pandas_series_to_df(input_series)
         weld_output = pandas_series_to_df(input_series)
         numpy.testing.assert_almost_equal(correct_output.values, weld_output.values)
+
+    def test_series_concat(self):
+        print("\ntest_series_concat")
+        left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv")
+        right_table = pd.read_csv("tests/test_resources/toy_metadata_csv.csv")
+        right_table = right_table.drop("join_column", axis=1)
+        series_one = left_table.iloc[0]
+        series_two = right_table.iloc[0]
+        correct_output = pandas_series_concat(series_one, series_two)
+        pandas_series_concat(series_one, series_two)
+        weld_output = pandas_series_concat(series_one, series_two)
+        numpy.testing.assert_almost_equal(correct_output, weld_output)
