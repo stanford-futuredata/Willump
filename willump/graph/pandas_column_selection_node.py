@@ -55,7 +55,6 @@ class PandasColumnSelectionNode(WillumpGraphNode):
                         break
             weld_program = "let OUTPUT_NAME = {%s};" % selection_string
         else:
-            # TODO:  Handle unbatched case.
             assert(self._model_type == "linear")
             assert(len(self._input_names) == 1)
             weights_name, = self._model_parameters

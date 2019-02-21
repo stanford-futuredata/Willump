@@ -253,7 +253,7 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
 
 
 def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_set: Set[str],
-                                 typing_map: Mapping[str, WeldType], batch: bool) \
+                                 typing_map: Mapping[str, WeldType]) \
         -> Tuple[List[WillumpPythonNode], List[WillumpPythonNode]]:
     """
     Processing pass creating Python code to marshall Pandas into a representation (struct of vec columns) Weld can
@@ -269,16 +269,13 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
             df_temp_name = "%s__df_temp" % input_name
             # Strip line numbers from variable name.
             stripped_input_name = strip_linenos_from_var(input_name)
-            if batch:
-                pandas_glue_python_args = ""
-                for column, field_type in zip(input_type.column_names, input_type.field_types):
-                    if isinstance(field_type, WeldVec) and isinstance(field_type.elemType, WeldStr):
-                        pandas_glue_python_args += "list(%s['%s'].values)," % (stripped_input_name, column)
-                    else:
-                        pandas_glue_python_args += "%s['%s'].values," % (stripped_input_name, column)
-                pandas_glue_python = "%s, %s = (%s), %s" % (stripped_input_name, df_temp_name, pandas_glue_python_args, stripped_input_name)
-            else:
-                pandas_glue_python = "%s, %s = tuple(%s.values[0]), %s" % (stripped_input_name, df_temp_name, stripped_input_name, stripped_input_name)
+            pandas_glue_python_args = ""
+            for column, field_type in zip(input_type.column_names, input_type.field_types):
+                if isinstance(field_type, WeldVec) and isinstance(field_type.elemType, WeldStr):
+                    pandas_glue_python_args += "list(%s['%s'].values)," % (stripped_input_name, column)
+                else:
+                    pandas_glue_python_args += "%s['%s'].values," % (stripped_input_name, column)
+            pandas_glue_python = "%s, %s = (%s), %s" % (stripped_input_name, df_temp_name, pandas_glue_python_args, stripped_input_name)
             pandas_glue_ast: ast.Module = \
                 ast.parse(pandas_glue_python, "exec")
             pandas_input_node = WillumpPythonNode(python_ast=pandas_glue_ast.body[0], input_names=[],
@@ -297,10 +294,7 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
         if isinstance(output_type, WeldPandas):
             df_creation_arguments = ""
             for i, column_name in enumerate(output_type.column_names):
-                if batch:
-                    df_creation_arguments += "'%s' : %s[%d]," % (column_name, stripped_output_name, i)
-                else:
-                    df_creation_arguments += "'%s' : [%s[%d]]," % (column_name, stripped_output_name, i)
+                df_creation_arguments += "'%s' : %s[%d]," % (column_name, stripped_output_name, i)
             df_creation_statement = "%s = pd.DataFrame({%s})" % (stripped_output_name, df_creation_arguments)
             df_creation_ast: ast.Module = \
                 ast.parse(df_creation_statement, "exec")
@@ -311,7 +305,7 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
 
 
 def weld_pandas_series_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_set: Set[str],
-                                 typing_map: Mapping[str, WeldType], batch: bool) \
+                                 typing_map: Mapping[str, WeldType]) \
         -> Tuple[List[WillumpPythonNode], List[WillumpPythonNode]]:
     """
     Processing pass creating Python code to marshall Pandas Series into a representation (numpy array) Weld can

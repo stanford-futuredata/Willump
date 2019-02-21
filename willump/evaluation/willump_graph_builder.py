@@ -47,15 +47,13 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     _async_funcs: List[str]
 
     def __init__(self, type_map: MutableMapping[str, WeldType],
-                 static_vars: Mapping[str, object], async_funcs: List[str], cached_funcs: List[str],
-                 batch: bool) -> None:
+                 static_vars: Mapping[str, object], async_funcs: List[str], cached_funcs: List[str]) -> None:
         self._node_dict = {}
         self._type_map = type_map
         self._static_vars = static_vars
         self.arg_list = []
         self.aux_data = []
         self._temp_var_counter = 0
-        self.batch = batch
         self._async_funcs = async_funcs
         self._cached_funcs = cached_funcs
 
@@ -197,7 +195,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         output_name=output_var_name,
                         output_type=self._type_map[output_var_name],
                         logit_weights=logit_weights,
-                        logit_intercept=logit_intercept, aux_data=self.aux_data, batch=self.batch
+                        logit_intercept=logit_intercept, aux_data=self.aux_data
                     )
                     return output_var_name, logit_node
                 elif WILLUMP_TREES_FEATURE_IMPORTANCES in self._static_vars:
@@ -287,8 +285,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                              output_name=output_var_name,
                                                              left_input_type=self._type_map[left_df_input_var],
                                                              join_col_name=join_col,
-                                                             right_dataframe=right_df, aux_data=self.aux_data,
-                                                             batch=self.batch)
+                                                             right_dataframe=right_df, aux_data=self.aux_data)
                 return output_var_name, willump_hash_join_node
             elif "sparse.hstack" in called_function:
                 if not isinstance(value.args[0], ast.List) or \

@@ -179,7 +179,7 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                     python_source = inspect.getsource(func)
                     python_ast: ast.AST = ast.parse(python_source)
                     function_name: str = python_ast.body[0].name
-                    type_discover: WillumpRuntimeTypeDiscovery = WillumpRuntimeTypeDiscovery(batch=batch)
+                    type_discover: WillumpRuntimeTypeDiscovery = WillumpRuntimeTypeDiscovery()
                     # Create an instrumented AST that will fill willump_typing_map with the Weld types
                     # of all variables in the function.
                     new_ast: ast.AST = type_discover.visit(python_ast)
@@ -205,7 +205,7 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                     python_source = inspect.getsource(func)
                     python_ast: ast.Module = ast.parse(python_source)
                     function_name: str = python_ast.body[0].name
-                    graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars, async_funcs, cached_funcs, batch)
+                    graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars, async_funcs, cached_funcs)
                     graph_builder.visit(python_ast)
                     python_graph: WillumpGraph = graph_builder.get_willump_graph()
                     aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()

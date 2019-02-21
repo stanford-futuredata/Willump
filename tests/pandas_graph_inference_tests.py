@@ -90,8 +90,9 @@ def sample_merge_linear_regression(left, right):
     return predicted_result
 
 
-@wexec.willump_execute(batch=False)
-def sample_merge_linear_regression_nobatch(left, right):
+@wexec.willump_execute()
+def sample_merge_linear_regression_nobatch(left_series, right):
+    left = left_series.to_frame().T
     new = left.merge(right, how="left", on="join_column")
     feature_columns = new[FEATURES]
     predicted_result = model.predict(feature_columns)
@@ -215,10 +216,10 @@ class PandasGraphInferenceTests(unittest.TestCase):
     def test_simple_join_regression_nobatch(self):
         print("\ntest_simple_join_regression_nobatch")
         model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4]], dtype=numpy.float64)
-        left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv").iloc[0:1].copy()
+        left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv").iloc[0]
         right_table = pd.read_csv("tests/test_resources/toy_metadata_csv.csv")
-        sample_merge_linear_regression(left_table, right_table)
-        sample_merge_linear_regression(left_table, right_table)
+        sample_merge_linear_regression_nobatch(left_table, right_table)
+        sample_merge_linear_regression_nobatch(left_table, right_table)
         weld_output = sample_merge_linear_regression_nobatch(left_table, right_table)
         numpy.testing.assert_equal(
             weld_output, numpy.array([0], dtype=numpy.int64))

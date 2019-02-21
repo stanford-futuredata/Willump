@@ -24,11 +24,6 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
     TODO:  Add support for control flow changes inside the function body.
     """
 
-    batch: bool
-
-    def __init__(self, batch: bool = True):
-        self.batch = batch
-
     def process_body(self, body):
         new_body: List[ast.stmt] = []
         for body_entry in body:
@@ -54,8 +49,8 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             # First, type the arguments.
             argument_name: str = arg.arg
             argument_instrumentation_code: str = \
-                """willump_typing_map["{0}_{2}"] = py_var_to_weld_type({0}, {1})\n""" \
-                    .format(argument_name, self.batch, node.lineno)
+                """willump_typing_map["{0}_{1}"] = py_var_to_weld_type({0})\n""" \
+                    .format(argument_name, node.lineno)
             instrumentation_ast: ast.Module = ast.parse(argument_instrumentation_code, "exec")
             instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
             new_body = new_body + instrumentation_statements
@@ -184,14 +179,13 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
         """
         target_name: str = WillumpGraphBuilder.get_assignment_target_name(target)
         target_analysis_instrumentation_code: str = \
-            """willump_typing_map["{0}_{2}"] = py_var_to_weld_type({0}, {1})""".format(target_name, self.batch,
-                                                                                       target.lineno)
+            """willump_typing_map["{0}_{1}"] = py_var_to_weld_type({0})""".format(target_name, target.lineno)
         instrumentation_ast: ast.Module = ast.parse(target_analysis_instrumentation_code, "exec")
         instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
         return instrumentation_statements
 
 
-def py_var_to_weld_type(py_var: object, batch) -> Optional[WeldType]:
+def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
     """
     Get the Weld type of a Python variable.
 
@@ -227,17 +221,14 @@ def py_var_to_weld_type(py_var: object, batch) -> Optional[WeldType]:
         df_col_weld_types = []
         for dtype in py_var.dtypes:
             col_weld_type: WeldType = numpy_type_to_weld_type(dtype)
-            if batch:
-                df_col_weld_types.append(WeldVec(col_weld_type))
-            else:
-                df_col_weld_types.append(col_weld_type)
+            df_col_weld_types.append(WeldVec(col_weld_type))
         return WeldPandas(df_col_weld_types, list(py_var.columns))
     elif isinstance(py_var, pandas.core.series.Series):
         weld_elem_type: WeldType = numpy_type_to_weld_type(py_var.dtype)
         return WeldSeriesPandas(weld_elem_type, list(py_var.index))
     elif isinstance(py_var, numpy.ndarray):
         if py_var.ndim > 1:
-            return WeldVec(py_var_to_weld_type(py_var[0], batch))
+            return WeldVec(py_var_to_weld_type(py_var[0]))
         if py_var.dtype == numpy.int8:
             return WeldVec(WeldChar())
         elif py_var.dtype == numpy.int16:
@@ -251,7 +242,7 @@ def py_var_to_weld_type(py_var: object, batch) -> Optional[WeldType]:
         elif py_var.dtype == numpy.float64:
             return WeldVec(WeldDouble())
         elif py_var.dtype == numpy.object:
-            return WeldVec(py_var_to_weld_type(py_var[0], batch))
+            return WeldVec(py_var_to_weld_type(py_var[0]))
         else:
             panic("Unrecognized ndarray type {0}".format(py_var.dtype.__str__()))
             return None

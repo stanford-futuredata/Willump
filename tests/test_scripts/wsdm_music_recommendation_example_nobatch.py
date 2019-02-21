@@ -16,7 +16,7 @@ def auc_score(y_valid, y_pred):
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
 
 
-@willump.evaluation.willump_executor.willump_execute(batch=True, num_workers=0)
+@willump.evaluation.willump_executor.willump_execute(batch=False, num_workers=0)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,

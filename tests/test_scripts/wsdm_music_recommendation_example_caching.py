@@ -33,7 +33,7 @@ def get_row_to_merge_features_sf(key):
     return features_sf.loc[key]
 
 
-@willump.evaluation.willump_executor.willump_execute(cached_funcs=("get_row_to_merge_features_uf",
+@willump.evaluation.willump_executor.willump_execute(batch=False, cached_funcs=("get_row_to_merge_features_uf",
                                                                    "get_row_to_merge_features_sf"))
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
