@@ -46,7 +46,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     _async_funcs: List[str]
 
     def __init__(self, type_map: MutableMapping[str, WeldType],
-                 static_vars: Mapping[str, object], async_funcs: List[str], batch: bool) -> None:
+                 static_vars: Mapping[str, object], async_funcs: List[str], cached_funcs: List[str],
+                 batch: bool) -> None:
         self._node_dict = {}
         self._type_map = type_map
         self._static_vars = static_vars
@@ -55,6 +56,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         self._temp_var_counter = 0
         self.batch = batch
         self._async_funcs = async_funcs
+        self._cached_funcs = cached_funcs
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """
@@ -83,8 +85,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         defines the variable being assigned.
         """
 
-        def create_single_output_py_node(in_node, is_async_func=False):
-            output_names, py_node = self._create_py_node(in_node, is_async_func=is_async_func)
+        def create_single_output_py_node(in_node, is_async_func=False, is_cached_func=False):
+            output_names, py_node = self._create_py_node(in_node, is_async_func=is_async_func,
+                                                         is_cached_node=is_cached_func)
             assert (len(output_names) == 1)
             return output_names[0], py_node
 
@@ -342,6 +345,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     return create_single_output_py_node(node)
             elif called_function in self._async_funcs:
                 return create_single_output_py_node(node, is_async_func=True)
+            elif called_function in self._cached_funcs:
+                return create_single_output_py_node(node, is_cached_func=True)
             else:
                 return create_single_output_py_node(node)
         else:
@@ -371,7 +376,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         output_node = WillumpOutputNode(return_py_node, return_names)
         self.willump_graph = WillumpGraph(output_node)
 
-    def _create_py_node(self, entry: ast.AST, is_async_func=False) -> Tuple[List[str], WillumpGraphNode]:
+    def _create_py_node(self, entry: ast.AST, is_async_func=False, is_cached_node=False) \
+            -> Tuple[List[str], WillumpGraphNode]:
         entry_analyzer = ExpressionVariableAnalyzer(self._type_map)
         entry_analyzer.visit(entry)
         input_list, output_list = entry_analyzer.get_in_out_list()
@@ -383,7 +389,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                    input_names=input_list,
                                                                    output_names=output_list,
                                                                    in_nodes=input_node_list,
-                                                                   is_async_node=is_async_func)
+                                                                   is_async_node=is_async_func,
+                                                                   is_cached_node=is_cached_node)
         return output_list, willump_python_node
 
     def _create_temp_var_from_node(self, entry: ast.expr, entry_type: WeldType) -> Tuple[str, WillumpGraphNode]:

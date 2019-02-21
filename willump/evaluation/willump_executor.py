@@ -1,24 +1,22 @@
 import ast
-import numpy
-import subprocess
-import importlib
-import sysconfig
-import inspect
+import concurrent.futures
 import copy
+import importlib
+import inspect
+import subprocess
+import sysconfig
+import typing
+from typing import Callable, MutableMapping, Mapping, List, Tuple
 
-import weld.weldobject
-from weld.types import *
 import weld.encoders
+import weld.weldobject
 
 import willump.evaluation.willump_weld_generator
+from willump import *
 from willump.evaluation.willump_driver_generator import generate_cpp_driver
 from willump.graph.willump_graph import WillumpGraph
-from willump import *
 from willump.willump_utilities import *
-
-from typing import Callable, MutableMapping, Mapping, List, Tuple
-import concurrent.futures
-import typing
+from willump.evaluation.willump_runtime_code import willump_cache
 
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
@@ -159,7 +157,7 @@ def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
 
 
 def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades=None, eval_cascades=None,
-                    cascade_threshold=1.0) -> Callable:
+                    cascade_threshold=1.0, cached_funcs=()) -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
     """
@@ -207,7 +205,7 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                     python_source = inspect.getsource(func)
                     python_ast: ast.Module = ast.parse(python_source)
                     function_name: str = python_ast.body[0].name
-                    graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars, async_funcs, batch)
+                    graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars, async_funcs, cached_funcs, batch)
                     graph_builder.visit(python_ast)
                     python_graph: WillumpGraph = graph_builder.get_willump_graph()
                     aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()
@@ -225,8 +223,8 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                                                                                              willump_typing_map,
                                                                                              num_workers=num_workers)
                     compiled_functiondef = py_weld_statements_to_ast(python_statement_list, python_ast)
-                    # import astpretty
-                    # astpretty.pprint(compiled_functiondef, show_offsets=False)
+                    # import astor
+                    # print(astor.to_source(compiled_functiondef))
                     augmented_globals = copy.copy(func.__globals__)
                     # Import all of the compiled Weld blocks called from the transformed function.
                     for module in modules_to_import:
@@ -236,6 +234,9 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                     augmented_globals["scipy"] = importlib.import_module("scipy")
                     augmented_globals["re"] = importlib.import_module("re")
                     augmented_globals["copy"] = importlib.import_module("copy")
+                    for i in range(30):
+                        augmented_globals["%s%d" % (WILLUMP_CACHE_NAME, i)] = {}
+                    augmented_globals["willump_cache"] = willump_cache
                     augmented_globals[WILLUMP_TRAINING_CASCADE_NAME] = training_cascades
                     if len(async_funcs) > 0:
                         augmented_globals[WILLUMP_THREAD_POOL_EXECUTOR] = \

@@ -167,6 +167,9 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
         # TODO:  What to do here?
         elif isinstance(input_node, WillumpInputNode):
             pass
+        # TODO: Do more later.
+        elif isinstance(input_node, WillumpPythonNode):
+            model_inputs[input_node] = (index_start, index_end)
         else:
             panic("Unrecognized node found when processing model inputs %s" % input_node.__repr__())
     model_node.set_model_inputs(model_inputs)
@@ -494,3 +497,32 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
         pyblock_start_end = find_pyblock_after_n(pyblock_end)
 
     return sorted_nodes
+
+
+def cache_python_block_pass(sorted_nodes: List[WillumpGraphNode]) -> List[WillumpGraphNode]:
+    node_num = 0
+    for i, entry in enumerate(sorted_nodes):
+        if isinstance(entry, WillumpPythonNode) and entry.is_cached_node:
+            entry_ast: ast.Assign = entry.get_python()
+            assert(isinstance(entry_ast, ast.Assign))
+            value = entry_ast.value
+            assert(isinstance(value, ast.Call))
+            assert(isinstance(value.func, ast.Name))
+            assert(len(entry_ast.targets) == 1)
+            if all(isinstance(arg_entry, ast.Name) for arg_entry in value.args)\
+                    and isinstance(entry_ast.targets[0], ast.Name):
+                target_name = entry_ast.targets[0].id
+                func_name = value.func.id
+                arg_string = ""
+                for arg in value.args:
+                    arg_string += "%s," % arg.id
+                cache_python = \
+                    """%s = willump_cache(%s, (%s), %s)""" % \
+                    (target_name, func_name, arg_string, "%s%d" % (WILLUMP_CACHE_NAME, node_num))
+                cache_ast: ast.Module = ast.parse(cache_python, "exec")
+                cache_node = WillumpPythonNode(python_ast=cache_ast.body[0], input_names=entry.get_in_names(),
+                                               output_names=entry.get_output_names(), in_nodes=entry.get_in_nodes())
+                sorted_nodes[i] = cache_node
+                node_num += 1
+    return sorted_nodes
+

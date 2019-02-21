@@ -109,17 +109,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 return_statements += index_name_instrumentation_statements
         elif isinstance(value, ast.Call):
             called_function_name: str = WillumpGraphBuilder._get_function_name(value)
-            if "willump_frequency_count" in called_function_name:
-                vocab_dict_name: str = value.args[1].id
-                static_variable_extraction_code = \
-                    """willump_static_vars["{0}"] = {1}""" \
-                        .format(WILLUMP_FREQUENCY_COUNT_VOCAB, vocab_dict_name)
-                freq_count_instrumentation_ast: ast.Module = \
-                    ast.parse(static_variable_extraction_code, "exec")
-                freq_count_instrumentation_statements: List[ast.stmt] = \
-                    freq_count_instrumentation_ast.body
-                return_statements += freq_count_instrumentation_statements
-            elif "predict" in called_function_name or "fit" in called_function_name:
+            if ".predict" in called_function_name or "fit" in called_function_name:
                 if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name):
                     model_name = value.func.value.id
                     static_variable_extraction_code = \
@@ -142,7 +132,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                         ast.parse(static_variable_extraction_code, "exec")
                     trees_instrumentation_statements: List[ast.stmt] = trees_instrumentation_ast.body
                     return_statements += trees_instrumentation_statements
-            elif "transform" in called_function_name:
+            elif ".transform" in called_function_name:
                 if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name):
                     lineno = str(value.lineno)
                     transformer_name = value.func.value.id
@@ -163,7 +153,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                     count_vectorizer_instrumentation_statements: List[
                         ast.stmt] = count_vectorizer_instrumentation_ast.body
                     return_statements += count_vectorizer_instrumentation_statements
-            elif "merge" in called_function_name:
+            elif ".merge" in called_function_name:
                 # TODO:  More robust extraction.
                 static_variable_extraction_code = \
                     """willump_static_vars["{0}"] = {1}\n""" \
