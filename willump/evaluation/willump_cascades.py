@@ -74,11 +74,20 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
             new_selected_columns = list(
                 filter(lambda x: any(x in new_input_type.column_names for new_input_type in new_input_types),
                        selected_columns))
+            orig_output_type = node.output_type
+            if isinstance(orig_output_type, WeldPandas):
+                col_map = {col_name: col_type for col_name, col_type in
+                           zip(orig_output_type.column_names, orig_output_type.field_types)}
+                new_field_types = [col_map[col_name] for col_name in new_selected_columns]
+                new_output_type = WeldPandas(field_types=new_field_types, column_names=new_selected_columns)
+            else:
+                assert False
             return_node = PandasColumnSelectionNode(input_nodes=new_input_nodes,
                                                     input_names=new_input_names,
                                                     output_name=new_output_name,
                                                     input_types=new_input_types,
-                                                    selected_columns=new_selected_columns)
+                                                    selected_columns=new_selected_columns,
+                                                    output_type=new_output_type)
             typing_map[new_output_name] = return_node.output_type
     elif isinstance(node, WillumpHashJoinNode):
         base_node = wg_passes.find_dataframe_base_node(node, base_discovery_dict)
@@ -173,7 +182,8 @@ def get_combiner_node(node_one: WillumpGraphNode, node_two: WillumpGraphNode, or
                                          input_names=[node_one.get_output_name(), node_two.get_output_name()],
                                          output_name=orig_node.get_output_name(),
                                          input_types=[node_one.output_type, node_two.output_type],
-                                         selected_columns=orig_node.selected_columns)
+                                         selected_columns=orig_node.selected_columns,
+                                         output_type=orig_node.output_type)
     else:
         panic("Unrecognized nodes being combined: %s %s" % (node_one.__repr__(), node_two.__repr__()))
 

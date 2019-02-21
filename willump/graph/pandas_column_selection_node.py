@@ -13,7 +13,7 @@ class PandasColumnSelectionNode(WillumpGraphNode):
     output_type: WeldPandas
 
     def __init__(self, input_nodes: List[WillumpGraphNode], input_names: List[str], output_name: str,
-                 input_types: List[WeldPandas], selected_columns: List[str]) -> None:
+                 input_types: List[WeldType], output_type: WeldType, selected_columns: List[str]) -> None:
         """
         Initialize the node.
         """
@@ -25,12 +25,7 @@ class PandasColumnSelectionNode(WillumpGraphNode):
         self._model_parameters = None
         self._model_index_map = None
         self._input_names = input_names
-        col_map = {}
-        for input_type in input_types:
-            for col, col_type in zip(input_type.column_names, input_type.field_types):
-                col_map[col] = col_type
-        self.output_type = WeldPandas(column_names=selected_columns,
-                                      field_types=list(map(lambda x: col_map[x], selected_columns)))
+        self.output_type = output_type
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
@@ -57,6 +52,7 @@ class PandasColumnSelectionNode(WillumpGraphNode):
         else:
             assert(self._model_type == "linear")
             assert(len(self._input_names) == 1)
+            assert(isinstance(self.output_type, WeldPandas))
             weights_name, = self._model_parameters
             sum_string = ""
             input_columns = self._input_types[0].column_names
