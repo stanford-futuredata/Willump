@@ -18,6 +18,8 @@ from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
+from willump.graph.identity_node import IdentityNode
+from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 
 
 def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
@@ -141,6 +143,13 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
             selection_map: Mapping[str, int] = {col: index_start + i for i, col in enumerate(selected_columns)}
             selection_input = input_node.get_in_nodes()[0]
             current_node_stack.append((selection_input, (index_start, index_end), selection_map))
+        elif isinstance(input_node, PandasSeriesConcatenationNode):
+            for node_input_node, input_type in zip(input_node.get_in_nodes(), input_node.input_types):
+                node_map = {}
+                for col in curr_selection_map.keys():
+                    if col in input_type.column_names:
+                        node_map[col] = curr_selection_map[col]
+                current_node_stack.append((node_input_node, (index_start, index_end), node_map))
         elif isinstance(input_node, WillumpHashJoinNode):
             join_left_columns = input_node.left_df_type.column_names
             join_right_columns = input_node.right_df_row_type.column_names
@@ -164,12 +173,21 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
                     if col in output_columns:
                         pushed_map[col] = curr_selection_map[col]
             model_inputs[input_node] = pushed_map
+        elif isinstance(input_node, IdentityNode):
+            node_input_node = input_node.get_in_nodes()[0]
+            current_node_stack.append((node_input_node, (index_start, index_end), curr_selection_map))
         # TODO:  What to do here?
         elif isinstance(input_node, WillumpInputNode):
             pass
-        # TODO: Do more later.
+        elif isinstance(input_node, WillumpPythonNode) and input_node.does_not_modify_data \
+                and len(input_node.get_in_nodes()) == 1:
+            node_input_node = input_node.get_in_nodes()[0]
+            current_node_stack.append((node_input_node, (index_start, index_end), curr_selection_map))
         elif isinstance(input_node, WillumpPythonNode):
-            model_inputs[input_node] = (index_start, index_end)
+            if curr_selection_map is not None:
+                model_inputs[input_node] = curr_selection_map
+            else:
+                model_inputs[input_node] = (index_start, index_end)
         else:
             panic("Unrecognized node found when processing model inputs %s" % input_node.__repr__())
     model_node.set_model_inputs(model_inputs)
@@ -243,6 +261,9 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
                     nodes_to_sum.append(input_node)
                 else:
                     weld_block_node_list.remove(input_node)
+            elif isinstance(input_node, IdentityNode):
+                current_node_stack.append(input_node.get_in_nodes()[0])
+                weld_block_node_list.remove(input_node)
     if len(nodes_to_sum) > 0:
         weld_block_node_list.remove(model_node)
         weld_block_node_list.append(CombineLinearRegressionNode(input_nodes=nodes_to_sum,

@@ -86,9 +86,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         defines the variable being assigned.
         """
 
-        def create_single_output_py_node(in_node, is_async_func=False, is_cached_func=False):
+        def create_single_output_py_node(in_node, is_async_func=False, is_cached_func=False,
+                                         does_not_modify_data=False):
             output_names, py_node = self._create_py_node(in_node, is_async_func=is_async_func,
-                                                         is_cached_node=is_cached_func)
+                                                         is_cached_node=is_cached_func,
+                                                         does_not_modify_data=does_not_modify_data)
             assert (len(output_names) == 1)
             return output_names[0], py_node
 
@@ -352,14 +354,17 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                         for arg_node in value.args[0].elts]
                 if all(isinstance(self._type_map[arg_name], WeldSeriesPandas) for arg_name in arg_names):
                     input_nodes = [self._node_dict[arg_name] for arg_name in arg_names]
+                    input_types: List[WeldSeriesPandas] = [self._type_map[arg_name] for arg_name in arg_names]
                     output_type = self._type_map[output_var_name]
                     assert (isinstance(output_type, WeldSeriesPandas))
                     series_concat_node = PandasSeriesConcatenationNode(input_nodes=input_nodes, input_names=arg_names,
                                                                        output_name=output_var_name,
-                                                                       output_type=output_type)
+                                                                       output_type=output_type, input_types=input_types)
                     return output_var_name, series_concat_node
                 else:
                     return create_single_output_py_node(node)
+            elif ".reshape" in called_function:
+                return create_single_output_py_node(node, does_not_modify_data=True)
             elif called_function in self._async_funcs:
                 return create_single_output_py_node(node, is_async_func=True)
             elif called_function in self._cached_funcs:
@@ -414,7 +419,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         output_node = WillumpOutputNode(return_py_node, return_names)
         self.willump_graph = WillumpGraph(output_node)
 
-    def _create_py_node(self, entry: ast.AST, is_async_func=False, is_cached_node=False) \
+    def _create_py_node(self, entry: ast.AST, is_async_func=False, is_cached_node=False, does_not_modify_data=False) \
             -> Tuple[List[str], WillumpGraphNode]:
         entry_analyzer = ExpressionVariableAnalyzer(self._type_map)
         entry_analyzer.visit(entry)
@@ -428,7 +433,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                    output_names=output_list,
                                                                    in_nodes=input_node_list,
                                                                    is_async_node=is_async_func,
-                                                                   is_cached_node=is_cached_node)
+                                                                   is_cached_node=is_cached_node,
+                                                                   does_not_modify_data=does_not_modify_data)
         return output_list, willump_python_node
 
     def _create_temp_var_from_node(self, entry: ast.expr, entry_type: WeldType) -> Tuple[str, WillumpGraphNode]:

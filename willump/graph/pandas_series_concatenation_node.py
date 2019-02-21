@@ -10,10 +10,10 @@ class PandasSeriesConcatenationNode(WillumpGraphNode):
     Willump Pandas Series Concatenation Node.  Horizontally concatenates Pandas series.
     """
 
-    elem_type: WeldType
+    input_types: List[WeldSeriesPandas]
     output_type: WeldSeriesPandas
 
-    def __init__(self, input_nodes: List[WillumpGraphNode], input_names: List[str],
+    def __init__(self, input_nodes: List[WillumpGraphNode], input_names: List[str], input_types: List[WeldSeriesPandas],
                  output_name: str, output_type: WeldSeriesPandas) -> None:
         """
         Initialize the node.
@@ -21,8 +21,8 @@ class PandasSeriesConcatenationNode(WillumpGraphNode):
         self._input_nodes = input_nodes
         self._output_name = output_name
         assert(isinstance(output_type, WeldSeriesPandas))
-        self.elem_type = output_type.elemType
         self.output_type = output_type
+        self.input_types = input_types
         self._input_names = input_names
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
