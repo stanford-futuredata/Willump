@@ -138,9 +138,13 @@ def pandas_series_to_df(pandas_series):
     return df
 
 
+mini_features = ["data1", "metadata1"]
+
+
 @wexec.willump_execute()
 def pandas_series_concat(series_one, series_two):
     combined_series = pd.concat([series_one, series_two], axis=0)
+    combined_series = combined_series[mini_features]
     combined_series = combined_series.values
     return combined_series
 

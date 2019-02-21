@@ -144,7 +144,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 column_names = self._static_vars[WILLUMP_SUBSCRIPT_INDEX_NAME + str(value.lineno)]
                 input_var_type = self._type_map[input_var_name]
                 output_type = self._type_map[output_var_name]
-                if isinstance(input_var_type, WeldPandas) and isinstance(column_names, list):
+                if (isinstance(input_var_type, WeldPandas) or isinstance(input_var_type, WeldSeriesPandas))\
+                        and isinstance(column_names, list):
                     pandas_column_selection_node = \
                         PandasColumnSelectionNode(input_nodes=[self._node_dict[input_var_name]],
                                                   input_names=[input_var_name],
