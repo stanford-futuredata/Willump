@@ -310,6 +310,31 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
     return pandas_input_processing_nodes, pandas_post_processing_nodes
 
 
+def weld_pandas_series_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_set: Set[str],
+                                 typing_map: Mapping[str, WeldType], batch: bool) \
+        -> Tuple[List[WillumpPythonNode], List[WillumpPythonNode]]:
+    """
+    Processing pass creating Python code to marshall Pandas Series into a representation (numpy array) Weld can
+    understand.
+
+    # TODO:  Also convert back to Pandas series.
+    """
+    pandas_input_processing_nodes: List[WillumpPythonNode] = []
+    pandas_post_processing_nodes: List[WillumpPythonNode] = []
+    for input_name in weld_block_input_set:
+        input_type = typing_map[input_name]
+        if isinstance(input_type, WeldSeriesPandas):
+            # Strip line numbers from variable name.
+            stripped_input_name = strip_linenos_from_var(input_name)
+            series_glue_python = "%s = %s.values" % (stripped_input_name, stripped_input_name)
+            series_glue_ast: ast.Module = \
+                ast.parse(series_glue_python, "exec")
+            series_input_node = WillumpPythonNode(python_ast=series_glue_ast.body[0], input_names=[],
+                                                  output_names=[input_name], in_nodes=[])
+            pandas_input_processing_nodes.append(series_input_node)
+    return pandas_input_processing_nodes, pandas_post_processing_nodes
+
+
 def weld_csr_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_set: Set[str],
                               typing_map: Mapping[str, WeldType]) \
         -> Tuple[List[WillumpPythonNode], List[WillumpPythonNode]]:

@@ -15,7 +15,7 @@ class PandasColumnSelectionNode(WillumpGraphNode):
     def __init__(self, input_nodes: List[WillumpGraphNode], input_names: List[str], output_name: str,
                  input_types: List[WeldPandas], selected_columns: List[str]) -> None:
         """
-        Initialize the node, appending a new entry to aux_data in the process.
+        Initialize the node.
         """
         self._output_name = output_name
         self._input_nodes = input_nodes

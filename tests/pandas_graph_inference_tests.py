@@ -131,6 +131,12 @@ def pandas_sample_string_lower(df):
     return df
 
 
+@wexec.willump_execute()
+def pandas_series_to_df(pandas_series):
+    df = pandas_series.to_frame().T
+    return df
+
+
 class PandasGraphInferenceTests(unittest.TestCase):
     def test_unpacked_pandas(self):
         print("\ntest_unpacked_pandas")
@@ -248,3 +254,12 @@ class PandasGraphInferenceTests(unittest.TestCase):
         weld_output = pandas_sample_string_lower(input_df)
         self.assertEqual(list(weld_output["new_col"].values), ["aa,.,.a", "b,,b", "c34234c"])
         self.assertEqual(list(weld_output["title"].values), ["aA,.,.a", "B,,b", "c34234C"])
+
+    def test_series_to_df(self):
+        print("\ntest_series_to_df")
+        left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv")
+        input_series = left_table.iloc[0]
+        correct_output = pandas_series_to_df(input_series)
+        pandas_series_to_df(input_series)
+        weld_output = pandas_series_to_df(input_series)
+        numpy.testing.assert_almost_equal(correct_output.values, weld_output.values)

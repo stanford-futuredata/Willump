@@ -38,15 +38,19 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
     csr_preprocess_nodes, csr_postprocess_nodes = \
         wg_passes.weld_csr_marshalling_pass(weld_block_input_set, weld_block_output_set, typing_map)
     pandas_preprocess_nodes, pandas_postprocess_nodes = wg_passes.weld_pandas_marshalling_pass(weld_block_input_set,
-                                                                       weld_block_output_set, typing_map, batch)
-    preprocess_nodes = csr_preprocess_nodes + pandas_preprocess_nodes
-    postprocess_nodes = csr_postprocess_nodes + pandas_postprocess_nodes
+                                                                                               weld_block_output_set,
+                                                                                               typing_map, batch)
+    series_preprocess_nodes, series_postprocess_nodes = wg_passes.weld_pandas_series_marshalling_pass(
+        weld_block_input_set,
+        weld_block_output_set, typing_map, batch)
+    preprocess_nodes = csr_preprocess_nodes + pandas_preprocess_nodes + series_preprocess_nodes
+    postprocess_nodes = csr_postprocess_nodes + pandas_postprocess_nodes + series_postprocess_nodes
     # Split Weld blocks into multiple threads.
     num_threads = num_workers + 1  # The main thread also does work.
     if num_threads > 1:
         threaded_statements_list = \
             wg_passes.multithreading_weld_blocks_pass(weld_block_node_list,
-                                            weld_block_input_set, weld_block_output_set, num_threads)
+                                                      weld_block_input_set, weld_block_output_set, num_threads)
     else:
         threaded_statements_list = [(weld_block_node_list, weld_block_input_set, weld_block_output_set)]
     # Append appropriate input and output nodes to each node list.
@@ -94,7 +98,7 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
 
 
 def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType], training_cascades: Optional[dict],
-    eval_cascades: Optional[dict], aux_data: List[Tuple[int, WeldType]], cascade_threshold: float,
+                  eval_cascades: Optional[dict], aux_data: List[Tuple[int, WeldType]], cascade_threshold: float,
                   batch: bool = True, num_workers=0) -> \
         List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]]:
     """
@@ -111,10 +115,10 @@ def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType]
     sorted_nodes = wg_passes.async_python_functions_parallel_pass(sorted_nodes)
     wg_passes.model_input_identification_pass(sorted_nodes)
     if training_cascades is not None:
-        assert(eval_cascades is None)
+        assert (eval_cascades is None)
         sorted_nodes = w_cascades.training_model_cascade_pass(sorted_nodes, typing_map, training_cascades)
     if eval_cascades is not None:
-        assert(training_cascades is None)
+        assert (training_cascades is None)
         sorted_nodes = w_cascades.eval_model_cascade_pass(sorted_nodes, typing_map, aux_data, eval_cascades,
                                                           cascade_threshold)
     sorted_nodes = wg_passes.cache_python_block_pass(sorted_nodes)

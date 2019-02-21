@@ -16,13 +16,14 @@ def auc_score(y_valid, y_pred):
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
 
 
-@willump.evaluation.willump_executor.willump_execute(batch=False, num_workers=0)
+@willump.evaluation.willump_executor.willump_execute(batch=True, num_workers=0)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,
              as_col, gs_features, gs_col, cs_features, cs_col, ages_features, ages_col, ls_features, ls_col,
              gender_features, gender_col, comps_features, comps_col, lyrs_features, lyrs_col, snames_features,
              snames_col, stabs_features, stabs_col, stypes_features, stypes_col, regs_features, regs_col):
+    combi = combi.to_frame().T
     combi = combi.merge(cluster_one, how='left', on=join_col_cluster_one)
     combi = combi.merge(cluster_two, how='left', on=join_col_cluster_two)
     combi = combi.merge(cluster_three, how='left', on=join_col_cluster_three)
@@ -46,6 +47,7 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
     combi = combi.merge(stypes_features, how='left', on=stypes_col)
     combi = combi.merge(regs_features, how='left', on=regs_col)
     combi = combi[FEATURES]
+    combi = combi.fillna(0)
     preds = model.predict(combi)
     return preds
 
@@ -95,7 +97,7 @@ def add_features_and_predict(folder, combi):
     regs_features, regs_col = scol_features_eval(folder, 'registered_via', 'rv_')
 
     num_rows = len(combi)
-    compile_one = do_merge(combi.iloc[0:1].copy(), features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
+    compile_one = do_merge(combi.iloc[0].copy(), features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
                            join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
                            join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
                            ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
@@ -104,7 +106,7 @@ def add_features_and_predict(folder, combi):
                            composer_col,
                            lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
                            stypes_col, regs_features, regs_col)
-    compile_two = do_merge(combi.iloc[0:1].copy(), features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
+    compile_two = do_merge(combi.iloc[0].copy(), features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
                            join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
                            join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
                            ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
@@ -116,7 +118,7 @@ def add_features_and_predict(folder, combi):
 
     entry_list = []
     for i in range(num_rows):
-        entry_list.append(combi.iloc[i:i + 1])
+        entry_list.append(combi.iloc[i])
     print("Copies created")
     start = time.time()
     for entry in entry_list:

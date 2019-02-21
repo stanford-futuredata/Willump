@@ -232,6 +232,9 @@ def py_var_to_weld_type(py_var: object, batch) -> Optional[WeldType]:
             else:
                 df_col_weld_types.append(col_weld_type)
         return WeldPandas(df_col_weld_types, list(py_var.columns))
+    elif isinstance(py_var, pandas.core.series.Series):
+        weld_elem_type: WeldType = numpy_type_to_weld_type(py_var.dtype)
+        return WeldSeriesPandas(weld_elem_type, list(py_var.index))
     elif isinstance(py_var, numpy.ndarray):
         if py_var.ndim > 1:
             return WeldVec(py_var_to_weld_type(py_var[0], batch))

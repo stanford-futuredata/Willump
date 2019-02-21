@@ -18,6 +18,7 @@ from willump.graph.linear_training_node import LinearTrainingNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
 from willump.graph.trees_training_node import TreesTrainingNode
 from willump.graph.trees_model_node import TreesModelNode
+from willump.graph.pandas_series_to_dataframe_node import PandasSeriesToDataFrameNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 from weld.types import *
@@ -238,12 +239,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 else:
                     if analyzer == "char":
                         input_preprocessing_python = "%s = list(map(lambda x: re.sub(r'\s\s+', ' ', x), %s))" \
-                                                      % (strip_linenos_from_var(preprocessed_input_name),
-                                                         strip_linenos_from_var(vectorizer_input_var))
+                                                     % (strip_linenos_from_var(preprocessed_input_name),
+                                                        strip_linenos_from_var(vectorizer_input_var))
                     else:
                         input_preprocessing_python = "%s = list(map(lambda x: re.sub(r'\W+', ' ', x), %s))" \
-                                                      % (strip_linenos_from_var(preprocessed_input_name),
-                                                         strip_linenos_from_var(vectorizer_input_var))
+                                                     % (strip_linenos_from_var(preprocessed_input_name),
+                                                        strip_linenos_from_var(vectorizer_input_var))
                     input_preprocessing_ast: ast.Module = ast.parse(input_preprocessing_python)
                     input_preprocessing_node: WillumpPythonNode = WillumpPythonNode(
                         python_ast=input_preprocessing_ast.body[0],
@@ -347,6 +348,18 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 return create_single_output_py_node(node, is_async_func=True)
             elif called_function in self._cached_funcs:
                 return create_single_output_py_node(node, is_cached_func=True)
+            else:
+                return create_single_output_py_node(node)
+        elif isinstance(value, ast.Attribute):
+            if value.attr == "T" and isinstance(value.value, ast.Call) and isinstance(value.value.func, ast.Attribute) \
+                    and isinstance(value.value.func.value, ast.Name) and value.value.func.attr == "to_frame":
+                input_name = self.get_load_name(value.value.func.value.id, value.lineno, self._type_map)
+                input_node = self._node_dict[input_name]
+                input_type = self._type_map[input_name]
+                assert(isinstance(input_type, WeldSeriesPandas))
+                series_to_df_node = PandasSeriesToDataFrameNode(input_node=input_node, input_name=input_name,
+                                                                input_type=input_type, output_name=output_var_name)
+                return output_var_name, series_to_df_node
             else:
                 return create_single_output_py_node(node)
         else:
