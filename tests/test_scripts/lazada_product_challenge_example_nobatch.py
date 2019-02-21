@@ -1,14 +1,29 @@
-import time
-import pandas as pd
-import willump.evaluation.willump_executor
 import pickle
+import time
+import argparse
+
 import numpy
+import pandas as pd
+import scipy.sparse
 import scipy.sparse.csr
 from sklearn.model_selection import train_test_split
-import scipy.sparse
+
+import willump.evaluation.willump_executor
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+args = parser.parse_args()
+if args.cascades is None:
+    cascades = None
+    cascade_threshold = 1.0
+else:
+    assert (0.5 <= args.cascades <= 1.0)
+    cascades = pickle.load(open("tests/test_resources/lazada_challenge_features/lazada_training_cascades.pk", "rb"))
+    cascade_threshold = args.cascades
 
 
-@willump.evaluation.willump_executor.willump_execute(num_workers=2)
+@willump.evaluation.willump_executor.willump_execute(num_workers=2, eval_cascades=cascades,
+                                                     cascade_threshold=cascade_threshold)
 def vectorizer_transform(title_vect, input_df, color_vect, brand_vect):
     np_input = list(input_df.values)
     transformed_result = title_vect.transform(np_input)
@@ -27,7 +42,6 @@ model = pickle.load(open("tests/test_resources/lazada_challenge_features/lazada_
 y = numpy.loadtxt("tests/test_resources/lazada_challenge_features/conciseness_train.labels", dtype=int)
 
 _, df, _, y = train_test_split(df, y, test_size=0.33, random_state=42)
-
 
 title_vectorizer, color_vectorizer, brand_vectorizer = pickle.load(
     open("tests/test_resources/lazada_challenge_features/lazada_vectorizers.pk", "rb"))

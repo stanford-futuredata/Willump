@@ -1,5 +1,6 @@
 import pickle
 import time
+import argparse
 
 from sklearn import metrics
 
@@ -16,7 +17,20 @@ def auc_score(y_valid, y_pred):
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
 
 
-@willump.evaluation.willump_executor.willump_execute(batch=False, num_workers=0)
+parser = argparse.ArgumentParser()
+parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+args = parser.parse_args()
+if args.cascades is None:
+    cascades = None
+    cascade_threshold = 1.0
+else:
+    assert (0.5 <= args.cascades <= 1.0)
+    cascades = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_training_cascades.pk", "rb"))
+    cascade_threshold = args.cascades
+
+
+@willump.evaluation.willump_executor.willump_execute(batch=False, num_workers=0, eval_cascades=cascades,
+                                                     cascade_threshold=cascade_threshold)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,
