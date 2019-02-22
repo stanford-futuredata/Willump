@@ -21,6 +21,7 @@ from willump.graph.trees_model_node import TreesModelNode
 from willump.graph.pandas_series_to_dataframe_node import PandasSeriesToDataFrameNode
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 from willump.graph.identity_node import IdentityNode
+from willump.graph.reshape_node import ReshapeNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 from weld.types import *
@@ -367,7 +368,16 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 else:
                     return create_single_output_py_node(node)
             elif ".reshape" in called_function:
-                return create_single_output_py_node(node, does_not_modify_data=True)
+                if isinstance(value.func.value, ast.Name):
+                    input_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
+                    input_node = self._node_dict[input_name]
+                    output_type = self._type_map[output_var_name]
+                    reshape_node = ReshapeNode(input_node=input_node, input_name=input_name,
+                                               output_name=output_var_name, output_type=output_type,
+                                               reshape_args=value.args)
+                    return output_var_name, reshape_node
+                else:
+                    return create_single_output_py_node(node)
             elif called_function in self._async_funcs:
                 return create_single_output_py_node(node, is_async_func=True)
             elif called_function in self._cached_funcs:

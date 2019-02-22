@@ -16,7 +16,7 @@ from willump import *
 from willump.evaluation.willump_driver_generator import generate_cpp_driver
 from willump.graph.willump_graph import WillumpGraph
 from willump.willump_utilities import *
-from willump.evaluation.willump_runtime_code import willump_cache
+from willump.evaluation.willump_runtime_code import *
 
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
@@ -237,6 +237,7 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                     for i in range(30):
                         augmented_globals["%s%d" % (WILLUMP_CACHE_NAME, i)] = {}
                     augmented_globals["willump_cache"] = willump_cache
+                    augmented_globals["cascade_dense_stacker"] = cascade_dense_stacker
                     augmented_globals[WILLUMP_TRAINING_CASCADE_NAME] = training_cascades
                     if len(async_funcs) > 0:
                         augmented_globals[WILLUMP_THREAD_POOL_EXECUTOR] = \

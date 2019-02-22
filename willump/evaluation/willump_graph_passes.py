@@ -20,6 +20,7 @@ from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
 from willump.graph.identity_node import IdentityNode
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
+from willump.graph.reshape_node import ReshapeNode
 
 
 def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
@@ -179,8 +180,7 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
         # TODO:  What to do here?
         elif isinstance(input_node, WillumpInputNode):
             pass
-        elif isinstance(input_node, WillumpPythonNode) and input_node.does_not_modify_data \
-                and len(input_node.get_in_nodes()) == 1:
+        elif isinstance(input_node, ReshapeNode):
             node_input_node = input_node.get_in_nodes()[0]
             current_node_stack.append((node_input_node, (index_start, index_end), curr_selection_map))
         elif isinstance(input_node, WillumpPythonNode):
