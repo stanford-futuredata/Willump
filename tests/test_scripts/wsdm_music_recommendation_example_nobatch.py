@@ -3,9 +3,11 @@ import time
 import argparse
 
 from sklearn import metrics
+from tqdm import tqdm
 
 import willump.evaluation.willump_executor
 from wsdm_utilities import *
+from sklearn.model_selection import train_test_split
 
 
 def auc_score(y_valid, y_pred):
@@ -29,7 +31,7 @@ else:
     cascade_threshold = args.cascades
 
 
-@willump.evaluation.willump_executor.willump_execute(batch=False, num_workers=0, eval_cascades=cascades,
+@willump.evaluation.willump_executor.willump_execute(num_workers=0, eval_cascades=cascades,
                                                      cascade_threshold=cascade_threshold)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
@@ -133,9 +135,10 @@ def add_features_and_predict(folder, combi):
     entry_list = []
     for i in range(num_rows):
         entry_list.append(combi.iloc[i])
+    preds = []
     print("Copies created")
     start = time.time()
-    for entry in entry_list:
+    for entry in tqdm(entry_list):
         pred = do_merge(entry, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
                         join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
                         join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
@@ -145,19 +148,25 @@ def add_features_and_predict(folder, combi):
                         composer_col,
                         lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
                         stypes_col, regs_features, regs_col)
+        preds.append(pred)
     elapsed_time = time.time() - start
 
     print('Latent feature join in %f seconds rows %d throughput %f: ' % (
         elapsed_time, num_rows, num_rows / elapsed_time))
 
-    return combi
+    return preds
 
 
 def create_featureset(folder):
     combi = load_combi_prep(folder=folder, split=None)
     combi = combi.dropna(subset=["target"])
+    y = combi["target"].values
+
+    _, combi, _, y = train_test_split(combi, y, test_size=0.33, random_state=42)
+
     # add latent features
-    combi = add_features_and_predict(folder, combi)
+    y_pred = add_features_and_predict(folder, combi)
+    print("Train AUC: %f" % auc_score(y, y_pred))
 
 
 if __name__ == '__main__':

@@ -8,6 +8,7 @@ from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
 from willump.graph.cascade_column_selection_node import CascadeColumnSelectionNode
 from willump.graph.cascade_combine_predictions_node import CascadeCombinePredictionsNode
+from willump.graph.cascade_point_early_exit_node import CascadePointEarlyExitNode
 from willump.graph.cascade_stack_dense_node import CascadeStackDenseNode
 from willump.graph.cascade_stack_sparse_node import CascadeStackSparseNode
 from willump.graph.cascade_threshold_proba_node import CascadeThresholdProbaNode
@@ -248,7 +249,7 @@ def get_combiner_node(mi_head: WillumpGraphNode, li_head: WillumpGraphNode, orig
     elif isinstance(orig_output_type, WeldPandas):
         mi_output_types = mi_head.get_output_types()[0]
         li_output_types = li_head.get_output_types()[0]
-        assert(isinstance(mi_output_types, WeldPandas) and isinstance(li_output_types, WeldPandas))
+        assert (isinstance(mi_output_types, WeldPandas) and isinstance(li_output_types, WeldPandas))
         new_selected_columns = mi_output_types.column_names + li_output_types.column_names
         new_field_types = mi_output_types.field_types + li_output_types.field_types
         new_output_type = WeldPandas(field_types=new_field_types, column_names=new_selected_columns)
@@ -376,7 +377,8 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                             typing_map: MutableMapping[str, WeldType],
                             aux_data: List[Tuple[int, WeldType]],
                             eval_cascades: dict,
-                            cascade_threshold: float) -> List[WillumpGraphNode]:
+                            cascade_threshold: float,
+                            batch: bool) -> List[WillumpGraphNode]:
     """
     Take in a program with a model.  Use pre-computed feature importances to partition the models' input
     sources into those more and less important.  Rewrite the program so it first evaluates a pre-trained smaller
@@ -468,7 +470,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         elif isinstance(orig_output_type, WeldPandas):
             mi_output_types = mi_head.get_output_types()[0]
             li_output_types = li_head.get_output_types()[0]
-            assert(isinstance(mi_output_types, WeldPandas) and isinstance(li_output_types, WeldPandas))
+            assert (isinstance(mi_output_types, WeldPandas) and isinstance(li_output_types, WeldPandas))
             new_selected_columns = mi_output_types.column_names + li_output_types.column_names
             return CascadeColumnSelectionNode(more_important_nodes=[mi_head],
                                               more_important_names=[mi_head.get_output_names()[0]],
@@ -532,7 +534,13 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         sorted_nodes.remove(node)
     # Add all the new code for creating model inputs and training from them.
     model_node_index = sorted_nodes.index(model_node)
-    sorted_nodes = sorted_nodes[:model_node_index] + more_important_inputs_block + \
-                   [new_small_model_node, threshold_node] + less_important_inputs_block + \
-                   [combiner_node, new_big_model_node, preds_combiner_node] + sorted_nodes[model_node_index + 1:]
+    small_model_nodes = [new_small_model_node, threshold_node]
+    # In a point setting, you can immediately exit if the small model node is confident.
+    if batch is False:
+        point_early_exit_node = CascadePointEarlyExitNode(small_model_output_node=threshold_node,
+                                                          small_model_output_name=small_model_preds_name)
+        small_model_nodes.append(point_early_exit_node)
+    big_model_nodes = [combiner_node, new_big_model_node, preds_combiner_node]
+    sorted_nodes = sorted_nodes[:model_node_index] + more_important_inputs_block + small_model_nodes + \
+            less_important_inputs_block + big_model_nodes + sorted_nodes[model_node_index + 1:]
     return sorted_nodes

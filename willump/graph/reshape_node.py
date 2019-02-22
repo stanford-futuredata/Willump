@@ -9,7 +9,7 @@ from willump.willump_utilities import strip_linenos_from_var
 
 class ReshapeNode(WillumpPythonNode):
     """
-    Willump Stack Dense node.  Horizontally stacks multiple dense matrices.
+    Willump Reshape node.  Reshapes a numpy array.
     """
 
     reshape_args: list
