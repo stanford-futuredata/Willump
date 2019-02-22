@@ -12,10 +12,6 @@ class CombineLinearRegressionNode(WillumpGraphNode):
 
     TODO:  Allow multi-class classification, not just binary.
     """
-    _input_nodes: List[WillumpGraphNode]
-    _output_name: str
-    _output_type: WeldType
-    _intercept_data_name: str
 
     def __init__(self, input_nodes: List[WillumpGraphNode], output_name: str,
                  intercept_data_name, output_type: WeldType) -> None:
@@ -71,6 +67,12 @@ class CombineLinearRegressionNode(WillumpGraphNode):
 
     def get_output_names(self) -> List[str]:
         return [self._output_name]
+
+    def get_output_type(self) -> WeldType:
+        return self._output_type
+
+    def get_output_types(self) -> List[WeldType]:
+        return [self._output_type]
 
     def __repr__(self):
         return "Combine linear regression node for input {0} output {1}\n"\

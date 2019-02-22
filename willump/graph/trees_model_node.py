@@ -13,7 +13,7 @@ class TreesModelNode(WillumpModelNode, WillumpPythonNode):
     """
     input_width: int
     model_name: str
-    output_type: WeldVec
+    _output_type: WeldVec
 
     def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str, model_name: str,
                  input_width: int, output_type: WeldVec,
@@ -24,7 +24,7 @@ class TreesModelNode(WillumpModelNode, WillumpPythonNode):
         self.input_width = input_width
         self.model_name = model_name
         self._output_name = output_name
-        self.output_type = output_type
+        self._output_type = output_type
 
     @staticmethod
     def _make_python_ast(input_name: str, output_name: str, model_name: str, predict_proba: bool, output_type: WeldVec)\
@@ -53,7 +53,10 @@ class TreesModelNode(WillumpModelNode, WillumpPythonNode):
     def get_output_name(self):
         return self._output_name
 
+    def get_output_type(self):
+        return self._output_type
+
     def __repr__(self):
         return "Trees Model node with inputs %s\n outputs %s\n and code %s\n" % \
-               (str(list(map(lambda x: x.get_output_names(), self._in_nodes))), self.output_names,
+               (str(list(map(lambda x: x.get_output_names(), self._in_nodes))), self._output_names,
                 ast.dump(self._python_ast))

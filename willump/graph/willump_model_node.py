@@ -25,3 +25,6 @@ class WillumpModelNode(WillumpGraphNode):
 
     def get_output_name(self):
         ...
+
+    def get_output_type(self):
+        ...

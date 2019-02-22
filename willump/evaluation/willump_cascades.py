@@ -46,7 +46,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
         node_input_names = node.get_in_names()
         node_output_name = node.get_output_name()
         new_output_name = ("cascading__%s__" % which) + node_output_name
-        node_output_type = WeldCSR(node.elem_type)
+        node_output_type = node.get_output_type()
         new_input_nodes, new_input_names = [], []
         for node_input_node, node_input_name in zip(node_input_nodes, node_input_names):
             return_node = graph_from_input_sources(node_input_node, selected_input_sources, typing_map,
@@ -69,12 +69,12 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
             new_input_names = [new_input_node.get_output_name() for new_input_node in new_input_nodes]
             node_output_name = node.get_output_name()
             new_output_name = ("cascading__%s__" % which) + node_output_name
-            new_input_types: List[WeldPandas] = [new_input_node.output_type for new_input_node in new_input_nodes]
+            new_input_types: List[WeldPandas] = [new_input_node.get_output_type() for new_input_node in new_input_nodes]
             selected_columns = node.selected_columns
             new_selected_columns = list(
                 filter(lambda x: any(x in new_input_type.column_names for new_input_type in new_input_types),
                        selected_columns))
-            orig_output_type = node.output_type
+            orig_output_type = node.get_output_type()
             if isinstance(orig_output_type, WeldPandas):
                 col_map = {col_name: col_type for col_name, col_type in
                            zip(orig_output_type.column_names, orig_output_type.field_types)}
@@ -88,7 +88,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                                                     input_types=new_input_types,
                                                     selected_columns=new_selected_columns,
                                                     output_type=new_output_type)
-            typing_map[new_output_name] = return_node.output_type
+            typing_map[new_output_name] = return_node.get_output_type()
     elif isinstance(node, WillumpHashJoinNode):
         base_node = wg_passes.find_dataframe_base_node(node, base_discovery_dict)
         node_input_node = node.get_in_nodes()[0]
@@ -108,7 +108,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                 else:
                     assert (isinstance(new_input_node, WillumpHashJoinNode))
                     new_input_name = new_input_node.get_output_name()
-                    new_input_type = new_input_node.output_type
+                    new_input_type = new_input_node.get_output_type()
             return_node = copy.copy(node)
             if small_model_output_name is not None:
                 return_node.push_cascade(small_model_output_name)
@@ -118,10 +118,10 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
             return_node._input_names[0] = new_input_name
             return_node.left_input_name = new_input_name
             return_node.left_df_type = new_input_type
-            return_node.output_type = \
+            return_node._output_type = \
                 WeldPandas(field_types=new_input_type.field_types + node.right_df_type.field_types,
                            column_names=new_input_type.column_names + node.right_df_type.column_names)
-            typing_map[return_node.get_output_name()] = return_node.output_type
+            typing_map[return_node.get_output_name()] = return_node.get_output_type()
         elif node is not base_node:
             return graph_from_input_sources(node_input_node, selected_input_sources, typing_map, base_discovery_dict,
                                             which, small_model_output_name)
@@ -174,16 +174,16 @@ def get_combiner_node(node_one: WillumpGraphNode, node_two: WillumpGraphNode, or
         return StackSparseNode(input_nodes=[node_one, node_two],
                                input_names=[node_one.get_output_name(), node_two.get_output_name()],
                                output_name=orig_node.get_output_name(),
-                               output_type=WeldCSR(orig_node.elem_type))
+                               output_type=orig_node.get_output_type())
     elif isinstance(node_one, PandasColumnSelectionNode):
         assert (isinstance(node_two, PandasColumnSelectionNode))
         assert (isinstance(orig_node, PandasColumnSelectionNode))
         return PandasColumnSelectionNode(input_nodes=[node_one, node_two],
                                          input_names=[node_one.get_output_name(), node_two.get_output_name()],
                                          output_name=orig_node.get_output_name(),
-                                         input_types=[node_one.output_type, node_two.output_type],
+                                         input_types=[node_one.get_output_type(), node_two.get_output_type()],
                                          selected_columns=orig_node.selected_columns,
-                                         output_type=orig_node.output_type)
+                                         output_type=orig_node.get_output_type())
     else:
         panic("Unrecognized nodes being combined: %s %s" % (node_one.__repr__(), node_two.__repr__()))
 
@@ -268,7 +268,7 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     add_big_model_ast: ast.Module = \
         ast.parse(add_big_model_python, "exec")
     add_big_model_node = WillumpPythonNode(python_ast=add_big_model_ast.body[0], input_names=[big_model_python_name],
-                                           output_names=[], in_nodes=[big_training_node])
+                                           output_names=[], output_types=[], in_nodes=[big_training_node])
     # Store the small model for evaluation.
     small_model_python_name = strip_linenos_from_var(small_training_node.get_output_names()[0])
     add_small_model_python = "%s[\"small_model\"] = %s" % (WILLUMP_TRAINING_CASCADE_NAME, small_model_python_name)
@@ -276,14 +276,14 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         ast.parse(add_small_model_python, "exec")
     add_small_model_node = WillumpPythonNode(python_ast=add_small_model_ast.body[0],
                                              input_names=[small_model_python_name],
-                                             output_names=[], in_nodes=[small_training_node])
+                                             output_names=[], output_types=[], in_nodes=[small_training_node])
     # Copy the original model so the small and big models aren't the same.
     duplicate_model_python = "%s = copy.copy(%s)" % (small_model_python_name, big_model_python_name)
     duplicate_model_ast: ast.Module = \
         ast.parse(duplicate_model_python, "exec")
     duplicate_model_node = WillumpPythonNode(python_ast=duplicate_model_ast.body[0],
                                              input_names=[big_model_python_name],
-                                             output_names=[], in_nodes=[big_training_node])
+                                             output_names=[], output_types=[], in_nodes=[big_training_node])
     base_discovery_dict = {}
     # Remove the original code for creating model inputs to replace with the new code.
     training_dependencies = get_model_node_dependencies(training_input_node, base_discovery_dict)
@@ -343,7 +343,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                             small_model_output_node: CascadeThresholdProbaNode, small_model_output_name: str) \
             -> Tuple[WillumpModelNode, CascadeCombinePredictionsNode]:
         output_name = orig_model_node.get_output_name()
-        output_type = orig_model_node.output_type
+        output_type = orig_model_node.get_output_type()
         if isinstance(orig_model_node, LinearRegressionNode):
             big_model_output = LinearRegressionNode(input_node=new_input_node,
                                                     input_name=new_input_node.get_output_name(),
@@ -385,16 +385,16 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                           small_model_output_node=small_model_output_node,
                                           small_model_output_name=small_model_output_node.get_output_name(),
                                           output_name=orig_node.get_output_name(),
-                                          output_type=WeldCSR(orig_node.elem_type))
+                                          output_type=orig_node.get_output_type())
         elif isinstance(mi_head, PandasColumnSelectionNode):
             assert (isinstance(li_head, PandasColumnSelectionNode))
             assert (isinstance(orig_node, PandasColumnSelectionNode))
             return CascadeColumnSelectionNode(more_important_nodes=[mi_head],
                                               more_important_names=[mi_head.get_output_name()],
-                                              more_important_types=[mi_head.output_type],
+                                              more_important_types=[mi_head.get_output_type()],
                                               less_important_nodes=[li_head],
                                               less_important_names=[li_head.get_output_name()],
-                                              less_important_types=[li_head.output_type],
+                                              less_important_types=[li_head.get_output_type()],
                                               output_name=orig_node.get_output_name(),
                                               small_model_output_node=small_model_output_node,
                                               small_model_output_name=small_model_output_node.get_output_name(),

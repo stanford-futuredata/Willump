@@ -62,6 +62,12 @@ class CascadeCombinePredictionsNode(WillumpGraphNode):
     def get_output_names(self) -> List[str]:
         return [self._output_name]
 
+    def get_output_type(self) -> WeldType:
+        return self._output_type
+
+    def get_output_types(self) -> List[WeldType]:
+        return [self._output_type]
+
     def __repr__(self):
         return "Cascade prediction-combining node for input {0} output {1}\n" \
             .format(self._input_names, self._output_name)

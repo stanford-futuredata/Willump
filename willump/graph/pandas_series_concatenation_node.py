@@ -11,7 +11,6 @@ class PandasSeriesConcatenationNode(WillumpGraphNode):
     """
 
     input_types: List[WeldSeriesPandas]
-    output_type: WeldSeriesPandas
 
     def __init__(self, input_nodes: List[WillumpGraphNode], input_names: List[str], input_types: List[WeldSeriesPandas],
                  output_name: str, output_type: WeldSeriesPandas) -> None:
@@ -21,7 +20,7 @@ class PandasSeriesConcatenationNode(WillumpGraphNode):
         self._input_nodes = input_nodes
         self._output_name = output_name
         assert(isinstance(output_type, WeldSeriesPandas))
-        self.output_type = output_type
+        self._output_type = output_type
         self.input_types = input_types
         self._input_names = input_names
 
@@ -49,7 +48,7 @@ class PandasSeriesConcatenationNode(WillumpGraphNode):
             """
             let OUTPUT_NAME = result(pre_output);
             """
-        weld_program = weld_program.replace("ELEM_TYPE", str(self.output_type.elemType))
+        weld_program = weld_program.replace("ELEM_TYPE", str(self._output_type.elemType))
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         return weld_program
 
@@ -58,6 +57,12 @@ class PandasSeriesConcatenationNode(WillumpGraphNode):
 
     def get_output_names(self) -> List[str]:
         return [self._output_name]
+
+    def get_output_type(self) -> WeldType:
+        return self._output_type
+
+    def get_output_types(self) -> List[WeldType]:
+        return [self._output_type]
 
     def __repr__(self):
         return "Pandas Series concatenation node for input {0} output {1}\n" \

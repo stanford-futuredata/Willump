@@ -1,5 +1,7 @@
 from typing import List
 
+from weld.types import *
+
 
 class WillumpGraphNode(object):
     """
@@ -21,6 +23,12 @@ class WillumpGraphNode(object):
     def get_output_names(self) -> List[str]:
         """
         Return the names of the variables this node outputs.
+        """
+        ...
+
+    def get_output_types(self) -> List[WeldType]:
+        """
+        Return the types of the variables this node outputs.
         """
         ...
 

@@ -17,7 +17,6 @@ class WillumpHashJoinNode(WillumpGraphNode):
     right_df_row_type: WeldPandas
     right_df_type: WeldPandas
     join_col_name: str
-    output_type: WeldType
 
     # Protected Cascade Variables
     _small_model_output_name: Optional[str] = None
@@ -44,8 +43,8 @@ class WillumpHashJoinNode(WillumpGraphNode):
         self._model_index_map = None
         for entry in self._process_aux_data(right_dataframe):
             aux_data.append(entry)
-        self.output_type = WeldPandas(field_types=self.left_df_type.field_types + self.right_df_type.field_types,
-                                      column_names=self.left_df_type.column_names + self.right_df_type.column_names)
+        self._output_type = WeldPandas(field_types=self.left_df_type.field_types + self.right_df_type.field_types,
+                                       column_names=self.left_df_type.column_names + self.right_df_type.column_names)
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
@@ -220,6 +219,12 @@ class WillumpHashJoinNode(WillumpGraphNode):
 
     def get_output_names(self) -> List[str]:
         return [self._output_name]
+
+    def get_output_type(self) -> WeldType:
+        return self._output_type
+
+    def get_output_types(self) -> List[WeldType]:
+        return [self._output_type]
 
     def __repr__(self):
         return "Hash-join node for input {0} output {1}\n" \

@@ -3,6 +3,8 @@ from willump.graph.willump_graph_node import WillumpGraphNode
 from typing import List
 import ast
 
+from weld.types import *
+
 
 class WillumpPythonNode(WillumpGraphNode):
     """
@@ -13,10 +15,12 @@ class WillumpPythonNode(WillumpGraphNode):
     does_not_modify_data: bool
 
     def __init__(self, python_ast: ast.AST, input_names: List[str], output_names: List[str],
+                 output_types: List[WeldType],
                  in_nodes: List[WillumpGraphNode],
                  is_async_node: bool = False, is_cached_node: bool = False,
-                 does_not_modify_data = False) -> None:
-        self.output_names = output_names
+                 does_not_modify_data=False) -> None:
+        self._output_types = output_types
+        self._output_names = output_names
         self._in_nodes = in_nodes
         self._input_names = input_names
         self._python_ast = python_ast
@@ -34,12 +38,15 @@ class WillumpPythonNode(WillumpGraphNode):
         return ""
 
     def get_output_names(self) -> List[str]:
-        return self.output_names
+        return self._output_names
+
+    def get_output_types(self) -> List[WeldType]:
+        return self._output_types
 
     def get_python(self) -> ast.AST:
         return self._python_ast
 
     def __repr__(self):
         return "Willump Python node with inputs %s\n outputs %s\n and code %s\n" % \
-               (str(list(map(lambda x: x.get_output_names(), self._in_nodes))), self.output_names,
+               (str(list(map(lambda x: x.get_output_names(), self._in_nodes))), self._output_names,
                 ast.dump(self._python_ast))

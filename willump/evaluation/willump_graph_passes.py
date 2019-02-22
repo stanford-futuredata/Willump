@@ -300,12 +300,12 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
             pandas_glue_ast: ast.Module = \
                 ast.parse(pandas_glue_python, "exec")
             pandas_input_node = WillumpPythonNode(python_ast=pandas_glue_ast.body[0], input_names=[],
-                                                  output_names=[input_name], in_nodes=[])
+                                                  output_names=[input_name], output_types=[], in_nodes=[])
             pandas_input_processing_nodes.append(pandas_input_node)
             reversion_python = "%s = %s" % (stripped_input_name, df_temp_name)
             reversion_python_ast = ast.parse(reversion_python, "exec")
             reversion_python_node = WillumpPythonNode(python_ast=reversion_python_ast.body[0], input_names=[df_temp_name],
-                                                  output_names=[stripped_input_name], in_nodes=[])
+                                                  output_names=[stripped_input_name], output_types=[], in_nodes=[])
             if stripped_input_name not in map(strip_linenos_from_var, weld_block_output_set):
                 pandas_post_processing_nodes.append(reversion_python_node)
 
@@ -320,7 +320,7 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
             df_creation_ast: ast.Module = \
                 ast.parse(df_creation_statement, "exec")
             df_creation_node = WillumpPythonNode(python_ast=df_creation_ast.body[0], input_names=[],
-                                                 output_names=[output_name], in_nodes=[])
+                                                 output_names=[output_name], output_types=[], in_nodes=[])
             pandas_post_processing_nodes.append(df_creation_node)
     return pandas_input_processing_nodes, pandas_post_processing_nodes
 
@@ -345,7 +345,7 @@ def weld_pandas_series_marshalling_pass(weld_block_input_set: Set[str], weld_blo
             series_glue_ast: ast.Module = \
                 ast.parse(series_glue_python, "exec")
             series_input_node = WillumpPythonNode(python_ast=series_glue_ast.body[0], input_names=[],
-                                                  output_names=[input_name], in_nodes=[])
+                                                  output_names=[input_name], output_types=[], in_nodes=[])
             pandas_input_processing_nodes.append(series_input_node)
     return pandas_input_processing_nodes, pandas_post_processing_nodes
 
@@ -371,13 +371,13 @@ def weld_csr_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_
             csr_creation_ast: ast.Module = \
                 ast.parse(csr_marshall, "exec")
             csr_creation_node = WillumpPythonNode(python_ast=csr_creation_ast.body[0], input_names=[],
-                                                  output_names=[], in_nodes=[])
+                                                  output_names=[], output_types=[], in_nodes=[])
             csr_input_processing_nodes.append(csr_creation_node)
             car_unmarshaller = """{0} = {1}\n""".format(stripped_input_name, temp_name)
             csr_unmarshaller_ast: ast.Module = \
                 ast.parse(car_unmarshaller, "exec")
             csr_unmarshaller_node = WillumpPythonNode(python_ast=csr_unmarshaller_ast.body[0], input_names=[],
-                                                  output_names=[], in_nodes=[])
+                                                  output_names=[], output_types=[], in_nodes=[])
             csr_post_processing_nodes.append(csr_unmarshaller_node)
     for output_name in weld_block_output_set:
         output_type = typing_map[output_name]
@@ -389,7 +389,7 @@ def weld_csr_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_
             csr_creation_ast: ast.Module = \
                 ast.parse(csr_marshall, "exec")
             csr_creation_node = WillumpPythonNode(python_ast=csr_creation_ast.body[0], input_names=[],
-                                                  output_names=[output_name], in_nodes=[])
+                                                  output_names=[output_name], output_types=[], in_nodes=[])
             csr_post_processing_nodes.append(csr_creation_node)
     return csr_input_processing_nodes, csr_post_processing_nodes
 
@@ -514,6 +514,7 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
             async_node_ast.value = new_call
             executor_async_node = WillumpPythonNode(python_ast=async_node_ast, input_names=async_node.get_in_names(),
                                                     output_names=async_node.get_output_names(),
+                                                    output_types=async_node.get_output_types(),
                                                     in_nodes=async_node.get_in_nodes())
             pyblock.insert(first_legal_index, executor_async_node)
             last_legal_index = first_legal_index + 1
@@ -531,6 +532,7 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
             pandas_input_node = WillumpPythonNode(python_ast=result_ast.body[0],
                                                   input_names=[async_node_output_name],
                                                   output_names=async_node.get_output_names(),
+                                                  output_types=async_node.get_output_types(),
                                                   in_nodes=[executor_async_node])
             pyblock.insert(last_legal_index, pandas_input_node)
         sorted_nodes = sorted_nodes[:pyblock_start] + pyblock + sorted_nodes[pyblock_end:]
@@ -561,7 +563,9 @@ def cache_python_block_pass(sorted_nodes: List[WillumpGraphNode]) -> List[Willum
                     (target_name, func_name, arg_string, "%s%d" % (WILLUMP_CACHE_NAME, node_num))
                 cache_ast: ast.Module = ast.parse(cache_python, "exec")
                 cache_node = WillumpPythonNode(python_ast=cache_ast.body[0], input_names=entry.get_in_names(),
-                                               output_names=entry.get_output_names(), in_nodes=entry.get_in_nodes())
+                                               output_names=entry.get_output_names(),
+                                               output_types=entry.get_output_types(),
+                                               in_nodes=entry.get_in_nodes())
                 sorted_nodes[i] = cache_node
                 node_num += 1
     return sorted_nodes

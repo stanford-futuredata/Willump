@@ -11,13 +11,10 @@ class CascadeColumnSelectionNode(WillumpGraphNode):
     input dataframes to match the length of those from the less important dataframes.
     """
 
-    elem_type: WeldType
-    output_type: WeldType
-
     def __init__(self, more_important_nodes: List[WillumpGraphNode], more_important_names: List[str],
-                 more_important_types: List[WeldPandas],
+                 more_important_types: List[WeldType],
                  less_important_nodes: List[WillumpGraphNode], less_important_names: List[str],
-                 less_important_types: List[WeldPandas],
+                 less_important_types: List[WeldType],
                  output_name: str, small_model_output_node: WillumpGraphNode,
                  small_model_output_name: str,
                  selected_columns: List[str]) -> None:

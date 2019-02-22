@@ -255,6 +255,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         python_ast=input_preprocessing_ast.body[0],
                         input_names=[vectorizer_input_var],
                         output_names=[preprocessed_input_name],
+                        output_types=[self._type_map[vectorizer_input_var]],
                         in_nodes=[vectorizer_input_node])
                     self._type_map[preprocessed_input_name] = self._type_map[vectorizer_input_var]
                     self._node_dict[preprocessed_input_name] = input_preprocessing_node
@@ -385,8 +386,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 input_name = self.get_load_name(value.value.id, value.lineno, self._type_map)
                 if isinstance(self._type_map[input_name], WeldSeriesPandas):
                     input_node = self._node_dict[input_name]
+                    output_type = self._type_map[output_var_name]
                     identity_node = IdentityNode(input_name=input_name, input_node=input_node,
-                                                 output_name=output_var_name)
+                                                 output_name=output_var_name, output_type=output_type)
                     return output_var_name, identity_node
                 else:
                     return create_single_output_py_node(node)
@@ -428,9 +430,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         for input_var in input_list:
             if input_var in self._node_dict:
                 input_node_list.append(self._node_dict[input_var])
+        output_types = [self._type_map[output_name] if output_name in self._type_map else None
+                        for output_name in output_list]
         willump_python_node: WillumpPythonNode = WillumpPythonNode(python_ast=entry,
                                                                    input_names=input_list,
                                                                    output_names=output_list,
+                                                                   output_types=output_types,
                                                                    in_nodes=input_node_list,
                                                                    is_async_node=is_async_func,
                                                                    is_cached_node=is_cached_node,

@@ -21,5 +21,5 @@ class LinearTrainingNode(WillumpTrainingNode):
 
     def __repr__(self):
         return "Willump Linear Training Python node with inputs %s\n outputs %s\n and code %s\n" % \
-               (str(list(map(lambda x: x.get_output_names(), self._in_nodes))), self.output_names,
+               (str(list(map(lambda x: x.get_output_names(), self._in_nodes))), self._output_names,
                 ast.dump(self._python_ast))

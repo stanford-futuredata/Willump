@@ -9,7 +9,6 @@ class PandasSeriesToDataFrameNode(WillumpGraphNode):
     """
     Convert a Series into a (single-row) Dataframe.
     """
-    output_type: WeldPandas
 
     def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str,
                  input_type: WeldSeriesPandas) -> None:
@@ -22,8 +21,8 @@ class PandasSeriesToDataFrameNode(WillumpGraphNode):
         self._input_nodes = [input_node]
         self._input_type = input_type
         assert isinstance(input_type, WeldSeriesPandas)
-        self.output_type = WeldPandas(column_names=input_type.column_names,
-                                      field_types=[WeldVec(input_type.elemType)] * len(input_type.column_names))
+        self._output_type = WeldPandas(column_names=input_type.column_names,
+                                       field_types=[WeldVec(input_type.elemType)] * len(input_type.column_names))
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
@@ -50,6 +49,12 @@ class PandasSeriesToDataFrameNode(WillumpGraphNode):
 
     def get_output_names(self) -> List[str]:
         return [self._output_name]
+
+    def get_output_type(self) -> WeldType:
+        return self._output_type
+
+    def get_output_types(self) -> List[WeldType]:
+        return [self._output_type]
 
     def __repr__(self):
         return "Pandas Series to Dataframe node for input {0} output {1}\n" \

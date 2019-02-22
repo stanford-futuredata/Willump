@@ -2,16 +2,19 @@ from typing import List
 
 from willump.graph.willump_graph_node import WillumpGraphNode
 
+from weld.types import *
+
 
 class IdentityNode(WillumpGraphNode):
     """
     Identity node.  Sets one variable equal to another.
     """
 
-    def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str) -> None:
+    def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str, output_type: WeldType) -> None:
         self._input_node = input_node
         self._output_name = output_name
         self._input_name = input_name
+        self._output_type = output_type
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return [self._input_node]
@@ -31,6 +34,12 @@ class IdentityNode(WillumpGraphNode):
 
     def get_output_names(self) -> List[str]:
         return [self._output_name]
+
+    def get_output_type(self) -> WeldType:
+        return self._output_type
+
+    def get_output_types(self) -> List[WeldType]:
+        return [self._output_type]
 
     def __repr__(self):
         return "Identity node for input {0} output {1}\n"\

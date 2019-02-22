@@ -10,9 +10,6 @@ class StackSparseNode(WillumpGraphNode):
     Willump Stack Sparse node.  Horizontally stacks multiple sparse matrices.
     """
 
-    elem_type: WeldType
-    output_type: WeldType
-
     def __init__(self, input_nodes: List[WillumpGraphNode], input_names: List[str], output_name: str,
                  output_type: WeldType) -> None:
         """
@@ -21,8 +18,8 @@ class StackSparseNode(WillumpGraphNode):
         self._input_nodes = input_nodes
         self._output_name = output_name
         assert(isinstance(output_type, WeldCSR))
-        self.elem_type = output_type.elemType
-        self.output_type = output_type
+        self._elem_type = output_type.elemType
+        self._output_type = output_type
         self._input_names = input_names
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
@@ -64,7 +61,7 @@ class StackSparseNode(WillumpGraphNode):
             """
         weld_program = weld_program.replace("NUM_ROWS", num_rows)
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
-        weld_program = weld_program.replace("ELEM_TYPE", str(self.elem_type))
+        weld_program = weld_program.replace("ELEM_TYPE", str(self._elem_type))
         return weld_program
 
     def get_output_name(self) -> str:
@@ -72,6 +69,12 @@ class StackSparseNode(WillumpGraphNode):
 
     def get_output_names(self) -> List[str]:
         return [self._output_name]
+
+    def get_output_type(self) -> WeldType:
+        return self._output_type
+
+    def get_output_types(self) -> List[WeldType]:
+        return [self._output_type]
 
     def __repr__(self):
         return "Stack sparse node for input {0} output {1}\n" \
