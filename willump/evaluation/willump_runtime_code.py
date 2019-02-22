@@ -12,5 +12,5 @@ def willump_cache(func: Callable, args: tuple, cache: dict):
 
 
 def cascade_dense_stacker(more_important_vecs, less_important_vecs, small_model_output):
-    output = np.hstack((*less_important_vecs, *more_important_vecs))
+    output = np.hstack((*more_important_vecs, *less_important_vecs))
     return output

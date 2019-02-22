@@ -231,27 +231,33 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
     return output_block
 
 
-def get_combiner_node(node_one: WillumpGraphNode, node_two: WillumpGraphNode, orig_node: WillumpGraphNode) \
+def get_combiner_node(mi_head: WillumpGraphNode, li_head: WillumpGraphNode, orig_node: WillumpGraphNode) \
         -> WillumpGraphNode:
     """
     Generate a node that will fuse node_one and node_two to match the output of orig_node.  Requires all
     three nodes be of the same type.
     """
-    assert (len(orig_node.get_output_types()) == len(node_one.get_output_types()) == len(
-        node_two.get_output_types()) == 1)
+    assert (len(orig_node.get_output_types()) == len(mi_head.get_output_types()) == len(
+        li_head.get_output_types()) == 1)
     orig_output_type = orig_node.get_output_types()[0]
     if isinstance(orig_output_type, WeldCSR):
-        return StackSparseNode(input_nodes=[node_one, node_two],
-                               input_names=[node_one.get_output_names()[0], node_two.get_output_names()[0]],
+        return StackSparseNode(input_nodes=[mi_head, li_head],
+                               input_names=[mi_head.get_output_names()[0], li_head.get_output_names()[0]],
                                output_name=orig_node.get_output_names()[0],
                                output_type=orig_output_type)
     elif isinstance(orig_output_type, WeldPandas):
-        return PandasColumnSelectionNode(input_nodes=[node_one, node_two],
-                                         input_names=[node_one.get_output_names()[0], node_two.get_output_names()[0]],
+        mi_output_types = mi_head.get_output_types()[0]
+        li_output_types = li_head.get_output_types()[0]
+        assert(isinstance(mi_output_types, WeldPandas) and isinstance(li_output_types, WeldPandas))
+        new_selected_columns = mi_output_types.column_names + li_output_types.column_names
+        new_field_types = mi_output_types.field_types + li_output_types.field_types
+        new_output_type = WeldPandas(field_types=new_field_types, column_names=new_selected_columns)
+        return PandasColumnSelectionNode(input_nodes=[mi_head, li_head],
+                                         input_names=[mi_head.get_output_names()[0], li_head.get_output_names()[0]],
                                          output_name=orig_node.get_output_names()[0],
-                                         input_types=[node_one.get_output_types()[0], node_two.get_output_types()[0]],
-                                         selected_columns=orig_output_type.column_names,
-                                         output_type=orig_output_type)
+                                         input_types=[mi_output_types, li_output_types],
+                                         selected_columns=new_selected_columns,
+                                         output_type=new_output_type)
     else:
         panic("Unrecognized combiner output type %s" % orig_output_type)
 
@@ -383,7 +389,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         proba_output_name = "small__proba_" + orig_model_node.get_output_name()
         output_type = WeldVec(WeldDouble())
         typing_map[proba_output_name] = output_type
-        assert (len(new_input_node.get_output_names()), 1)
+        assert (len(new_input_node.get_output_names()) == 1)
         new_input_name = new_input_node.get_output_names()[0]
         if isinstance(orig_model_node, LinearRegressionNode):
             predict_proba_node = LinearRegressionNode(input_node=new_input_node,
@@ -414,7 +420,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
             -> Tuple[WillumpModelNode, CascadeCombinePredictionsNode]:
         output_name = orig_model_node.get_output_name()
         output_type = orig_model_node.get_output_type()
-        assert (len(new_input_node.get_output_names()), 1)
+        assert (len(new_input_node.get_output_names()) == 1)
         new_input_name = new_input_node.get_output_names()[0]
         if isinstance(orig_model_node, LinearRegressionNode):
             big_model_output = LinearRegressionNode(input_node=new_input_node,
@@ -460,16 +466,20 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                           output_name=orig_node.get_output_names()[0],
                                           output_type=orig_output_type)
         elif isinstance(orig_output_type, WeldPandas):
+            mi_output_types = mi_head.get_output_types()[0]
+            li_output_types = li_head.get_output_types()[0]
+            assert(isinstance(mi_output_types, WeldPandas) and isinstance(li_output_types, WeldPandas))
+            new_selected_columns = mi_output_types.column_names + li_output_types.column_names
             return CascadeColumnSelectionNode(more_important_nodes=[mi_head],
                                               more_important_names=[mi_head.get_output_names()[0]],
-                                              more_important_types=[mi_head.get_output_types()[0]],
+                                              more_important_types=[mi_output_types],
                                               less_important_nodes=[li_head],
                                               less_important_names=[li_head.get_output_names()[0]],
-                                              less_important_types=[li_head.get_output_types()[0]],
+                                              less_important_types=[li_output_types],
                                               output_name=orig_node.get_output_names()[0],
                                               small_model_output_node=small_model_output_node,
                                               small_model_output_name=small_model_output_node.get_output_name(),
-                                              selected_columns=orig_output_type.column_names)
+                                              selected_columns=new_selected_columns)
         elif isinstance(orig_output_type, WeldVec):
             assert (isinstance(orig_output_type.elemType, WeldVec))
             return CascadeStackDenseNode(more_important_nodes=[mi_head],
