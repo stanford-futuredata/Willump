@@ -1,26 +1,26 @@
-from typing import MutableMapping, List, Tuple, Mapping, Optional
-import copy
-import willump.evaluation.willump_graph_passes as wg_passes
-
 import ast
-from willump import *
-from willump.willump_utilities import *
+import copy
+from typing import MutableMapping, List, Tuple, Mapping, Optional
 
-from willump.graph.willump_graph_node import WillumpGraphNode
+import willump.evaluation.willump_graph_passes as wg_passes
+from willump import *
 from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
-from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
-from willump.graph.hash_join_node import WillumpHashJoinNode
-from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
-from willump.graph.willump_training_node import WillumpTrainingNode
+from willump.graph.cascade_column_selection_node import CascadeColumnSelectionNode
+from willump.graph.cascade_combine_predictions_node import CascadeCombinePredictionsNode
+from willump.graph.cascade_stack_sparse_node import CascadeStackSparseNode
+from willump.graph.cascade_threshold_proba_node import CascadeThresholdProbaNode
+from willump.graph.hash_join_node import WillumpHashJoinNode
+from willump.graph.identity_node import IdentityNode
+from willump.graph.linear_regression_node import LinearRegressionNode
+from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
+from willump.graph.stack_sparse_node import StackSparseNode
+from willump.graph.trees_model_node import TreesModelNode
+from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_model_node import WillumpModelNode
 from willump.graph.willump_python_node import WillumpPythonNode
-from willump.graph.cascade_threshold_proba_node import CascadeThresholdProbaNode
-from willump.graph.linear_regression_node import LinearRegressionNode
-from willump.graph.cascade_stack_sparse_node import CascadeStackSparseNode
-from willump.graph.cascade_combine_predictions_node import CascadeCombinePredictionsNode
-from willump.graph.cascade_column_selection_node import CascadeColumnSelectionNode
-from willump.graph.trees_model_node import TreesModelNode
+from willump.graph.willump_training_node import WillumpTrainingNode
+from willump.willump_utilities import *
 
 
 def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: List[WillumpGraphNode],
@@ -35,101 +35,101 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
 
     It does modify the type map.
     """
-    return_node = None
-    if isinstance(node, ArrayCountVectorizerNode) or isinstance(node, ArrayTfIdfNode):
-        if node in selected_input_sources:
-            if small_model_output_name is not None:
-                node.push_cascade(small_model_output_name)
-            return_node = node
-    elif isinstance(node, StackSparseNode):
-        node_input_nodes = node.get_in_nodes()
-        node_input_names = node.get_in_names()
-        node_output_name = node.get_output_name()
-        new_output_name = ("cascading__%s__" % which) + node_output_name
-        node_output_type = node.get_output_type()
-        new_input_nodes, new_input_names = [], []
-        for node_input_node, node_input_name in zip(node_input_nodes, node_input_names):
-            return_node = graph_from_input_sources(node_input_node, selected_input_sources, typing_map,
-                                                   base_discovery_dict, which, small_model_output_name)
-            if return_node is not None:
-                new_input_nodes.append(return_node)
-                new_input_names.append(return_node.get_output_name())
-        return_node = StackSparseNode(input_nodes=new_input_nodes,
-                                      input_names=new_input_names,
-                                      output_name=new_output_name,
-                                      output_type=node_output_type)
-        typing_map[new_output_name] = node_output_type
-    elif isinstance(node, PandasColumnSelectionNode):
-        node_input_nodes = node.get_in_nodes()
-        new_input_nodes = [graph_from_input_sources(node_input_node, selected_input_sources,
-                                                    typing_map, base_discovery_dict, which, small_model_output_name) for
-                           node_input_node in node_input_nodes]
-        if not all(new_input_node is None for new_input_node in new_input_nodes):
-            assert all(isinstance(new_input_node, WillumpHashJoinNode) for new_input_node in new_input_nodes)
-            new_input_names = [new_input_node.get_output_name() for new_input_node in new_input_nodes]
+    def graph_from_input_sources_recursive(node):
+        return_node = None
+        if isinstance(node, ArrayCountVectorizerNode) or isinstance(node, ArrayTfIdfNode):
+            if node in selected_input_sources:
+                if small_model_output_name is not None:
+                    node.push_cascade(small_model_output_name)
+                return_node = node
+        elif isinstance(node, StackSparseNode):
+            node_input_nodes = node.get_in_nodes()
+            node_input_names = node.get_in_names()
             node_output_name = node.get_output_name()
             new_output_name = ("cascading__%s__" % which) + node_output_name
-            new_input_types: List[WeldPandas] = [new_input_node.get_output_type() for new_input_node in new_input_nodes]
-            selected_columns = node.selected_columns
-            new_selected_columns = list(
-                filter(lambda x: any(x in new_input_type.column_names for new_input_type in new_input_types),
-                       selected_columns))
-            orig_output_type = node.get_output_type()
-            if isinstance(orig_output_type, WeldPandas):
-                col_map = {col_name: col_type for col_name, col_type in
-                           zip(orig_output_type.column_names, orig_output_type.field_types)}
-                new_field_types = [col_map[col_name] for col_name in new_selected_columns]
-                new_output_type = WeldPandas(field_types=new_field_types, column_names=new_selected_columns)
-            else:
-                assert False
-            return_node = PandasColumnSelectionNode(input_nodes=new_input_nodes,
-                                                    input_names=new_input_names,
-                                                    output_name=new_output_name,
-                                                    input_types=new_input_types,
-                                                    selected_columns=new_selected_columns,
-                                                    output_type=new_output_type)
-            typing_map[new_output_name] = return_node.get_output_type()
-    elif isinstance(node, WillumpHashJoinNode):
-        base_node = wg_passes.find_dataframe_base_node(node, base_discovery_dict)
-        node_input_node = node.get_in_nodes()[0]
-        if node in selected_input_sources:
-            if node is base_node:
-                new_input_node = base_node.get_in_nodes()[0]
-                new_input_name = base_node.get_in_names()[0]
-                new_input_type = base_node.left_df_type
-            else:
-                new_input_node = graph_from_input_sources(node_input_node, selected_input_sources,
-                                                          typing_map, base_discovery_dict, which,
-                                                          small_model_output_name)
-                if new_input_node is None:
+            node_output_type = node.get_output_type()
+            new_input_nodes, new_input_names = [], []
+            for node_input_node, node_input_name in zip(node_input_nodes, node_input_names):
+                return_node = graph_from_input_sources_recursive(node_input_node)
+                if return_node is not None:
+                    new_input_nodes.append(return_node)
+                    new_input_names.append(return_node.get_output_name())
+            return_node = StackSparseNode(input_nodes=new_input_nodes,
+                                          input_names=new_input_names,
+                                          output_name=new_output_name,
+                                          output_type=node_output_type)
+            typing_map[new_output_name] = node_output_type
+        elif isinstance(node, PandasColumnSelectionNode):
+            node_input_nodes = node.get_in_nodes()
+            new_input_nodes = [graph_from_input_sources_recursive(node_input_node) for
+                               node_input_node in node_input_nodes]
+            if not all(new_input_node is None for new_input_node in new_input_nodes):
+                assert all(isinstance(new_input_node, WillumpHashJoinNode) for new_input_node in new_input_nodes)
+                new_input_names = [new_input_node.get_output_name() for new_input_node in new_input_nodes]
+                node_output_name = node.get_output_name()
+                new_output_name = ("cascading__%s__" % which) + node_output_name
+                new_input_types: List[WeldPandas] = [new_input_node.get_output_type() for new_input_node in new_input_nodes]
+                selected_columns = node.selected_columns
+                new_selected_columns = list(
+                    filter(lambda x: any(x in new_input_type.column_names for new_input_type in new_input_types),
+                           selected_columns))
+                orig_output_type = node.get_output_type()
+                if isinstance(orig_output_type, WeldPandas):
+                    col_map = {col_name: col_type for col_name, col_type in
+                               zip(orig_output_type.column_names, orig_output_type.field_types)}
+                    new_field_types = [col_map[col_name] for col_name in new_selected_columns]
+                    new_output_type = WeldPandas(field_types=new_field_types, column_names=new_selected_columns)
+                else:
+                    assert False
+                return_node = PandasColumnSelectionNode(input_nodes=new_input_nodes,
+                                                        input_names=new_input_names,
+                                                        output_name=new_output_name,
+                                                        input_types=new_input_types,
+                                                        selected_columns=new_selected_columns,
+                                                        output_type=new_output_type)
+                typing_map[new_output_name] = return_node.get_output_type()
+        elif isinstance(node, WillumpHashJoinNode):
+            base_node = wg_passes.find_dataframe_base_node(node, base_discovery_dict)
+            node_input_node = node.get_in_nodes()[0]
+            if node in selected_input_sources:
+                if node is base_node:
                     new_input_node = base_node.get_in_nodes()[0]
                     new_input_name = base_node.get_in_names()[0]
                     new_input_type = base_node.left_df_type
                 else:
-                    assert (isinstance(new_input_node, WillumpHashJoinNode))
-                    new_input_name = new_input_node.get_output_name()
-                    new_input_type = new_input_node.get_output_type()
-            return_node = copy.copy(node)
-            if small_model_output_name is not None:
-                return_node.push_cascade(small_model_output_name)
-            return_node._input_nodes = copy.copy(node._input_nodes)
-            return_node._input_nodes[0] = new_input_node
-            return_node._input_names = copy.copy(node._input_names)
-            return_node._input_names[0] = new_input_name
-            return_node.left_input_name = new_input_name
-            return_node.left_df_type = new_input_type
-            return_node._output_type = \
-                WeldPandas(field_types=new_input_type.field_types + node.right_df_type.field_types,
-                           column_names=new_input_type.column_names + node.right_df_type.column_names)
-            typing_map[return_node.get_output_name()] = return_node.get_output_type()
-        elif node is not base_node:
-            return graph_from_input_sources(node_input_node, selected_input_sources, typing_map, base_discovery_dict,
-                                            which, small_model_output_name)
+                    new_input_node = graph_from_input_sources_recursive(node_input_node)
+                    if new_input_node is None:
+                        new_input_node = base_node.get_in_nodes()[0]
+                        new_input_name = base_node.get_in_names()[0]
+                        new_input_type = base_node.left_df_type
+                    else:
+                        assert (isinstance(new_input_node, WillumpHashJoinNode))
+                        new_input_name = new_input_node.get_output_name()
+                        new_input_type = new_input_node.get_output_type()
+                return_node = copy.copy(node)
+                if small_model_output_name is not None:
+                    return_node.push_cascade(small_model_output_name)
+                return_node._input_nodes = copy.copy(node._input_nodes)
+                return_node._input_nodes[0] = new_input_node
+                return_node._input_names = copy.copy(node._input_names)
+                return_node._input_names[0] = new_input_name
+                return_node.left_input_name = new_input_name
+                return_node.left_df_type = new_input_type
+                return_node._output_type = \
+                    WeldPandas(field_types=new_input_type.field_types + node.right_df_type.field_types,
+                               column_names=new_input_type.column_names + node.right_df_type.column_names)
+                typing_map[return_node.get_output_name()] = return_node.get_output_type()
+            elif node is not base_node:
+                return graph_from_input_sources_recursive(node_input_node)
+            else:
+                pass
+        elif isinstance(node, IdentityNode):
+            input_node = node.get_in_nodes()[0]
+            return graph_from_input_sources_recursive(input_node)
         else:
-            pass
-    else:
-        panic("Unrecognized node found when making cascade %s" % node.__repr__())
-    return return_node
+            panic("Unrecognized node found when making cascade %s" % node.__repr__())
+        return return_node
+    return graph_from_input_sources_recursive(node)
 
 
 def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_discovery_dict) \
@@ -157,6 +157,9 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
             if input_node is not base_node:
                 join_left_input_node = input_node.get_in_nodes()[0]
                 current_node_stack.append(join_left_input_node)
+        elif isinstance(input_node, IdentityNode):
+            output_block.insert(0, input_node)
+            current_node_stack += input_node.get_in_nodes()
         else:
             panic("Unrecognized node found when making cascade dependencies: %s" % input_node.__repr__())
     return output_block
@@ -168,24 +171,22 @@ def get_combiner_node(node_one: WillumpGraphNode, node_two: WillumpGraphNode, or
     Generate a node that will fuse node_one and node_two to match the output of orig_node.  Requires all
     three nodes be of the same type.
     """
-    if isinstance(node_one, StackSparseNode):
-        assert (isinstance(node_two, StackSparseNode))
-        assert (isinstance(orig_node, StackSparseNode))
+    assert(len(orig_node.get_output_types()) == len(node_one.get_output_types()) == len(node_two.get_output_types()) == 1)
+    orig_output_type = orig_node.get_output_types()[0]
+    if isinstance(orig_output_type, WeldCSR):
         return StackSparseNode(input_nodes=[node_one, node_two],
-                               input_names=[node_one.get_output_name(), node_two.get_output_name()],
-                               output_name=orig_node.get_output_name(),
-                               output_type=orig_node.get_output_type())
-    elif isinstance(node_one, PandasColumnSelectionNode):
-        assert (isinstance(node_two, PandasColumnSelectionNode))
-        assert (isinstance(orig_node, PandasColumnSelectionNode))
+                               input_names=[node_one.get_output_names()[0], node_two.get_output_names()[0]],
+                               output_name=orig_node.get_output_names()[0],
+                               output_type=orig_output_type)
+    elif isinstance(orig_output_type, WeldPandas):
         return PandasColumnSelectionNode(input_nodes=[node_one, node_two],
-                                         input_names=[node_one.get_output_name(), node_two.get_output_name()],
-                                         output_name=orig_node.get_output_name(),
-                                         input_types=[node_one.get_output_type(), node_two.get_output_type()],
-                                         selected_columns=orig_node.selected_columns,
-                                         output_type=orig_node.get_output_type())
+                                         input_names=[node_one.get_output_names()[0], node_two.get_output_names()[0]],
+                                         output_name=orig_node.get_output_names()[0],
+                                         input_types=[node_one.get_output_types()[0], node_two.get_output_types()[0]],
+                                         selected_columns=orig_output_type.column_names,
+                                         output_type=orig_output_type)
     else:
-        panic("Unrecognized nodes being combined: %s %s" % (node_one.__repr__(), node_two.__repr__()))
+        panic("Unrecognized combiner output type %s" % orig_output_type)
 
 
 def split_model_inputs(model_node: WillumpModelNode, feature_importances) -> \
@@ -375,32 +376,31 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         Generate a node that will fuse node_one and node_two to match the output of orig_node.  Requires all
         three nodes be of the same type.
         """
-        if isinstance(mi_head, StackSparseNode):
-            assert (isinstance(li_head, StackSparseNode))
-            assert (isinstance(orig_node, StackSparseNode))
+        assert (len(orig_node.get_output_types()) == len(mi_head.get_output_types()) == len(
+            li_head.get_output_types()) == 1)
+        orig_output_type = orig_node.get_output_types()[0]
+        if isinstance(orig_output_type, WeldCSR):
             return CascadeStackSparseNode(more_important_nodes=[mi_head],
-                                          more_important_names=[mi_head.get_output_name()],
+                                          more_important_names=[mi_head.get_output_names()[0]],
                                           less_important_nodes=[li_head],
-                                          less_important_names=[li_head.get_output_name()],
+                                          less_important_names=[li_head.get_output_names()[0]],
                                           small_model_output_node=small_model_output_node,
                                           small_model_output_name=small_model_output_node.get_output_name(),
-                                          output_name=orig_node.get_output_name(),
-                                          output_type=orig_node.get_output_type())
-        elif isinstance(mi_head, PandasColumnSelectionNode):
-            assert (isinstance(li_head, PandasColumnSelectionNode))
-            assert (isinstance(orig_node, PandasColumnSelectionNode))
+                                          output_name=orig_node.get_output_names()[0],
+                                          output_type=orig_output_type)
+        elif isinstance(orig_output_type, WeldPandas):
             return CascadeColumnSelectionNode(more_important_nodes=[mi_head],
-                                              more_important_names=[mi_head.get_output_name()],
-                                              more_important_types=[mi_head.get_output_type()],
+                                              more_important_names=[mi_head.get_output_names()[0]],
+                                              more_important_types=[mi_head.get_output_types()[0]],
                                               less_important_nodes=[li_head],
-                                              less_important_names=[li_head.get_output_name()],
-                                              less_important_types=[li_head.get_output_type()],
-                                              output_name=orig_node.get_output_name(),
+                                              less_important_names=[li_head.get_output_names()[0]],
+                                              less_important_types=[li_head.get_output_types()[0]],
+                                              output_name=orig_node.get_output_names()[0],
                                               small_model_output_node=small_model_output_node,
                                               small_model_output_name=small_model_output_node.get_output_name(),
-                                              selected_columns=orig_node.selected_columns)
+                                              selected_columns=orig_output_type.column_names)
         else:
-            panic("Unrecognized nodes being combined: %s %s" % (mi_head.__repr__(), li_head.__repr__()))
+            panic("Unrecognized combiner output type %s" % orig_output_type)
 
     for node in sorted_nodes:
         if isinstance(node, WillumpModelNode):

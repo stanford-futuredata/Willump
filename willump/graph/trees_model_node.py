@@ -20,7 +20,8 @@ class TreesModelNode(WillumpModelNode, WillumpPythonNode):
                  predict_proba=False) -> None:
         assert(isinstance(output_type, WeldVec))
         python_ast = self._make_python_ast(input_name, output_name, model_name, predict_proba, output_type)
-        super(TreesModelNode, self).__init__(python_ast, [input_name], [output_name], [input_node])
+        super(TreesModelNode, self).__init__(python_ast=python_ast, input_names=[input_name], output_names=[output_name],
+                                             in_nodes=[input_node], output_types=[output_type])
         self.input_width = input_width
         self.model_name = model_name
         self._output_name = output_name

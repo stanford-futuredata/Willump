@@ -344,9 +344,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 input_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
                 input_node = self._node_dict[input_name]
                 if isinstance(input_node, WillumpHashJoinNode) or isinstance(input_node, PandasColumnSelectionNode):
-                    input_node._output_name = output_var_name
+                    output_type = self._type_map[output_var_name]
                     # NaNs within Hash Join nodes are handled by the nodes.
-                    return output_var_name, self._node_dict[input_name]
+                    identity_node = IdentityNode(input_node=input_node, input_name=input_name,
+                                                 output_name=output_var_name, output_type=output_type)
+                    return output_var_name, identity_node
                 else:
                     return create_single_output_py_node(node)
             elif ".concat" in called_function and len(value.args) == 1 and isinstance(value.args[0], ast.List) \
