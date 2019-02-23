@@ -232,37 +232,6 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
     return output_block
 
 
-def get_combiner_node(mi_head: WillumpGraphNode, li_head: WillumpGraphNode, orig_node: WillumpGraphNode) \
-        -> WillumpGraphNode:
-    """
-    Generate a node that will fuse node_one and node_two to match the output of orig_node.  Requires all
-    three nodes be of the same type.
-    """
-    assert (len(orig_node.get_output_types()) == len(mi_head.get_output_types()) == len(
-        li_head.get_output_types()) == 1)
-    orig_output_type = orig_node.get_output_types()[0]
-    if isinstance(orig_output_type, WeldCSR):
-        return StackSparseNode(input_nodes=[mi_head, li_head],
-                               input_names=[mi_head.get_output_names()[0], li_head.get_output_names()[0]],
-                               output_name=orig_node.get_output_names()[0],
-                               output_type=orig_output_type)
-    elif isinstance(orig_output_type, WeldPandas):
-        mi_output_types = mi_head.get_output_types()[0]
-        li_output_types = li_head.get_output_types()[0]
-        assert (isinstance(mi_output_types, WeldPandas) and isinstance(li_output_types, WeldPandas))
-        new_selected_columns = mi_output_types.column_names + li_output_types.column_names
-        new_field_types = mi_output_types.field_types + li_output_types.field_types
-        new_output_type = WeldPandas(field_types=new_field_types, column_names=new_selected_columns)
-        return PandasColumnSelectionNode(input_nodes=[mi_head, li_head],
-                                         input_names=[mi_head.get_output_names()[0], li_head.get_output_names()[0]],
-                                         output_name=orig_node.get_output_names()[0],
-                                         input_types=[mi_output_types, li_output_types],
-                                         selected_columns=new_selected_columns,
-                                         output_type=new_output_type)
-    else:
-        panic("Unrecognized combiner output type %s" % orig_output_type)
-
-
 def split_model_inputs(model_node: WillumpModelNode, feature_importances) -> \
         Tuple[List[WillumpGraphNode], List[WillumpGraphNode]]:
     """
@@ -294,6 +263,39 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     features into "more important" and "less important."  Train a small model on only more important features
     and a big model on all features.
     """
+
+    def get_combiner_node(mi_head: WillumpGraphNode, li_head: WillumpGraphNode, orig_node: WillumpGraphNode) \
+            -> WillumpGraphNode:
+        """
+        Generate a node that will fuse node_one and node_two to match the output of orig_node.  Requires all
+        three nodes be of the same type.
+        """
+        assert (len(orig_node.get_output_types()) == len(mi_head.get_output_types()) == len(
+            li_head.get_output_types()) == 1)
+        orig_output_type = orig_node.get_output_types()[0]
+        if isinstance(orig_output_type, WeldCSR):
+            return StackSparseNode(input_nodes=[mi_head, li_head],
+                                   input_names=[mi_head.get_output_names()[0], li_head.get_output_names()[0]],
+                                   output_name=orig_node.get_output_names()[0],
+                                   output_type=orig_output_type)
+        elif isinstance(orig_output_type, WeldPandas):
+            mi_output_type = mi_head.get_output_types()[0]
+            li_output_type = li_head.get_output_types()[0]
+            assert (isinstance(mi_output_type, WeldPandas) and isinstance(li_output_type, WeldPandas))
+            new_selected_columns = mi_output_type.column_names + li_output_type.column_names
+            new_field_types = mi_output_type.field_types + li_output_type.field_types
+            assert (set(new_selected_columns) == set(orig_output_type.column_names))
+            output_name = orig_node.get_output_names()[0]
+            output_type = WeldPandas(field_types=new_field_types, column_names=new_selected_columns)
+            typing_map[output_name] = output_type
+            return PandasColumnSelectionNode(input_nodes=[mi_head, li_head],
+                                             input_names=[mi_head.get_output_names()[0], li_head.get_output_names()[0]],
+                                             output_name=output_name,
+                                             input_types=[mi_output_type, li_output_type],
+                                             selected_columns=new_selected_columns,
+                                             output_type=output_type)
+        else:
+            panic("Unrecognized combiner output type %s" % orig_output_type)
 
     def recreate_training_node(new_input_node: WillumpGraphNode, orig_node: WillumpTrainingNode,
                                output_prefix) -> WillumpTrainingNode:
@@ -472,13 +474,17 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
             li_output_types = li_head.get_output_types()[0]
             assert (isinstance(mi_output_types, WeldPandas) and isinstance(li_output_types, WeldPandas))
             new_selected_columns = mi_output_types.column_names + li_output_types.column_names
+            new_field_types = mi_output_types.field_types + li_output_types.field_types
+            output_name = orig_node.get_output_names()[0]
+            new_output_type = WeldPandas(column_names=new_selected_columns, field_types=new_field_types)
+            typing_map[output_name] = new_output_type
             return CascadeColumnSelectionNode(more_important_nodes=[mi_head],
                                               more_important_names=[mi_head.get_output_names()[0]],
                                               more_important_types=[mi_output_types],
                                               less_important_nodes=[li_head],
                                               less_important_names=[li_head.get_output_names()[0]],
                                               less_important_types=[li_output_types],
-                                              output_name=orig_node.get_output_names()[0],
+                                              output_name=output_name,
                                               small_model_output_node=small_model_output_node,
                                               small_model_output_name=small_model_output_node.get_output_name(),
                                               selected_columns=new_selected_columns)

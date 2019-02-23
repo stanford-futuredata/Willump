@@ -141,7 +141,7 @@ def py_weld_program_to_statements(
             python_string = "%s = %s.caller_func(%s)" % (output_string, module_name, argument_string)
             python_ast_module: ast.Module = ast.parse(python_string)
             all_python_program = all_python_program + python_ast_module.body
-    all_python_program.insert(-5, ast.parse("print(cascading__more__train_data)").body[0])
+    # all_python_program.insert(-5, ast.parse("print(cascading__more__train_data)").body[0])
     return all_python_program, module_to_import
 
 
