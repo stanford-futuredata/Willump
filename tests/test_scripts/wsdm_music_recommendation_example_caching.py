@@ -29,8 +29,6 @@ else:
     cascades = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_training_cascades.pk", "rb"))
     cascade_threshold = args.cascades
 
-num_queries = 0
-
 
 def get_row_to_merge_features_uf(key):
     global num_queries
@@ -164,9 +162,18 @@ def get_row_to_merge_regs_features(key):
     return regs_features.loc[key]
 
 
-@willump.evaluation.willump_executor.willump_execute(batch=False,
-                                                     eval_cascades=cascades,
-                                                     cascade_threshold=cascade_threshold)
+cached_funcs = ["get_row_to_merge_features_uf", "get_row_to_merge_features_sf", "get_row_to_merge_cluster_one",
+                "get_row_to_merge_cluster_two", "get_row_to_merge_cluster_three", "get_row_to_merge_uc_features",
+                "get_row_to_merge_sc_features", "get_row_to_merge_ac_features", "get_row_to_merge_us_features",
+                "get_row_to_merge_ss_features", "get_row_to_merge_as_features", "get_row_to_merge_gs_features",
+                "get_row_to_merge_cs_features", "get_row_to_merge_ages_features", "get_row_to_merge_ls_features",
+                "get_row_to_merge_gender_features", "get_row_to_merge_composer_features",
+                "get_row_to_merge_lyrs_features", "get_row_to_merge_sns_features", "get_row_to_merge_stabs_features",
+                "get_row_to_merge_stypes_features", "get_row_to_merge_regs_features"]
+
+
+@willump.evaluation.willump_executor.willump_execute(batch=False, cached_funcs=cached_funcs,
+                                                     eval_cascades=cascades, cascade_threshold=cascade_threshold)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,
@@ -334,20 +341,26 @@ def add_features_and_predict(folder, combi):
     print('Latent feature join in %f seconds rows %d throughput %f: ' % (
         elapsed_time, num_rows, num_rows / elapsed_time))
 
-    print("Number of \"remote\" queries made: %d" % num_queries)
-
     return preds
 
 
 def create_featureset(folder):
+    global num_queries
     combi = load_combi_prep(folder=folder, split=None)
     combi = combi.dropna(subset=["target"])
     y = combi["target"].values
-
-    combi, _, y, _ = train_test_split(combi, y, test_size=0.33, random_state=42)
+    num_queries = 0
+    
+    combi_train, combi_valid, y_train, y_valid = train_test_split(combi, y, test_size=0.33, random_state=42)
     # Add features and predict.
-    y_pred = add_features_and_predict(folder, combi)
-    print("Train AUC: %f" % auc_score(y, y_pred))
+    y_pred = add_features_and_predict(folder, combi_train)
+    print("Train AUC: %f" % auc_score(y_train, y_pred))
+    print("Train: Number of \"remote\" queries made: %d" % num_queries)
+    num_queries = 0
+
+    y_pred = add_features_and_predict(folder, combi_valid)
+    print("Valid AUC: %f" % auc_score(y_valid, y_pred))
+    print("Valid: Number of \"remote\" queries made: %d" % num_queries)
 
 
 if __name__ == '__main__':

@@ -84,8 +84,6 @@ def scol_features(folder, combi, col, prefix):
 def add_features_and_train_model(folder, combi):
     y = combi["target"].values
 
-    combi, _, y, _ = train_test_split(combi, y, test_size=0.33, random_state=42)
-
     features_uf, join_col_uf = load_als_dataframe(folder, size=UF_SIZE, user=True, artist=False)
     features_sf, join_col_sf = load_als_dataframe(folder, size=SF_SIZE, user=False, artist=False)
     cluster_one, join_col_cluster_one = add_cluster(folder, col='msno', size=UC_SIZE, overlap=True, positive=True,
@@ -148,6 +146,8 @@ def add_features_and_train_model(folder, combi):
     # SOURCE TYPE FEATURES
     regs_features, regs_col = scol_features(folder, combi, 'registered_via', 'rv_')
     regs_features = regs_features.reset_index(drop=True)
+
+    combi, _, y, _ = train_test_split(combi, y, test_size=0.33, random_state=42)
 
     num_rows = len(combi)
 
