@@ -54,3 +54,14 @@ typedef struct weld_thread_runner {
 } weld_thread_runner;
 
 extern "C" void* weld_runst_init(i32, i64);
+
+i64* csr_matrix_row_maker(i64* indptr, int new_row_len, int indptr_len) {
+    i64* new_row = (i64*) malloc(new_row_len * sizeof(i64));
+    int indptr_index = 0;
+    for(int i = 0; i < new_row_len; i++) {
+        if (indptr_index < indptr_len and i >= indptr[indptr_index + 1])
+            indptr_index += 1;
+        new_row[i] = indptr_index;
+    }
+    return new_row;
+}

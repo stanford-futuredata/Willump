@@ -220,7 +220,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     return create_single_output_py_node(node)
             elif ".transform" in called_function:
                 lineno = str(node.lineno)
-                if WILLUMP_COUNT_VECTORIZER_VOCAB + lineno not in self._static_vars or \
+                if WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno not in self._static_vars or\
+                    WILLUMP_COUNT_VECTORIZER_VOCAB + lineno not in self._static_vars or \
                         self._static_vars[WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno] is True:
                     return create_single_output_py_node(node)
                 vectorizer_input_var: str = self.get_load_name(value.args[0].id, node.lineno, self._type_map)

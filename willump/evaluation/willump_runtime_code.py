@@ -14,3 +14,11 @@ def willump_cache(func: Callable, args: tuple, cache: dict):
 def cascade_dense_stacker(more_important_vecs, less_important_vecs, small_model_output):
     output = np.hstack((*more_important_vecs, *less_important_vecs))
     return output
+
+
+def csr_marshall(csr_matrix):
+    indices = csr_matrix.indices
+    data = csr_matrix.data
+    length, width = csr_matrix.shape
+    indptr = csr_matrix.indptr
+    return indptr, indices, data, length, width

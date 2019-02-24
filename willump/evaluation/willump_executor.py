@@ -239,6 +239,7 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                         augmented_globals["%s%d" % (WILLUMP_CACHE_NAME, i)] = {}
                     augmented_globals["willump_cache"] = willump_cache
                     augmented_globals["cascade_dense_stacker"] = cascade_dense_stacker
+                    augmented_globals["csr_marshall"] = csr_marshall
                     augmented_globals[WILLUMP_TRAINING_CASCADE_NAME] = training_cascades
                     if len(async_funcs) > 0:
                         augmented_globals[WILLUMP_THREAD_POOL_EXECUTOR] = \

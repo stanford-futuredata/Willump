@@ -355,8 +355,6 @@ def weld_csr_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_
         -> Tuple[List[WillumpPythonNode], List[WillumpPythonNode]]:
     """
     Processing pass creating Python code to marshall CSR-format sparse matrices from Weld into Python.
-
-    # TODO:  Go the other way even if the CSR matrix came from Python.
     """
     csr_input_processing_nodes: List[WillumpPythonNode] = []
     csr_post_processing_nodes: List[WillumpPythonNode] = []
@@ -366,7 +364,7 @@ def weld_csr_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_
         store_weld_form_name = "weld_csr_" + stripped_input_name
         temp_name = "temp_" + stripped_input_name
         if isinstance(input_type, WeldCSR):
-            csr_marshall = """{0}, {2} = {1}, {0}\n""".format(
+            csr_marshall = """{0}, {2} = csr_marshall({0}), {0}\n""".format(
                 stripped_input_name, store_weld_form_name, temp_name)
             csr_creation_ast: ast.Module = \
                 ast.parse(csr_marshall, "exec")

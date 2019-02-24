@@ -134,11 +134,14 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                     static_variable_extraction_code = \
                         """willump_static_vars["{0}"] = {1}.{2}\n""" \
                             .format(WILLUMP_COUNT_VECTORIZER_VOCAB + lineno, transformer_name, "vocabulary_") + \
-                        """willump_static_vars["{0}"] = {1}.{2}\n""" \
+                        """if type({0}).__name__ == "TfidfVectorizer" or type({0}).__name__ == "CountVectorizer":\n""".format(transformer_name) + \
+                        """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
                             .format(WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno, transformer_name, "analyzer") + \
-                        """willump_static_vars["{0}"] = {1}.{2}\n""" \
+                        """if type({0}).__name__ == "TfidfVectorizer" or type({0}).__name__ == "CountVectorizer":\n""".format(transformer_name) + \
+                        """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
                             .format(WILLUMP_COUNT_VECTORIZER_NGRAM_RANGE + lineno, transformer_name, "ngram_range") + \
-                        """willump_static_vars["{0}"] = {1}.{2}\n""" \
+                        """if type({0}).__name__ == "TfidfVectorizer" or type({0}).__name__ == "CountVectorizer":\n""".format(transformer_name) + \
+                        """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
                             .format(WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno, transformer_name, "lowercase") + \
                         """if type({0}).__name__ == "TfidfVectorizer":\n""".format(transformer_name) + \
                         """\twillump_static_vars["{0}"] = {1}.{2}\n""" \

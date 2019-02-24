@@ -22,7 +22,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
     """
     willump_home: str = os.environ["WILLUMP_HOME"]
     if base_filename is not "weld_llvm_caller":
-        assert(len(entry_point_names) == 1)
+        assert (len(entry_point_names) == 1)
         if base_filename is "hash_join_dataframe_indexer":
             buffer = generate_hash_join_dataframe_indexer_driver(type_map, input_names)
         else:
@@ -31,9 +31,12 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
         buffer = buffer.replace(base_filename, base_filename + str(file_version))
         buffer = buffer.replace("WELD_ENTRY_POINT", entry_point_names[0])
     else:
-        def name_typer(name): return type_map[name]
+        def name_typer(name):
+            return type_map[name]
+
         input_types: List[WeldType] = list(map(name_typer, input_names))
-        output_types_list: List[List[WeldType]] = list(map(lambda type_list: list(map(name_typer, type_list)), output_names))
+        output_types_list: List[List[WeldType]] = list(
+            map(lambda type_list: list(map(name_typer, type_list)), output_names))
         num_outputs = sum(map(len, output_names))
         buffer = ""
         # Header boilerplate.
@@ -212,7 +215,9 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
     acceptor_string = ""
     for i, input_type in enumerate(input_types):
         input_name = "driver_input{0}".format(i)
-        if isinstance(input_type, WeldStr) or wtype_is_scalar(input_type) or isinstance(input_type, WeldPandas) or isinstance(input_type, WeldCSR):
+        if isinstance(input_type, WeldStr) or wtype_is_scalar(input_type) or isinstance(input_type,
+                                                                                        WeldPandas) or isinstance(
+                input_type, WeldCSR):
             acceptor_string += ", &{0}".format(input_name)
         elif isinstance(input_type, WeldVec):
             if not isinstance(input_type.elemType, WeldStr):
@@ -345,6 +350,13 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                             """ % (weld_input_name, inner_i, inner_i)
                 else:
                     panic("Unrecognized struct field type %s" % str(field_type))
+            # Convert scipy indptr to Willump row lists.
+            if isinstance(input_type, WeldCSR):
+                buffer += \
+                    """
+                    {0}._0.ptr = csr_matrix_row_maker({0}._0.ptr, {0}._1.size, {0}._0.size);
+                    {0}._0.size = {0}._1.size;
+                    """.format(weld_input_name)
             buffer += "}\n"
         elif wtype_is_scalar(input_type):
             buffer += "%s %s = %s;\n" % (wtype_to_c_type(input_type), weld_input_name, input_name)
@@ -466,7 +478,7 @@ def generate_output_parser(output_num: int, output_types: List[WeldType]) -> str
 
 def wtype_is_scalar(wtype: WeldType) -> bool:
     if isinstance(wtype, WeldLong) or isinstance(wtype, WeldInt) or isinstance(wtype, WeldInt16) or \
-            isinstance(wtype, WeldChar) or isinstance(wtype, WeldDouble) or isinstance(wtype, WeldFloat)\
+            isinstance(wtype, WeldChar) or isinstance(wtype, WeldDouble) or isinstance(wtype, WeldFloat) \
             or isinstance(wtype, WeldUnsignedChar):
         return True
     else:
