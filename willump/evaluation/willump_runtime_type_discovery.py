@@ -214,17 +214,17 @@ def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
     # Sparse matrix type used by CountVectorizer
     elif isinstance(py_var, scipy.sparse.csr.csr_matrix):
         if py_var.dtype == numpy.int8:
-            return WeldCSR(WeldChar())
+            return WeldCSR(WeldChar(), width=py_var.shape[1])
         elif py_var.dtype == numpy.int16:
-            return WeldCSR(WeldInt16())
+            return WeldCSR(WeldInt16(), width=py_var.shape[1])
         elif py_var.dtype == numpy.int32:
-            return WeldCSR(WeldInt())
+            return WeldCSR(WeldInt(), width=py_var.shape[1])
         elif py_var.dtype == numpy.int64:
-            return WeldCSR(WeldLong())
+            return WeldCSR(WeldLong(), width=py_var.shape[1])
         elif py_var.dtype == numpy.float32:
-            return WeldCSR(WeldFloat())
+            return WeldCSR(WeldFloat(), width=py_var.shape[1])
         elif py_var.dtype == numpy.float64:
-            return WeldCSR(WeldDouble())
+            return WeldCSR(WeldDouble(), width=py_var.shape[1])
         else:
             panic("Unrecognized ndarray type {0}".format(py_var.dtype.__str__()))
             return None

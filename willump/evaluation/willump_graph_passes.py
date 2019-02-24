@@ -136,8 +136,11 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
             for stacked_node in input_node.get_in_nodes():
                 try:
                     output_width = stacked_node.output_width
-                except AttributeError:  # TODO:  Update
-                    output_width = 2
+                except AttributeError:
+                    assert(len(stacked_node.get_output_types()) == 1)
+                    node_output_type = stacked_node.get_output_types()[0]
+                    assert(isinstance(node_output_type, WeldCSR))
+                    output_width = node_output_type.width
                 current_node_stack.append(
                     (stacked_node, (stack_start_index, stack_start_index + output_width), curr_selection_map))
                 stack_start_index += output_width
