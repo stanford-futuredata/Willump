@@ -2,19 +2,12 @@ import argparse
 import pickle
 import time
 
-from sklearn import metrics
+from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 import willump.evaluation.willump_executor
 from wsdm_utilities import *
-from tqdm import tqdm
-
-
-def auc_score(y_valid, y_pred):
-    fpr, tpr, thresholds = metrics.roc_curve(y_valid, y_pred, pos_label=1)
-    auc = metrics.auc(fpr, tpr)
-    return auc
-
 
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
 
@@ -353,13 +346,14 @@ def create_featureset(folder):
     
     combi_train, combi_valid, y_train, y_valid = train_test_split(combi, y, test_size=0.33, random_state=42)
     # Add features and predict.
-    y_pred = add_features_and_predict(folder, combi_train)
-    print("Train AUC: %f" % auc_score(y_train, y_pred))
+    y_pred = np.hstack(add_features_and_predict(folder, combi_train))
+    print(y_pred)
+    print("Train AUC: %f" % roc_auc_score(y_train, y_pred))
     print("Train: Number of \"remote\" queries made: %d" % num_queries)
     num_queries = 0
 
-    y_pred = add_features_and_predict(folder, combi_valid)
-    print("Valid AUC: %f" % auc_score(y_valid, y_pred))
+    y_pred = np.hstack(add_features_and_predict(folder, combi_valid))
+    print("Valid AUC: %f" % roc_auc_score(y_valid, y_pred))
     print("Valid: Number of \"remote\" queries made: %d" % num_queries)
 
 
