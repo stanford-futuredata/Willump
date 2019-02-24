@@ -21,7 +21,7 @@ class LinearRegressionNode(WillumpModelNode):
     def __init__(self, input_node: WillumpGraphNode, input_name: str, input_type: WeldType, output_name: str,
                  output_type: WeldType,
                  logit_weights, logit_intercept, aux_data: List[Tuple[int, WeldType]],
-                 predict_proba=False) -> None:
+                 predict_proba=False, regression=False) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
@@ -36,8 +36,12 @@ class LinearRegressionNode(WillumpModelNode):
         self._input_names = [input_name, self.weights_data_name, self.intercept_data_name]
         self._input_type = input_type
         self._output_type = output_type
-        self.input_width = len(logit_weights[0])
+        if logit_weights.ndim > 1:
+            logit_weights = logit_weights[0]
+        self.input_width = len(logit_weights)
+        assert not (regression and predict_proba)
         self._predict_proba = predict_proba
+        self._regression = regression
         for entry in self._process_aux_data(logit_weights, logit_intercept):
             aux_data.append(entry)
 
@@ -64,7 +68,7 @@ class LinearRegressionNode(WillumpModelNode):
                                                  base_filename="encode_logistic_regression_model")
         encode_logit_model = importlib.import_module(module_name)
         weld_weights, weld_intercept = \
-            encode_logit_model.caller_func(logit_weights[0], logit_intercept)
+            encode_logit_model.caller_func(logit_weights, logit_intercept)
         return [(weld_weights, WeldVec(WeldDouble())), (weld_intercept, WeldVec(WeldDouble()))]
 
     def get_node_weld(self) -> str:
@@ -74,6 +78,8 @@ class LinearRegressionNode(WillumpModelNode):
             if self._predict_proba:
                 assert (output_elem_type_str == "f64")
                 output_statement = "1.0 / (1.0 + exp( -1.0 * (sum + intercept)))"
+            elif self._regression:
+                output_statement = "OUTPUT_TYPE(sum + intercept)"
             else:
                 output_statement = "select(sum + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))"
             elem_type = self._input_type.elemType.elemType
@@ -102,6 +108,8 @@ class LinearRegressionNode(WillumpModelNode):
             if self._predict_proba:
                 assert (output_elem_type_str == "f64")
                 output_statement = "1.0 / (1.0 + exp( -1.0 * x))"
+            elif self._regression:
+                output_statement = "OUTPUT_TYPE(x)"
             else:
                 output_statement = "select(x > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))"
             weld_program = \
@@ -138,6 +146,8 @@ class LinearRegressionNode(WillumpModelNode):
             if self._predict_proba:
                 assert (output_elem_type_str == "f64")
                 output_statement = "1.0 / (1.0 + exp( -1.0 * sum))"
+            elif self._regression:
+                output_statement = "OUTPUT_TYPE(sum)"
             else:
                 output_statement = "select(sum > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))"
             sum_string = ""

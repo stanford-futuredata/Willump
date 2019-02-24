@@ -134,7 +134,10 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
         elif isinstance(input_node, StackSparseNode):
             stack_start_index = index_start
             for stacked_node in input_node.get_in_nodes():
-                output_width = stacked_node.output_width
+                try:
+                    output_width = stacked_node.output_width
+                except AttributeError:  # TODO:  Update
+                    output_width = 2
                 current_node_stack.append(
                     (stacked_node, (stack_start_index, stack_start_index + output_width), curr_selection_map))
                 stack_start_index += output_width
@@ -233,8 +236,11 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
                         current_node_stack.append(stacked_node)
                     weld_block_node_list.remove(input_node)
                 else:
-                    # TODO:  Push directly onto the stacking node.
-                    panic("Pushing onto stacking node not implemented")
+                    index_start = 0  # TODO:  Update
+                    input_node.push_model("linear", (model_node.weights_data_name,), index_start)
+                    # Set that node's output's new type.
+                    typing_map[input_node.get_output_name()] = WeldVec(WeldDouble())
+                    nodes_to_sum.append(input_node)
             elif isinstance(input_node, PandasColumnSelectionNode):
                 selection_input = input_node.get_in_nodes()[0]
                 if node_is_transformable(selection_input):
@@ -269,7 +275,8 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
         weld_block_node_list.append(CombineLinearRegressionNode(input_nodes=nodes_to_sum,
                                                                 output_name=model_node.get_output_name(),
                                                                 intercept_data_name=model_node.intercept_data_name,
-                                                                output_type=typing_map[model_node.get_output_name()]))
+                                                                output_type=typing_map[model_node.get_output_name()],
+                                                                regression=model_node._regression))
     return weld_block_node_list
 
 
@@ -296,7 +303,8 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
                     pandas_glue_python_args += "list(%s['%s'].values)," % (stripped_input_name, column)
                 else:
                     pandas_glue_python_args += "%s['%s'].values," % (stripped_input_name, column)
-            pandas_glue_python = "%s, %s = (%s), %s" % (stripped_input_name, df_temp_name, pandas_glue_python_args, stripped_input_name)
+            pandas_glue_python = "%s, %s = (%s), %s" % (
+            stripped_input_name, df_temp_name, pandas_glue_python_args, stripped_input_name)
             pandas_glue_ast: ast.Module = \
                 ast.parse(pandas_glue_python, "exec")
             pandas_input_node = WillumpPythonNode(python_ast=pandas_glue_ast.body[0], input_names=[],
@@ -304,8 +312,9 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
             pandas_input_processing_nodes.append(pandas_input_node)
             reversion_python = "%s = %s" % (stripped_input_name, df_temp_name)
             reversion_python_ast = ast.parse(reversion_python, "exec")
-            reversion_python_node = WillumpPythonNode(python_ast=reversion_python_ast.body[0], input_names=[df_temp_name],
-                                                  output_names=[stripped_input_name], output_types=[], in_nodes=[])
+            reversion_python_node = WillumpPythonNode(python_ast=reversion_python_ast.body[0],
+                                                      input_names=[df_temp_name],
+                                                      output_names=[stripped_input_name], output_types=[], in_nodes=[])
             if stripped_input_name not in map(strip_linenos_from_var, weld_block_output_set):
                 pandas_post_processing_nodes.append(reversion_python_node)
 
@@ -326,7 +335,7 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
 
 
 def weld_pandas_series_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_set: Set[str],
-                                 typing_map: Mapping[str, WeldType]) \
+                                        typing_map: Mapping[str, WeldType]) \
         -> Tuple[List[WillumpPythonNode], List[WillumpPythonNode]]:
     """
     Processing pass creating Python code to marshall Pandas Series into a representation (numpy array) Weld can
@@ -375,7 +384,7 @@ def weld_csr_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_
             csr_unmarshaller_ast: ast.Module = \
                 ast.parse(car_unmarshaller, "exec")
             csr_unmarshaller_node = WillumpPythonNode(python_ast=csr_unmarshaller_ast.body[0], input_names=[],
-                                                  output_names=[], output_types=[], in_nodes=[])
+                                                      output_names=[], output_types=[], in_nodes=[])
             csr_post_processing_nodes.append(csr_unmarshaller_node)
     for output_name in weld_block_output_set:
         output_type = typing_map[output_name]
@@ -544,12 +553,12 @@ def cache_python_block_pass(sorted_nodes: List[WillumpGraphNode]) -> List[Willum
     for i, entry in enumerate(sorted_nodes):
         if isinstance(entry, WillumpPythonNode) and entry.is_cached_node:
             entry_ast: ast.Assign = entry.get_python()
-            assert(isinstance(entry_ast, ast.Assign))
+            assert (isinstance(entry_ast, ast.Assign))
             value = entry_ast.value
-            assert(isinstance(value, ast.Call))
-            assert(isinstance(value.func, ast.Name))
-            assert(len(entry_ast.targets) == 1)
-            if all(isinstance(arg_entry, ast.Name) for arg_entry in value.args)\
+            assert (isinstance(value, ast.Call))
+            assert (isinstance(value.func, ast.Name))
+            assert (len(entry_ast.targets) == 1)
+            if all(isinstance(arg_entry, ast.Name) for arg_entry in value.args) \
                     and isinstance(entry_ast.targets[0], ast.Name):
                 target_name = entry_ast.targets[0].id
                 func_name = value.func.id
@@ -567,4 +576,3 @@ def cache_python_block_pass(sorted_nodes: List[WillumpGraphNode]) -> List[Willum
                 sorted_nodes[i] = cache_node
                 node_num += 1
     return sorted_nodes
-

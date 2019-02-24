@@ -113,7 +113,15 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                         """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
                             .format(WILLUMP_LINEAR_REGRESSION_WEIGHTS, model_name, "coef_") + \
                         """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
-                            .format(WILLUMP_LINEAR_REGRESSION_INTERCEPT, model_name, "intercept_")
+                            .format(WILLUMP_LINEAR_REGRESSION_INTERCEPT, model_name, "intercept_") + \
+                        """\tif "Regressor" in type({0}).__name__:\n""" \
+                            .format(model_name) + \
+                        """\t\twillump_static_vars["{0}"] = True\n""" \
+                            .format(WILLUMP_LINEAR_MODEL_IS_REGRESSION) + \
+                        """\telse:\n""" \
+                            .format(model_name) + \
+                        """\t\twillump_static_vars["{0}"] = False\n""" \
+                            .format(WILLUMP_LINEAR_MODEL_IS_REGRESSION)
                     logit_instrumentation_ast: ast.Module = \
                         ast.parse(static_variable_extraction_code, "exec")
                     logit_instrumentation_statements: List[ast.stmt] = logit_instrumentation_ast.body

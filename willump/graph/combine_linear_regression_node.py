@@ -14,7 +14,7 @@ class CombineLinearRegressionNode(WillumpGraphNode):
     """
 
     def __init__(self, input_nodes: List[WillumpGraphNode], output_name: str,
-                 intercept_data_name, output_type: WeldType) -> None:
+                 intercept_data_name, output_type: WeldType, regression: bool) -> None:
         """
         Initialize the node.
         """
@@ -23,6 +23,7 @@ class CombineLinearRegressionNode(WillumpGraphNode):
         self._input_nodes = input_nodes
         self._output_type = output_type
         self._input_names = []
+        self._regression = regression
         for input_node in input_nodes:
             self._input_names.append(input_node.get_output_name())
 
@@ -46,15 +47,20 @@ class CombineLinearRegressionNode(WillumpGraphNode):
             sum_string = sum_string[:-1]
         else:
             sum_string = "x"
+        if self._regression:
+            return_string = "OUTPUT_TYPE(SUM_STRING + intercept)"
+        else:
+            return_string = "select(SUM_STRING + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))"
         weld_program = \
             """
             let intercept: f64 = lookup(INTERCEPT_NAME, 0L);
             let OUTPUT_NAME: vec[OUTPUT_TYPE] = result(for(zip(ZIP_STRING),
                 appender[OUTPUT_TYPE],
                 | bs: appender[OUTPUT_TYPE], i: i64, x |
-                merge(bs, select(SUM_STRING + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0)))
+                merge(bs, RETURN_STRING)
             ));
             """
+        weld_program = weld_program.replace("RETURN_STRING", return_string)
         weld_program = weld_program.replace("ZIP_STRING", zip_string)
         weld_program = weld_program.replace("SUM_STRING", sum_string)
         weld_program = weld_program.replace("INTERCEPT_NAME", self._intercept_data_name)

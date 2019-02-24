@@ -195,6 +195,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     logit_input_var: str = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
                     logit_weights = self._static_vars[WILLUMP_LINEAR_REGRESSION_WEIGHTS]
                     logit_intercept = self._static_vars[WILLUMP_LINEAR_REGRESSION_INTERCEPT]
+                    is_regression = self._static_vars[WILLUMP_LINEAR_MODEL_IS_REGRESSION]
                     logit_input_node: WillumpGraphNode = self._node_dict[logit_input_var]
                     logit_node: LinearRegressionNode = LinearRegressionNode(
                         input_node=logit_input_node,
@@ -203,7 +204,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         output_name=output_var_name,
                         output_type=self._type_map[output_var_name],
                         logit_weights=logit_weights,
-                        logit_intercept=logit_intercept, aux_data=self.aux_data
+                        logit_intercept=logit_intercept, aux_data=self.aux_data,
+                        regression=is_regression
                     )
                     return output_var_name, logit_node
                 elif WILLUMP_TREES_FEATURE_IMPORTANCES in self._static_vars:
