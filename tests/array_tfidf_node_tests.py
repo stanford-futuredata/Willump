@@ -75,7 +75,7 @@ class TfidfNodeTests(unittest.TestCase):
         self.input_str = [
             " catdogcat", "the dog house ", "elephantcat", "Bbbbbbb", "an ox cat house", "ananan",
             "      an ox cat house   ",
-            "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"  # TODO:  Talk to Shoumik about this.
+            "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"
             "Summer new British printing round neck short sleeve male T-shirt(black)-intl",
             "UniSilver TIME Lunarchia Pair Women's Silver / Pink Mother-of-Pearl Analog Stainless Steel Watch KW1367-2909",
             "Foldable Selfie Stick Monopod (Green) With 3 in 1 Macro/Fish-eye/Wide Clip Lens for Mobile Phone and Tablets (Green)"

@@ -20,8 +20,6 @@ from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
-from willump.evaluation.willump_executor import willump_execute
-
 base_folder = "tests/test_resources/mercari_price_suggestion/"
 
 
@@ -60,7 +58,6 @@ def create_vectorizers(train):
     return name_vectorizer, text_vectorizer, dict_vectorizer
 
 
-# @willump_execute()
 def process_input(model_input, name_vectorizer, text_vectorizer, dict_vectorizer):
     model_input = preprocess(model_input)
     name_input = model_input["name"].values
@@ -82,13 +79,12 @@ def main():
     train, valid = train.iloc[train_ids], train.iloc[valid_ids]
     y_train = y_scaler.fit_transform(np.log1p(train['price'].values.reshape(-1, 1)))
     try:
-        vectorizers = pickle.load(open("mercari_vect_lr.pk", "rb"))
+        vectorizers = pickle.load(open(base_folder + "mercari_vect_lr.pk", "rb"))
     except FileNotFoundError:
         with timer('create vectorizers'):
             vectorizers = create_vectorizers(train)
             pickle.dump(vectorizers, open(base_folder + "mercari_vect_lr.pk", "wb"))
     with timer('Process Train Input'):
-        X_train = process_input(train, *vectorizers).astype(np.float32)
         X_train = process_input(train, *vectorizers).astype(np.float32)
     with timer("Train model"):
         model = sklearn.linear_model.SGDRegressor()

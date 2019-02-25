@@ -130,9 +130,9 @@ class ArrayTfIdfNode(WillumpGraphNode):
                         | count_dicts: appender[dict[i64, i64]], i_out: i64, string: vec[i8] |
                             if(CASCADE_STATEMENT,
                                 let string_len: i64 = len(string);
-                                let start_index: appender[i64] = select(lookup(string, 0L) == 32c, 
-                                    appender[i64](1000L),  # TODO:  Talk to Shoumik about this.
-                                    merge(appender[i64](1000L), 0L));
+                                let start_index: appender[i64] = if(lookup(string, 0L) == 32c, 
+                                    appender[i64],
+                                    merge(appender[i64], 0L));
                                 # The indices of every word's start.  We have already replaced all whitespaces with 
                                 # single spaces.
                                 let word_indices_app: appender[i64] = for(string,
@@ -144,11 +144,10 @@ class ArrayTfIdfNode(WillumpGraphNode):
                                         )
                                 );
                                 # Add a "bonus" index for the end of the final word if no space there.
-                                let word_indices: vec[i64] = select(lookup(string, string_len - 1L) == 32c,
+                                let word_indices: vec[i64] = if(lookup(string, string_len - 1L) == 32c,
                                     result(word_indices_app),
                                     result(merge(word_indices_app, string_len + 1L))
                                 );
-                                # let num_words: i64 = if(lookup(word_indices, 0L) == 0L || lookup(word_indices, 0L) == 1L,  len(word_indices), 0L);
                                 let num_words: i64 = len(word_indices);
                                 let string_dict: dict[i64, i64] = result(for(word_indices,
                                     dictmerger[i64, i64, +],
@@ -156,7 +155,7 @@ class ArrayTfIdfNode(WillumpGraphNode):
                                     for(rangeiter(NGRAM_MINL, NGRAM_MAXL + 1L, 1L),
                                         count_dict,
                                         | count_dict_inner: dictmerger[i64, i64, +], num_iter, iter_value |
-                                            if(i_index + iter_value <= num_words,
+                                            if(i_index + iter_value < num_words,
                                                 let end_index = lookup(word_indices, i_index + iter_value);
                                                 let word: vec[i8] = slice(string, start_index, end_index - start_index - 1L);
                                                 let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
@@ -187,7 +186,7 @@ class ArrayTfIdfNode(WillumpGraphNode):
                         let idf_term: f64 = lookup(IDF_VEC_NAME, x.$0);
                         merge(bs, f64(x.$1)*  idf_term * f64(x.$1) * idf_term)
                     ));
-                    let normalization_term = select(squared_sum > 0.0, 1.0 / sqrt(squared_sum), 0.0);
+                    let normalization_term = if(squared_sum > 0.0, 1.0 / sqrt(squared_sum), 0.0);
                     normalization_term
                 );
                 let out_struct: {appender[i64], appender[i64], appender[f64]} = for(vec_dict_vecs,
@@ -248,9 +247,9 @@ class ArrayTfIdfNode(WillumpGraphNode):
                 assert(self._analyzer == "word")
                 weld_program += \
                     """
-                        let start_index: appender[i64] = select(lookup(string, 0L) == 32c, 
-                            appender[i64](1000L),
-                            merge(appender[i64](1000L), 0L));
+                        let start_index: appender[i64] = if(lookup(string, 0L) == 32c, 
+                            appender[i64],
+                            merge(appender[i64], 0L));
                         # The indices of every word's start.  We have already replaced all whitespaces with 
                         # single spaces.
                         let word_indices_app: appender[i64] = for(string,
@@ -262,7 +261,7 @@ class ArrayTfIdfNode(WillumpGraphNode):
                                 )
                         );
                         # Add a "bonus" index for the end of the final word if no space there.
-                        let word_indices: vec[i64] = select(lookup(string, string_len - 1L) == 32c,
+                        let word_indices: vec[i64] = if(lookup(string, string_len - 1L) == 32c,
                             result(word_indices_app),
                             result(merge(word_indices_app, string_len + 1L))
                         );
@@ -273,7 +272,7 @@ class ArrayTfIdfNode(WillumpGraphNode):
                             for(rangeiter(NGRAM_MINL, NGRAM_MAXL + 1L, 1L),
                                 count_sums,
                                 | count_sums_inner, num_iter, iter_value |
-                                    if(i_index + iter_value <= num_words,
+                                    if(i_index + iter_value < num_words,
                                         let end_index = lookup(word_indices, i_index + iter_value);
                                         let word: vec[i8] = slice(string, start_index, end_index - start_index - 1L);
                                         let exists_and_key = optlookup(VOCAB_DICT_NAME, word);
@@ -298,7 +297,7 @@ class ArrayTfIdfNode(WillumpGraphNode):
                             merge(bs, x.$1 * x.$1)
                         ));
                         let normalization_num: f64 = 
-                          select(normalization_num > 0.0, 1.0 / sqrt(normalization_num), 0.0);
+                          if(normalization_num > 0.0, 1.0 / sqrt(normalization_num), 0.0);
                         merge(results, result(lin_reg_sum_norm.$0) * normalization_num)
                 ));
                 """
