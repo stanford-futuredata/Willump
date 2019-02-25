@@ -347,7 +347,6 @@ def create_featureset(folder):
     combi_train, combi_valid, y_train, y_valid = train_test_split(combi, y, test_size=0.33, random_state=42)
     # Add features and predict.
     y_pred = np.hstack(add_features_and_predict(folder, combi_train))
-    print(y_pred)
     print("Train AUC: %f" % roc_auc_score(y_train, y_pred))
     print("Train: Number of \"remote\" queries made: %d" % num_queries)
     num_queries = 0

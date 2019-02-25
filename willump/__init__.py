@@ -24,6 +24,8 @@ WILLUMP_THREAD_POOL_EXECUTOR = "__willump_threadpool_executor"
 WILLUMP_TRAINING_CASCADE_NAME = "__willump_training_cascade"
 SMALL_MODEL_NAME = "__willump_small_model"
 WILLUMP_CACHE_NAME = "__willump_cache"
+WILLUMP_CACHE_MAX_LEN_NAME = "__willump_cache_len"
+WILLUMP_CACHE_ITER_NUMBER = "__willump_cache_iter_number"
 
 
 def panic(error: str):

@@ -1,26 +1,27 @@
-from typing import MutableMapping, List, Set, Tuple, Mapping, Optional
-import typing
 import ast
 import copy
+import math
+import typing
+from collections import OrderedDict
+from typing import MutableMapping, List, Set, Tuple, Mapping, Optional
 
 from willump import *
-from willump.willump_utilities import *
-
-from willump.graph.willump_graph import WillumpGraph
-from willump.graph.willump_graph_node import WillumpGraphNode
-from willump.graph.willump_python_node import WillumpPythonNode
-from willump.graph.willump_input_node import WillumpInputNode
-from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
-from willump.graph.combine_linear_regression_node import CombineLinearRegressionNode
-from willump.graph.willump_model_node import WillumpModelNode
-from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
-from willump.graph.hash_join_node import WillumpHashJoinNode
-from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
+from willump.graph.combine_linear_regression_node import CombineLinearRegressionNode
+from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.identity_node import IdentityNode
+from willump.graph.linear_regression_node import LinearRegressionNode
+from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 from willump.graph.reshape_node import ReshapeNode
+from willump.graph.stack_sparse_node import StackSparseNode
+from willump.graph.willump_graph import WillumpGraph
+from willump.graph.willump_graph_node import WillumpGraphNode
+from willump.graph.willump_input_node import WillumpInputNode
+from willump.graph.willump_model_node import WillumpModelNode
+from willump.graph.willump_python_node import WillumpPythonNode
+from willump.willump_utilities import *
 
 
 def topological_sort_graph(graph: WillumpGraph) -> List[WillumpGraphNode]:
@@ -551,7 +552,11 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
     return sorted_nodes
 
 
-def cache_python_block_pass(sorted_nodes: List[WillumpGraphNode]) -> List[WillumpGraphNode]:
+def cache_python_block_pass(sorted_nodes: List[WillumpGraphNode], willump_cache_dict: dict,
+                            max_cache_size: Optional[int]) -> List[WillumpGraphNode]:
+    """
+    Detect cacheable functions and cache them by replacing calls to them with calls to the caching function.
+    """
     node_num = 0
     for i, entry in enumerate(sorted_nodes):
         if isinstance(entry, WillumpPythonNode) and entry.is_cached_node:
@@ -569,8 +574,8 @@ def cache_python_block_pass(sorted_nodes: List[WillumpGraphNode]) -> List[Willum
                 for arg in value.args:
                     arg_string += "%s," % arg.id
                 cache_python = \
-                    """%s = willump_cache(%s, (%s), %s)""" % \
-                    (target_name, func_name, arg_string, "%s%d" % (WILLUMP_CACHE_NAME, node_num))
+                    """%s = willump_cache(%s, (%s), %s, %d)""" % \
+                    (target_name, func_name, arg_string, WILLUMP_CACHE_NAME, node_num)
                 cache_ast: ast.Module = ast.parse(cache_python, "exec")
                 cache_node = WillumpPythonNode(python_ast=cache_ast.body[0], input_names=entry.get_in_names(),
                                                output_names=entry.get_output_names(),
@@ -578,4 +583,16 @@ def cache_python_block_pass(sorted_nodes: List[WillumpGraphNode]) -> List[Willum
                                                in_nodes=entry.get_in_nodes())
                 sorted_nodes[i] = cache_node
                 node_num += 1
+    # Initialize all caches.
+    if max_cache_size is None:
+        max_cache_size = math.inf
+    num_cached_nodes = node_num
+    cache_dict_caches = {}
+    cache_dict_max_lens = {}
+    for i in range(num_cached_nodes):
+        cache_dict_caches[i] = OrderedDict()
+        cache_dict_max_lens[i] = max_cache_size / num_cached_nodes
+    willump_cache_dict[WILLUMP_CACHE_NAME] = cache_dict_caches
+    willump_cache_dict[WILLUMP_CACHE_MAX_LEN_NAME] = cache_dict_max_lens
+    willump_cache_dict[WILLUMP_CACHE_ITER_NUMBER] = 0
     return sorted_nodes

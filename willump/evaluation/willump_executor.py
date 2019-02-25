@@ -6,17 +6,16 @@ import inspect
 import subprocess
 import sysconfig
 import typing
-from typing import Callable, MutableMapping, Mapping, List, Tuple
+from typing import MutableMapping, Mapping, List, Tuple
 
 import weld.encoders
 import weld.weldobject
 
 import willump.evaluation.willump_weld_generator
-from willump import *
 from willump.evaluation.willump_driver_generator import generate_cpp_driver
+from willump.evaluation.willump_runtime_code import *
 from willump.graph.willump_graph import WillumpGraph
 from willump.willump_utilities import *
-from willump.evaluation.willump_runtime_code import *
 
 _encoder = weld.encoders.NumpyArrayEncoder()
 _decoder = weld.encoders.NumpyArrayDecoder()
@@ -158,7 +157,7 @@ def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
 
 
 def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades=None, eval_cascades=None,
-                    cascade_threshold=1.0, cached_funcs=()) -> Callable:
+                    cascade_threshold=1.0, cached_funcs=(), max_cache_size=None) -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
     """
@@ -210,6 +209,7 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                     graph_builder.visit(python_ast)
                     python_graph: WillumpGraph = graph_builder.get_willump_graph()
                     aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()
+                    willump_cache_dict = {}
                     # Transform the Willump graph into blocks of Weld and Python code.  Compile the Weld blocks.
                     python_weld_program: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]] = \
                         willump.evaluation.willump_weld_generator.graph_to_weld(graph=python_graph,
@@ -218,6 +218,8 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                                                                                 eval_cascades=eval_cascades,
                                                                                 cascade_threshold=cascade_threshold,
                                                                                 aux_data=aux_data,
+                                                                                willump_cache_dict=willump_cache_dict,
+                                                                                max_cache_size=max_cache_size,
                                                                                 batch=batch, num_workers=num_workers)
                     python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
                                                                                              aux_data,
@@ -235,8 +237,7 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                     augmented_globals["scipy"] = importlib.import_module("scipy")
                     augmented_globals["re"] = importlib.import_module("re")
                     augmented_globals["copy"] = importlib.import_module("copy")
-                    for i in range(30):
-                        augmented_globals["%s%d" % (WILLUMP_CACHE_NAME, i)] = {}
+                    augmented_globals[WILLUMP_CACHE_NAME] = willump_cache_dict
                     augmented_globals["willump_cache"] = willump_cache
                     augmented_globals["cascade_dense_stacker"] = cascade_dense_stacker
                     augmented_globals["csr_marshall"] = csr_marshall
@@ -263,7 +264,8 @@ def execute_from_basics(graph: WillumpGraph, type_map, inputs: tuple, input_name
     """
     Only for unit tests.  Used to test graph execution separately from inference.
     """
-    w_statements = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map, None, None, aux_data, 1.0)
+    w_statements = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map, None, None, aux_data,
+                                                                           1.0, {}, None)
     for entry in w_statements:
         if isinstance(entry, tuple):
             weld_program, _, _ = entry
