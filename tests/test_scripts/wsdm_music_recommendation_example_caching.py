@@ -91,31 +91,26 @@ def get_row_to_merge_as_features(key):
 
 def get_row_to_merge_gs_features(key):
     global num_queries
-    num_queries += 1
     return gs_features.loc[key]
 
 
 def get_row_to_merge_cs_features(key):
     global num_queries
-    num_queries += 1
     return cs_features.loc[key]
 
 
 def get_row_to_merge_ages_features(key):
     global num_queries
-    num_queries += 1
     return ages_features.loc[key]
 
 
 def get_row_to_merge_ls_features(key):
     global num_queries
-    num_queries += 1
     return ls_features.loc[key]
 
 
 def get_row_to_merge_gender_features(key):
     global num_queries
-    num_queries += 1
     return gender_features.loc[key]
 
 
@@ -133,40 +128,34 @@ def get_row_to_merge_lyrs_features(key):
 
 def get_row_to_merge_sns_features(key):
     global num_queries
-    num_queries += 1
     return sns_features.loc[key]
 
 
 def get_row_to_merge_stabs_features(key):
     global num_queries
-    num_queries += 1
     return stabs_features.loc[key]
 
 
 def get_row_to_merge_stypes_features(key):
     global num_queries
-    num_queries += 1
     return stypes_features.loc[key]
 
 
 def get_row_to_merge_regs_features(key):
     global num_queries
-    num_queries += 1
     return regs_features.loc[key]
 
 
 cached_funcs = ["get_row_to_merge_features_uf", "get_row_to_merge_features_sf", "get_row_to_merge_cluster_one",
                 "get_row_to_merge_cluster_two", "get_row_to_merge_cluster_three", "get_row_to_merge_uc_features",
                 "get_row_to_merge_sc_features", "get_row_to_merge_ac_features", "get_row_to_merge_us_features",
-                "get_row_to_merge_ss_features", "get_row_to_merge_as_features", "get_row_to_merge_gs_features",
-                "get_row_to_merge_cs_features", "get_row_to_merge_ages_features", "get_row_to_merge_ls_features",
-                "get_row_to_merge_gender_features", "get_row_to_merge_composer_features",
-                "get_row_to_merge_lyrs_features", "get_row_to_merge_sns_features", "get_row_to_merge_stabs_features",
-                "get_row_to_merge_stypes_features", "get_row_to_merge_regs_features"]
+                "get_row_to_merge_ss_features", "get_row_to_merge_as_features",
+                "get_row_to_merge_composer_features", "get_row_to_merge_lyrs_features"]
 
 
 @willump.evaluation.willump_executor.willump_execute(batch=False, cached_funcs=cached_funcs,
-                                                     eval_cascades=cascades, cascade_threshold=cascade_threshold)
+                                                     eval_cascades=cascades, cascade_threshold=cascade_threshold,
+                                                     max_cache_size=None)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,
