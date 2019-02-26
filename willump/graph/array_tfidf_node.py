@@ -47,6 +47,12 @@ class ArrayTfIdfNode(WillumpGraphNode):
         for entry in self._process_aux_data(vocabulary_list, input_idf_vector):
             aux_data.append(entry)
 
+    def get_cost(self) -> float:
+        if self._analyzer == "char":
+            return 3 * (self._max_gram - self._min_gram + 1)
+        else:
+            return self._max_gram - self._min_gram + 1
+
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
 

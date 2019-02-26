@@ -28,6 +28,10 @@ class WillumpPythonNode(WillumpGraphNode):
         self.is_cached_node = is_cached_node
         self.does_not_modify_data = does_not_modify_data
 
+    def get_cost(self) -> float:
+        # TODO:  Find a better way to generate costs for arbitrary Python nodes.
+        return 1
+
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._in_nodes
 

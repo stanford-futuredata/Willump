@@ -46,6 +46,10 @@ class WillumpHashJoinNode(WillumpGraphNode):
         self._output_type = WeldPandas(field_types=self.left_df_type.field_types + self.right_df_type.field_types,
                                        column_names=self.left_df_type.column_names + self.right_df_type.column_names)
 
+    def get_cost(self):
+        # TODO:  Get a better idea of the relationship between right dataframe size and join cost.
+        return 0.1
+
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
 

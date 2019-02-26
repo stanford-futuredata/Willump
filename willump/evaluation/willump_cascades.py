@@ -232,7 +232,7 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
     return output_block
 
 
-def split_model_inputs(model_node: WillumpModelNode, feature_importances) -> \
+def split_model_inputs(model_node: WillumpModelNode, feature_importances, more_important_cost_frac=0.5) -> \
         Tuple[List[WillumpGraphNode], List[WillumpGraphNode]]:
     """
     Use a model's feature importances to divide its inputs into those more and those less important.  Return
@@ -240,7 +240,9 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances) -> \
     """
     training_node_inputs: Mapping[
         WillumpGraphNode, Union[Tuple[int, int], Mapping[str, int]]] = model_node.get_model_inputs()
+    nodes_to_efficiencies: MutableMapping[WillumpGraphNode, float] = {}
     nodes_to_importances: MutableMapping[WillumpGraphNode, float] = {}
+    total_cost = 0
     for node, indices in training_node_inputs.items():
         if isinstance(indices, tuple):
             start, end = indices
@@ -249,9 +251,25 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances) -> \
             indices = indices.values()
             sum_importance = sum([feature_importances[i] for i in indices])
         nodes_to_importances[node] = sum_importance
-    ranked_inputs = sorted(nodes_to_importances.keys(), key=lambda x: nodes_to_importances[x])
-    more_important_inputs = ranked_inputs[len(ranked_inputs) // 2:]
-    less_important_inputs = ranked_inputs[:len(ranked_inputs) // 2]
+        nodes_to_efficiencies[node] = sum_importance / node.get_cost()
+        total_cost += node.get_cost()
+    ranked_inputs = sorted(nodes_to_efficiencies.keys(), key=lambda x: nodes_to_efficiencies[x], reverse=True)
+    current_cost = 0
+    current_importance = 0
+    more_important_inputs = []
+    for node in ranked_inputs:
+        if current_cost == 0:
+            average_efficiency = 0
+        else:
+            average_efficiency = current_importance / current_cost
+        node_efficiency = nodes_to_importances[node] / node.get_cost()
+        if node_efficiency < average_efficiency / 3:
+            break
+        if current_cost + node.get_cost() < more_important_cost_frac * total_cost:
+            more_important_inputs.append(node)
+            current_importance += nodes_to_importances[node]
+            current_cost += node.get_cost()
+    less_important_inputs = [entry for entry in ranked_inputs if entry not in more_important_inputs]
     return more_important_inputs, less_important_inputs
 
 

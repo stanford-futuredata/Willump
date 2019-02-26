@@ -43,6 +43,9 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
         for entry in self._process_aux_data(vocabulary_list):
             aux_data.append(entry)
 
+    def get_cost(self) -> float:
+        return 4 * (self._max_gram - self._min_gram + 1)
+
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes
 
