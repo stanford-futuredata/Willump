@@ -12,6 +12,7 @@ from willump.graph.cascade_point_early_exit_node import CascadePointEarlyExitNod
 from willump.graph.cascade_stack_dense_node import CascadeStackDenseNode
 from willump.graph.cascade_stack_sparse_node import CascadeStackSparseNode
 from willump.graph.cascade_threshold_proba_node import CascadeThresholdProbaNode
+from willump.graph.cascade_topk_selection_node import CascadeTopKSelectionNode
 from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.identity_node import IdentityNode
 from willump.graph.linear_regression_node import LinearRegressionNode
@@ -398,7 +399,8 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                             aux_data: List[Tuple[int, WeldType]],
                             eval_cascades: dict,
                             cascade_threshold: float,
-                            batch: bool) -> List[WillumpGraphNode]:
+                            batch: bool,
+                            top_k: Optional[int]) -> List[WillumpGraphNode]:
     """
     Take in a program with a model.  Use pre-computed feature importances to partition the models' input
     sources into those more and less important.  Rewrite the program so it first evaluates a pre-trained smaller
@@ -407,7 +409,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     """
 
     def get_small_model_nodes(orig_model_node: WillumpModelNode, new_input_node: WillumpGraphNode, new_model, aux_data) \
-            -> Tuple[WillumpModelNode, CascadeThresholdProbaNode]:
+            -> Tuple[WillumpModelNode, WillumpGraphNode]:
         proba_output_name = "small__proba_" + orig_model_node.get_output_name()
         output_type = WeldVec(WeldDouble())
         typing_map[proba_output_name] = output_type
@@ -431,9 +433,14 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         else:
             assert False
         threshold_output_name = "small_preds_" + orig_model_node.get_output_name()
-        threshold_node = CascadeThresholdProbaNode(input_node=predict_proba_node, input_name=proba_output_name,
-                                                   output_name=threshold_output_name,
-                                                   threshold=cascade_threshold)
+        if top_k is None:
+            threshold_node = CascadeThresholdProbaNode(input_node=predict_proba_node, input_name=proba_output_name,
+                                                       output_name=threshold_output_name,
+                                                       threshold=cascade_threshold)
+        else:
+            threshold_node = CascadeTopKSelectionNode(input_node=predict_proba_node, input_name=proba_output_name,
+                                                      output_name=threshold_output_name,
+                                                      top_k=top_k)
         typing_map[threshold_output_name] = WeldVec(WeldChar())
         return predict_proba_node, threshold_node
 
@@ -450,14 +457,16 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                                     input_type=typing_map[new_input_name],
                                                     output_name=output_name, output_type=output_type,
                                                     logit_weights=new_model.coef_, logit_intercept=new_model.intercept_,
-                                                    aux_data=aux_data)
+                                                    aux_data=aux_data,
+                                                    predict_proba=orig_model_node.predict_proba)
         elif isinstance(orig_model_node, TreesModelNode):
             big_model_output = TreesModelNode(input_node=new_input_node,
                                               input_name=new_input_name,
                                               output_name=output_name,
                                               model_name=orig_model_node.model_name,
                                               input_width=orig_model_node.input_width,
-                                              output_type=output_type)
+                                              output_type=output_type,
+                                              predict_proba=orig_model_node.predict_proba)
         else:
             assert False
         combining_node = CascadeCombinePredictionsNode(big_model_predictions_node=big_model_output,
@@ -566,5 +575,5 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         small_model_nodes.append(point_early_exit_node)
     big_model_nodes = [combiner_node, new_big_model_node, preds_combiner_node]
     sorted_nodes = sorted_nodes[:model_node_index] + more_important_inputs_block + small_model_nodes + \
-            less_important_inputs_block + big_model_nodes + sorted_nodes[model_node_index + 1:]
+                   less_important_inputs_block + big_model_nodes + sorted_nodes[model_node_index + 1:]
     return sorted_nodes

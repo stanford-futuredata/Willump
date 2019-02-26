@@ -13,7 +13,7 @@ class TreesModelNode(WillumpModelNode, WillumpPythonNode):
     """
     input_width: int
     model_name: str
-    _output_type: WeldVec
+    predict_proba: bool
 
     def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str, model_name: str,
                  input_width: int, output_type: WeldVec,
@@ -26,6 +26,7 @@ class TreesModelNode(WillumpModelNode, WillumpPythonNode):
         self.model_name = model_name
         self._output_name = output_name
         self._output_type = output_type
+        self.predict_proba = predict_proba
 
     @staticmethod
     def _make_python_ast(input_name: str, output_name: str, model_name: str, predict_proba: bool, output_type: WeldVec)\

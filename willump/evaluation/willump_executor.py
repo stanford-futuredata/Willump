@@ -157,7 +157,7 @@ def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
 
 
 def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades=None, eval_cascades=None,
-                    cascade_threshold=1.0, cached_funcs=(), max_cache_size=None) -> Callable:
+                    cascade_threshold=1.0, cached_funcs=(), max_cache_size=None, top_k=None) -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
     """
@@ -220,7 +220,8 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                                                                                 aux_data=aux_data,
                                                                                 willump_cache_dict=willump_cache_dict,
                                                                                 max_cache_size=max_cache_size,
-                                                                                batch=batch, num_workers=num_workers)
+                                                                                batch=batch, num_workers=num_workers,
+                                                                                top_k=top_k)
                     python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
                                                                                              aux_data,
                                                                                              willump_typing_map,

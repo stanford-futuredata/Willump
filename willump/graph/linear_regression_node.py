@@ -17,6 +17,7 @@ class LinearRegressionNode(WillumpModelNode):
     weights_data_name: str
     intercept_data_name: str
     input_width: int
+    predict_proba: bool
 
     def __init__(self, input_node: WillumpGraphNode, input_name: str, input_type: WeldType, output_name: str,
                  output_type: WeldType,
@@ -40,7 +41,7 @@ class LinearRegressionNode(WillumpModelNode):
             logit_weights = logit_weights[0]
         self.input_width = len(logit_weights)
         assert not (regression and predict_proba)
-        self._predict_proba = predict_proba
+        self.predict_proba = predict_proba
         self._regression = regression
         for entry in self._process_aux_data(logit_weights, logit_intercept):
             aux_data.append(entry)
@@ -75,7 +76,7 @@ class LinearRegressionNode(WillumpModelNode):
         assert (isinstance(self._output_type, WeldVec))
         output_elem_type_str = str(self._output_type.elemType)
         if isinstance(self._input_type, WeldVec):
-            if self._predict_proba:
+            if self.predict_proba:
                 assert (output_elem_type_str == "f64")
                 output_statement = "1.0 / (1.0 + exp( -1.0 * (sum + intercept)))"
             elif self._regression:
@@ -105,7 +106,7 @@ class LinearRegressionNode(WillumpModelNode):
             weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
             weld_program = weld_program.replace("ELEM_TYPE", str(elem_type))
         elif isinstance(self._input_type, WeldCSR):
-            if self._predict_proba:
+            if self.predict_proba:
                 assert (output_elem_type_str == "f64")
                 output_statement = "1.0 / (1.0 + exp( -1.0 * x))"
             elif self._regression:
@@ -143,7 +144,7 @@ class LinearRegressionNode(WillumpModelNode):
             weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
         else:
             assert (isinstance(self._input_type, WeldPandas))
-            if self._predict_proba:
+            if self.predict_proba:
                 assert (output_elem_type_str == "f64")
                 output_statement = "1.0 / (1.0 + exp( -1.0 * sum))"
             elif self._regression:
