@@ -71,8 +71,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             self.arg_list.append(arg_name)
         for entry in node.body:
             if isinstance(entry, ast.Assign):
-                output_var_name, assignment_node = self.analyze_Assign(entry)
-                self._node_dict[output_var_name] = assignment_node
+                output_var_names, assignment_node = self.analyze_Assign(entry)
+                for output_var_name in output_var_names:
+                    self._node_dict[output_var_name] = assignment_node
             elif isinstance(entry, ast.Return):
                 self.analyze_Return(entry)
             else:
@@ -81,21 +82,13 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     self._node_dict[output_name] = py_node
 
     def analyze_Assign(self, node: ast.Assign) -> \
-            Tuple[str, WillumpGraphNode]:
+            Tuple[List[str], WillumpGraphNode]:
         """
         Process an assignment AST node into either a Willump Weld node or Willump Python node that
         defines the variable being assigned.
         """
 
-        def create_single_output_py_node(in_node, is_async_func=False, is_cached_func=False,
-                                         does_not_modify_data=False):
-            output_names, py_node = self._create_py_node(in_node, is_async_func=is_async_func,
-                                                         is_cached_node=is_cached_func,
-                                                         does_not_modify_data=does_not_modify_data)
-            assert (len(output_names) == 1)
-            return output_names[0], py_node
-
-        def analyze_predict(predict_node_value: ast.AST, predict_proba: bool) -> Tuple[str, WillumpGraphNode]:
+        def analyze_predict(predict_node_value: ast.AST, predict_proba: bool) -> Tuple[List[str], WillumpGraphNode]:
             if WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:
                 logit_input_var: str = self.get_load_name(predict_node_value.args[0].id,
                                                           predict_node_value.lineno, self._type_map)
@@ -114,7 +107,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     regression=is_regression,
                     predict_proba=predict_proba
                 )
-                return output_var_name, logit_node
+                return [output_var_name], logit_node
             elif WILLUMP_TREES_FEATURE_IMPORTANCES in self._static_vars:
                 trees_input_var: str = self.get_load_name(predict_node_value.args[0].id,
                                                           predict_node_value.lineno, self._type_map)
@@ -126,55 +119,59 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                             input_width=len(feature_importances),
                                             output_type=self._type_map[output_var_name],
                                             predict_proba=predict_proba)
-                return output_var_name, trees_node
+                return [output_var_name], trees_node
             else:
-                return create_single_output_py_node(node)
+                return self._create_py_node(node)
 
         assert (len(node.targets) == 1)  # Assume assignment to only one variable.
         target: ast.expr = node.targets[0]
         output_var_name_base = self.get_assignment_target_name(target)
         if output_var_name_base is None:
-            return create_single_output_py_node(node)
+            return self._create_py_node(node)
         output_var_name = self.get_store_name(output_var_name_base, target.lineno)
         output_type = self._type_map[output_var_name]
         value: ast.expr = node.value
         if isinstance(value, ast.BinOp):
             if not isinstance(output_type, WeldVec):
-                return create_single_output_py_node(node)
+                return self._create_py_node(node)
             if isinstance(target, ast.Subscript):
-                return create_single_output_py_node(node)
+                return self._create_py_node(node)
             if isinstance(value.left, ast.Name) and value.left.id in self._node_dict:
                 left_name: str = self.get_load_name(value.left.id, value.lineno, self._type_map)
                 left_node: WillumpGraphNode = self._node_dict[left_name]
             else:
                 # TODO:  Type the new node properly.
-                left_name, left_node = self._create_temp_var_from_node(value.left, output_type)
+                left_names, left_node = self._create_temp_var_from_node(value.left, output_type)
+                assert(len(left_names) == 1)
+                left_name = left_names[0]
                 self._node_dict[left_name] = left_node
             if isinstance(value.right, ast.Name) and value.right.id in self._node_dict:
                 right_name: str = self.get_load_name(value.right.id, value.lineno, self._type_map)
                 right_node: WillumpGraphNode = self._node_dict[right_name]
             else:
                 # TODO:  Type the new node properly.
-                right_name, right_node = self._create_temp_var_from_node(value.right, output_type)
+                right_names, right_node = self._create_temp_var_from_node(value.right, output_type)
+                assert(len(right_names) == 1)
+                right_name = right_names[0]
                 self._node_dict[right_name] = right_node
             if isinstance(value.op, ast.Add):
                 array_binop_node = ArrayBinopNode(left_node, right_node, left_name, right_name, output_var_name,
                                                   output_type, "+")
-                return output_var_name, array_binop_node
+                return [output_var_name], array_binop_node
             elif isinstance(value.op, ast.Sub):
                 array_binop_node = ArrayBinopNode(left_node, right_node, left_name, right_name, output_var_name,
                                                   output_type, "-")
-                return output_var_name, array_binop_node
+                return [output_var_name], array_binop_node
             elif isinstance(value.op, ast.Mult):
                 array_binop_node = ArrayBinopNode(left_node, right_node, left_name, right_name, output_var_name,
                                                   output_type, "*")
-                return output_var_name, array_binop_node
+                return [output_var_name], array_binop_node
             elif isinstance(value.op, ast.Div):
                 array_binop_node = ArrayBinopNode(left_node, right_node, left_name, right_name, output_var_name,
                                                   output_type, "/")
-                return output_var_name, array_binop_node
+                return [output_var_name], array_binop_node
             else:
-                return create_single_output_py_node(node)
+                return self._create_py_node(node)
         elif isinstance(value, ast.Subscript):
             if isinstance(value.slice, ast.Index) and isinstance(value.slice.value, ast.Name) and \
                     isinstance(value.value, ast.Name):
@@ -191,18 +188,18 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                   input_types=[input_var_type],
                                                   selected_columns=column_names,
                                                   output_type=output_type)
-                    return output_var_name, pandas_column_selection_node
+                    return [output_var_name], pandas_column_selection_node
                 else:
-                    return create_single_output_py_node(node)
+                    return self._create_py_node(node)
             elif isinstance(value.slice, ast.ExtSlice) and isinstance(value.value, ast.Call) and "predict_proba" \
                     in value.value.func.attr:
                 return analyze_predict(value.value, True)
             else:
-                return create_single_output_py_node(node)
+                return self._create_py_node(node)
         elif isinstance(value, ast.Call):
             called_function: Optional[str] = self._get_function_name(value)
             if called_function is None:
-                return create_single_output_py_node(node)
+                return self._create_py_node(node)
             # Applying a function to a Pandas column.
             elif "apply" in called_function:
                 if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Subscript) \
@@ -223,11 +220,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                              output_type=self._type_map[
                                                                                  output_var_name],
                                                                              output_col=output_col)
-                        return output_var_name, string_lower_node
+                        return [output_var_name], string_lower_node
                     else:
-                        return create_single_output_py_node(node)
+                        return self._create_py_node(node)
                 else:
-                    return create_single_output_py_node(node)
+                    return self._create_py_node(node)
             elif ".predict" in called_function:
                 return analyze_predict(value, False)
             elif ".transform" in called_function:
@@ -235,7 +232,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 if WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno not in self._static_vars or \
                         WILLUMP_COUNT_VECTORIZER_VOCAB + lineno not in self._static_vars or \
                         self._static_vars[WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno] is True:
-                    return create_single_output_py_node(node)
+                    return self._create_py_node(node)
                 vectorizer_input_var: str = self.get_load_name(value.args[0].id, node.lineno, self._type_map)
                 analyzer: str = self._static_vars[WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno]
                 vocab_dict: Mapping[str, int] = self._static_vars[WILLUMP_COUNT_VECTORIZER_VOCAB + lineno]
@@ -284,7 +281,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         analyzer=analyzer,
                         ngram_range=vectorizer_ngram_range
                     )
-                    return output_var_name, tfidf_node
+                    return [output_var_name], tfidf_node
                 else:
                     assert (analyzer == "char")  # TODO:  Get other analyzers working.
                     array_cv_node: ArrayCountVectorizerNode = ArrayCountVectorizerNode(
@@ -294,10 +291,10 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         input_vocab_dict=vocab_dict, aux_data=self.aux_data,
                         ngram_range=vectorizer_ngram_range
                     )
-                    return output_var_name, array_cv_node
+                    return [output_var_name], array_cv_node
             elif ".merge" in called_function:
                 if self._static_vars[WILLUMP_JOIN_HOW + str(node.lineno)] is not 'left':
-                    return create_single_output_py_node(node)
+                    return self._create_py_node(node)
                 join_col: str = self._static_vars[WILLUMP_JOIN_COL + str(node.lineno)]
                 right_df = self._static_vars[WILLUMP_JOIN_RIGHT_DATAFRAME + str(node.lineno)]
                 left_df_input_var: str = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
@@ -308,11 +305,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                              left_input_type=self._type_map[left_df_input_var],
                                                              join_col_name=join_col,
                                                              right_dataframe=right_df, aux_data=self.aux_data)
-                return output_var_name, willump_hash_join_node
+                return [output_var_name], willump_hash_join_node
             elif "sparse.hstack" in called_function:
                 if not isinstance(value.args[0], ast.List) or \
                         not all(isinstance(ele, ast.Name) for ele in value.args[0].elts):
-                    return create_single_output_py_node(node)
+                    return self._create_py_node(node)
                 input_names = [self.get_load_name(arg_node.id, arg_node.lineno, self._type_map) for arg_node in
                                value.args[0].elts]
                 input_nodes = [self._node_dict[input_name] for input_name in input_names]
@@ -321,7 +318,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                     input_names=input_names,
                                                     output_name=output_var_name,
                                                     output_type=output_type)
-                return output_var_name, stack_sparse_node
+                return [output_var_name], stack_sparse_node
             elif ".fit" in called_function:
                 if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name) and \
                         len(value.args) == 2 and isinstance(value.args[0], ast.Name) and isinstance(value.args[1],
@@ -340,7 +337,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                            output_names=[output_var_name],
                                                            input_weights=input_weights,
                                                            input_intercept=input_intercept)
-                        return output_var_name, training_node
+                        return [output_var_name], training_node
                     elif WILLUMP_TREES_FEATURE_IMPORTANCES in self._static_vars:
                         feature_importances = self._static_vars[WILLUMP_TREES_FEATURE_IMPORTANCES]
                         training_node = TreesTrainingNode(python_ast=node,
@@ -348,11 +345,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                           input_names=[x_name, model_name, y_name],
                                                           output_names=[output_var_name],
                                                           feature_importances=feature_importances)
-                        return output_var_name, training_node
+                        return [output_var_name], training_node
                     else:
-                        return create_single_output_py_node(node)
+                        return self._create_py_node(node)
                 else:
-                    return create_single_output_py_node(node)
+                    return self._create_py_node(node)
             elif ".fillna" in called_function and isinstance(value.func, ast.Attribute) and \
                     isinstance(value.func.value, ast.Name):
                 input_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
@@ -362,9 +359,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     # NaNs within Hash Join nodes are handled by the nodes.
                     identity_node = IdentityNode(input_node=input_node, input_name=input_name,
                                                  output_name=output_var_name, output_type=output_type)
-                    return output_var_name, identity_node
+                    return [output_var_name], identity_node
                 else:
-                    return create_single_output_py_node(node)
+                    return self._create_py_node(node)
             elif ".concat" in called_function and len(value.args) == 1 and isinstance(value.args[0], ast.List) \
                     and all(isinstance(arg_node, ast.Name) for arg_node in value.args[0].elts):
                 arg_names: List[str] = [self.get_load_name(arg_node.id, value.lineno, self._type_map)
@@ -377,9 +374,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     series_concat_node = PandasSeriesConcatenationNode(input_nodes=input_nodes, input_names=arg_names,
                                                                        output_name=output_var_name,
                                                                        output_type=output_type, input_types=input_types)
-                    return output_var_name, series_concat_node
+                    return [output_var_name], series_concat_node
                 else:
-                    return create_single_output_py_node(node)
+                    return self._create_py_node(node)
             elif ".reshape" in called_function:
                 if isinstance(value.func.value, ast.Name):
                     input_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
@@ -388,15 +385,15 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     reshape_node = ReshapeNode(input_node=input_node, input_name=input_name,
                                                output_name=output_var_name, output_type=output_type,
                                                reshape_args=value.args)
-                    return output_var_name, reshape_node
+                    return [output_var_name], reshape_node
                 else:
-                    return create_single_output_py_node(node)
+                    return self._create_py_node(node)
             elif called_function in self._async_funcs:
-                return create_single_output_py_node(node, is_async_func=True)
+                return self._create_py_node(node, is_async_func=True)
             elif called_function in self._cached_funcs:
-                return create_single_output_py_node(node, is_cached_func=True)
+                return self._create_py_node(node, is_cached_node=True)
             else:
-                return create_single_output_py_node(node)
+                return self._create_py_node(node)
         elif isinstance(value, ast.Attribute):
             if value.attr == "T" and isinstance(value.value, ast.Call) and isinstance(value.value.func, ast.Attribute) \
                     and isinstance(value.value.func.value, ast.Name) and value.value.func.attr == "to_frame":
@@ -406,7 +403,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 assert (isinstance(input_type, WeldSeriesPandas))
                 series_to_df_node = PandasSeriesToDataFrameNode(input_node=input_node, input_name=input_name,
                                                                 input_type=input_type, output_name=output_var_name)
-                return output_var_name, series_to_df_node
+                return [output_var_name], series_to_df_node
             elif value.attr == "values" and isinstance(value.value, ast.Name):
                 input_name = self.get_load_name(value.value.id, value.lineno, self._type_map)
                 if isinstance(self._type_map[input_name], WeldSeriesPandas):
@@ -414,13 +411,13 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     output_type = self._type_map[output_var_name]
                     identity_node = IdentityNode(input_name=input_name, input_node=input_node,
                                                  output_name=output_var_name, output_type=output_type)
-                    return output_var_name, identity_node
+                    return [output_var_name], identity_node
                 else:
-                    return create_single_output_py_node(node)
+                    return self._create_py_node(node)
             else:
-                return create_single_output_py_node(node)
+                return self._create_py_node(node)
         else:
-            return create_single_output_py_node(node)
+            return self._create_py_node(node)
 
     @staticmethod
     def get_store_name(string, lineno):
@@ -467,7 +464,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                    does_not_modify_data=does_not_modify_data)
         return output_list, willump_python_node
 
-    def _create_temp_var_from_node(self, entry: ast.expr, entry_type: WeldType) -> Tuple[str, WillumpGraphNode]:
+    def _create_temp_var_from_node(self, entry: ast.expr, entry_type: WeldType) -> Tuple[List[str], WillumpGraphNode]:
         """
         Creates a variable equal to the value returned when evaluating an expression.  Returns the name of the variable
         and the node that generates it.

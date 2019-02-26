@@ -198,11 +198,20 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
         Create a statement from the target of an assignment that will insert into a global
         dict the type of the target.
         """
-        target_name: str = WillumpGraphBuilder.get_assignment_target_name(target)
-        target_analysis_instrumentation_code: str = \
-            """willump_typing_map["{0}_{1}"] = py_var_to_weld_type({0})""".format(target_name, target.lineno)
-        instrumentation_ast: ast.Module = ast.parse(target_analysis_instrumentation_code, "exec")
-        instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
+        instrumentation_statements: List[ast.stmt] = []
+        if isinstance(target, ast.Tuple):
+            for target in target.elts:
+                target_name: str = WillumpGraphBuilder.get_assignment_target_name(target)
+                target_analysis_instrumentation_code: str = \
+                    """willump_typing_map["{0}_{1}"] = py_var_to_weld_type({0})""".format(target_name, target.lineno)
+                instrumentation_ast: ast.Module = ast.parse(target_analysis_instrumentation_code, "exec")
+                instrumentation_statements += instrumentation_ast.body
+        else:
+            target_name: str = WillumpGraphBuilder.get_assignment_target_name(target)
+            target_analysis_instrumentation_code: str = \
+                """willump_typing_map["{0}_{1}"] = py_var_to_weld_type({0})""".format(target_name, target.lineno)
+            instrumentation_ast: ast.Module = ast.parse(target_analysis_instrumentation_code, "exec")
+            instrumentation_statements += instrumentation_ast.body
         return instrumentation_statements
 
 
