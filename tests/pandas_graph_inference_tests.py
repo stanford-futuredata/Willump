@@ -79,6 +79,16 @@ def sample_logistic_regression_cv(array_one, input_vect):
     return predicted_result
 
 
+@wexec.willump_execute()
+def sample_predict_proba_cv(array_one, input_vect):
+    df = pd.DataFrame()
+    df["strings"] = array_one
+    np_input = list(df["strings"].values)
+    transformed_result = input_vect.transform(np_input)
+    predicted_result = model.predict_proba(transformed_result)[:,1]
+    return predicted_result
+
+
 FEATURES = ["data1", "data2", "metadata1", "metadata2"]
 
 
@@ -212,6 +222,16 @@ class PandasGraphInferenceTests(unittest.TestCase):
         weld_output = sample_logistic_regression_cv(string_array, vectorizer)
         numpy.testing.assert_equal(
             weld_output, numpy.array([0, 1, 0, 1], dtype=numpy.int64))
+
+    def test_predict_proba_cv(self):
+        print("\ntest_predict_proba_cv")
+        model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
+        string_array = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dog the the the the"]
+        correct_answer = sample_predict_proba_cv(string_array, vectorizer)
+        sample_predict_proba_cv(string_array, vectorizer)
+        weld_output = sample_predict_proba_cv(string_array, vectorizer)
+        numpy.testing.assert_almost_equal(
+            weld_output, correct_answer)
 
     def test_simple_join_regression_batch(self):
         print("\ntest_simple_join_regression_batch")

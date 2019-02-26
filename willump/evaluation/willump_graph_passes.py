@@ -218,7 +218,7 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
 
     nodes_to_base_map = {}
     model_node = weld_block_node_list[-1]
-    if not isinstance(model_node, LinearRegressionNode):
+    if (not isinstance(model_node, LinearRegressionNode)) or model_node._predict_proba:
         return weld_block_node_list
     model_inputs: Mapping[WillumpGraphNode, Union[Tuple[int, int], Mapping[str, int]]] = model_node.get_model_inputs()
     # A stack containing the next nodes we want to push the model through.

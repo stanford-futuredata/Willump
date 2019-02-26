@@ -132,7 +132,7 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
                         )
                 );
                 let ros: {vec[i64], vec[i64], vec[i64]} =
-                if(true,
+                if(a,
                     {result(out_struct.$0), result(out_struct.$1), result(out_struct.$2)},
                     
                     {result(out_struct.$0), result(out_struct.$1), result(out_struct.$2)}

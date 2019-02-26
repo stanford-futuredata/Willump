@@ -95,6 +95,41 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             assert (len(output_names) == 1)
             return output_names[0], py_node
 
+        def analyze_predict(predict_node_value: ast.AST, predict_proba: bool) -> Tuple[str, WillumpGraphNode]:
+            if WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:
+                logit_input_var: str = self.get_load_name(predict_node_value.args[0].id,
+                                                          predict_node_value.lineno, self._type_map)
+                logit_weights = self._static_vars[WILLUMP_LINEAR_REGRESSION_WEIGHTS]
+                logit_intercept = self._static_vars[WILLUMP_LINEAR_REGRESSION_INTERCEPT]
+                is_regression = self._static_vars[WILLUMP_LINEAR_MODEL_IS_REGRESSION]
+                logit_input_node: WillumpGraphNode = self._node_dict[logit_input_var]
+                logit_node: LinearRegressionNode = LinearRegressionNode(
+                    input_node=logit_input_node,
+                    input_name=logit_input_var,
+                    input_type=self._type_map[logit_input_var],
+                    output_name=output_var_name,
+                    output_type=self._type_map[output_var_name],
+                    logit_weights=logit_weights,
+                    logit_intercept=logit_intercept, aux_data=self.aux_data,
+                    regression=is_regression,
+                    predict_proba=predict_proba
+                )
+                return output_var_name, logit_node
+            elif WILLUMP_TREES_FEATURE_IMPORTANCES in self._static_vars:
+                trees_input_var: str = self.get_load_name(predict_node_value.args[0].id,
+                                                          predict_node_value.lineno, self._type_map)
+                trees_input_node: WillumpGraphNode = self._node_dict[trees_input_var]
+                model_name = predict_node_value.func.value.id
+                feature_importances = self._static_vars[WILLUMP_TREES_FEATURE_IMPORTANCES]
+                trees_node = TreesModelNode(input_node=trees_input_node, input_name=trees_input_var,
+                                            output_name=output_var_name, model_name=model_name,
+                                            input_width=len(feature_importances),
+                                            output_type=self._type_map[output_var_name],
+                                            predict_proba=predict_proba)
+                return output_var_name, trees_node
+            else:
+                return create_single_output_py_node(node)
+
         assert (len(node.targets) == 1)  # Assume assignment to only one variable.
         target: ast.expr = node.targets[0]
         output_var_name_base = self.get_assignment_target_name(target)
@@ -147,7 +182,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 column_names = self._static_vars[WILLUMP_SUBSCRIPT_INDEX_NAME + str(value.lineno)]
                 input_var_type = self._type_map[input_var_name]
                 output_type = self._type_map[output_var_name]
-                if (isinstance(input_var_type, WeldPandas) or isinstance(input_var_type, WeldSeriesPandas))\
+                if (isinstance(input_var_type, WeldPandas) or isinstance(input_var_type, WeldSeriesPandas)) \
                         and isinstance(column_names, list):
                     pandas_column_selection_node = \
                         PandasColumnSelectionNode(input_nodes=[self._node_dict[input_var_name]],
@@ -159,6 +194,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     return output_var_name, pandas_column_selection_node
                 else:
                     return create_single_output_py_node(node)
+            elif isinstance(value.slice, ast.ExtSlice) and isinstance(value.value, ast.Call) and "predict_proba" \
+                    in value.value.func.attr:
+                return analyze_predict(value.value, True)
             else:
                 return create_single_output_py_node(node)
         elif isinstance(value, ast.Call):
@@ -191,39 +229,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 else:
                     return create_single_output_py_node(node)
             elif ".predict" in called_function:
-                if WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:
-                    logit_input_var: str = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
-                    logit_weights = self._static_vars[WILLUMP_LINEAR_REGRESSION_WEIGHTS]
-                    logit_intercept = self._static_vars[WILLUMP_LINEAR_REGRESSION_INTERCEPT]
-                    is_regression = self._static_vars[WILLUMP_LINEAR_MODEL_IS_REGRESSION]
-                    logit_input_node: WillumpGraphNode = self._node_dict[logit_input_var]
-                    logit_node: LinearRegressionNode = LinearRegressionNode(
-                        input_node=logit_input_node,
-                        input_name=logit_input_var,
-                        input_type=self._type_map[logit_input_var],
-                        output_name=output_var_name,
-                        output_type=self._type_map[output_var_name],
-                        logit_weights=logit_weights,
-                        logit_intercept=logit_intercept, aux_data=self.aux_data,
-                        regression=is_regression
-                    )
-                    return output_var_name, logit_node
-                elif WILLUMP_TREES_FEATURE_IMPORTANCES in self._static_vars:
-                    trees_input_var: str = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
-                    trees_input_node: WillumpGraphNode = self._node_dict[trees_input_var]
-                    model_name = value.func.value.id
-                    feature_importances = self._static_vars[WILLUMP_TREES_FEATURE_IMPORTANCES]
-                    trees_node = TreesModelNode(input_node=trees_input_node, input_name=trees_input_var,
-                                                output_name=output_var_name, model_name=model_name,
-                                                input_width=len(feature_importances),
-                                                output_type=self._type_map[output_var_name])
-                    return output_var_name, trees_node
-                else:
-                    return create_single_output_py_node(node)
+                return analyze_predict(value, False)
             elif ".transform" in called_function:
                 lineno = str(node.lineno)
-                if WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno not in self._static_vars or\
-                    WILLUMP_COUNT_VECTORIZER_VOCAB + lineno not in self._static_vars or \
+                if WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno not in self._static_vars or \
+                        WILLUMP_COUNT_VECTORIZER_VOCAB + lineno not in self._static_vars or \
                         self._static_vars[WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno] is True:
                     return create_single_output_py_node(node)
                 vectorizer_input_var: str = self.get_load_name(value.args[0].id, node.lineno, self._type_map)
@@ -527,13 +537,17 @@ class ExpressionVariableAnalyzer(ast.NodeVisitor):
         self._type_map = type_map
 
     def visit_Subscript(self, node: ast.Subscript):
-        if isinstance(node.ctx, ast.Store):
-            self._output_list.append(WillumpGraphBuilder.get_store_name(node.value.id, node.lineno))
-        else:
-            try:
-                self._input_list.append(WillumpGraphBuilder.get_load_name(node.value.id, node.lineno, self._type_map))
-            except UntypedVariableException:
-                pass
+        try:
+            if isinstance(node.ctx, ast.Store):
+                self._output_list.append(WillumpGraphBuilder.get_store_name(node.value.id, node.lineno))
+            else:
+                try:
+                    self._input_list.append(
+                        WillumpGraphBuilder.get_load_name(node.value.id, node.lineno, self._type_map))
+                except UntypedVariableException:
+                    pass
+        except AttributeError:
+            pass
         self.generic_visit(node)
 
     def visit_Name(self, node: ast.Name):
