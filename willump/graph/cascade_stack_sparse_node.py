@@ -91,7 +91,6 @@ class CascadeStackSparseNode(WillumpGraphNode):
                       merge(bs.$2, ELEM_TYPE(lookup(INPUT_NAME.$2, x)))
                     }
                 );
-                let stack_height = INPUT_NAME.$3;
                 let stack_width = stack_width + INPUT_NAME.$4;
                 """
             weld_program = weld_program.replace("INPUT_NAME", less_important_input_name)

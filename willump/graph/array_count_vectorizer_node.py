@@ -117,6 +117,7 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
                             count_dicts
                         )
                 ));
+                let a = assert(len(list_dicts) >= 0L); # TODO:  Talk to Shoumik about this.
                 let vec_dict_vecs: vec[vec[{i64, i64}]] = map(list_dicts, 
                     | string_dict: dict[i64, i64] | 
                         tovec(string_dict)
@@ -131,7 +132,11 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
                         )
                 );
                 let ros: {vec[i64], vec[i64], vec[i64]} =
-                    {result(out_struct.$0), result(out_struct.$1), result(out_struct.$2)};
+                if(true,
+                    {result(out_struct.$0), result(out_struct.$1), result(out_struct.$2)},
+                    
+                    {result(out_struct.$0), result(out_struct.$1), result(out_struct.$2)}
+                    );
                         
                 let OUTPUT_NAME: {vec[i64], vec[i64], vec[i64], i64, i64} = {ros.$0, ros.$1, ros.$2, 
                     len(INPUT_NAME), VOCAB_SIZEL}; # Row numbers, index numbers, frequencies, height, width

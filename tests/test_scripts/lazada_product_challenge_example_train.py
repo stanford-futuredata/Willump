@@ -5,7 +5,7 @@ import numpy
 import pickle
 import scipy.sparse
 import scipy.sparse.csr
-from sklearn.linear_model import SGDClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.feature_extraction.text import TfidfVectorizer
 import willump.evaluation.willump_executor
 from sklearn.ensemble import GradientBoostingClassifier
@@ -34,7 +34,7 @@ def vectorizer_transform(title_vect, input_df, color_vect, brand_vect, y_df):
     if trees:
         model = GradientBoostingClassifier()
     else:
-        model = SGDClassifier(loss='log', penalty='l1', max_iter=1000, verbose=0, tol=0.0001)
+        model = LogisticRegression()
     model = model.fit(combined_result, y_df)
     return model
 

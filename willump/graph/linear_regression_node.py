@@ -81,7 +81,7 @@ class LinearRegressionNode(WillumpModelNode):
             elif self._regression:
                 output_statement = "OUTPUT_TYPE(sum + intercept)"
             else:
-                output_statement = "select(sum + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))"
+                output_statement = "if(sum + intercept > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))"
             elem_type = self._input_type.elemType.elemType
             weld_program = \
                 """
@@ -111,7 +111,7 @@ class LinearRegressionNode(WillumpModelNode):
             elif self._regression:
                 output_statement = "OUTPUT_TYPE(x)"
             else:
-                output_statement = "select(x > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))"
+                output_statement = "if(x > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))"
             weld_program = \
                 """
                 let row_numbers: vec[i64] = INPUT_NAME.$0;
@@ -149,7 +149,7 @@ class LinearRegressionNode(WillumpModelNode):
             elif self._regression:
                 output_statement = "OUTPUT_TYPE(sum)"
             else:
-                output_statement = "select(sum > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))"
+                output_statement = "if(sum > 0.0, OUTPUT_TYPE(1), OUTPUT_TYPE(0))"
             sum_string = ""
             for i in range(len(self._input_type.column_names)):
                 sum_string += "lookup(WEIGHTS_NAME, %dL) * f64(lookup(INPUT_NAME.$%d, result_i))+" % (i, i)
