@@ -28,8 +28,11 @@ class CascadeTopKSelectionNode(WillumpGraphNode):
     def get_node_weld(self) -> str:
         weld_program = \
             """
+            # Run the big model on the top 10 * K samples.
             let percentile: f64 = 1.0 - 10.0 * (f64(TOP_K) / f64(len(INPUT_NAME)));
+            # Clamp the percentile of elements above which the big model runs between 0% and 95%.
             let percentile = if(percentile > 0.0, percentile, 0.0);
+            let percentile = if(percentile < 0.95, percentile, 0.95);
             let sorted_proba = sort(INPUT_NAME, |x, y| compare(x, y));
             let threshold_index = i64(percentile * f64(len(sorted_proba)));
             let threshold: f64 = lookup(sorted_proba, threshold_index);

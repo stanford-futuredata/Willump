@@ -463,7 +463,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
             big_model_output = TreesModelNode(input_node=new_input_node,
                                               input_name=new_input_name,
                                               output_name=output_name,
-                                              model_name=orig_model_node.model_name,
+                                              model_name=BIG_MODEL_NAME,
                                               input_width=orig_model_node.input_width,
                                               output_type=output_type,
                                               predict_proba=orig_model_node.predict_proba)

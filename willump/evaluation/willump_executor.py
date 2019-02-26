@@ -235,6 +235,7 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
                         augmented_globals[module] = importlib.import_module(module)
                     if eval_cascades is not None:
                         augmented_globals[SMALL_MODEL_NAME] = eval_cascades["small_model"]
+                        augmented_globals[BIG_MODEL_NAME] = eval_cascades["big_model"]
                     augmented_globals["scipy"] = importlib.import_module("scipy")
                     augmented_globals["re"] = importlib.import_module("re")
                     augmented_globals["copy"] = importlib.import_module("copy")

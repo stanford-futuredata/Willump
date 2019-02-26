@@ -152,7 +152,7 @@ def add_features_and_train_model(folder, combi):
     num_rows = len(combi)
 
     start = time.time()
-    do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
+    model = do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
              join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
              join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
              ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
@@ -167,7 +167,7 @@ def add_features_and_train_model(folder, combi):
         elapsed_time, num_rows, num_rows / elapsed_time))
 
     start = time.time()
-    model = do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
+    do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
                      join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
                      join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
                      ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
