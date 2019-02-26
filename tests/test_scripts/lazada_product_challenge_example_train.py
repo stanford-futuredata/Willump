@@ -68,12 +68,12 @@ print("Brand Vocabulary has length %d" % len(brand_vectorizer.vocabulary_))
 
 set_size = len(df)
 t0 = time.time()
-vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, brand_vectorizer, y)
+trained_model = vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, brand_vectorizer, y)
 time_elapsed = time.time() - t0
 print("First (Python) Training Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
 t0 = time.time()
-trained_model = vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, brand_vectorizer, y)
+vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, brand_vectorizer, y)
 time_elapsed = time.time() - t0
 print(trained_model)
 print("Second (Willump Cascade) Training Time %fs Num Rows %d Throughput %f rows/sec" %
