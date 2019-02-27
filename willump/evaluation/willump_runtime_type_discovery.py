@@ -112,7 +112,7 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                     ast.parse(static_variable_extraction_code, "exec")
                 logit_instrumentation_statements: List[ast.stmt] = logit_instrumentation_ast.body
                 static_variable_extraction_code = \
-                    """if "sklearn.ensemble" in type({0}).__module__:\n""" \
+                    """if "sklearn.ensemble" in type({0}).__module__ or "lightgbm.sklearn" in type({0}).__module__:\n""" \
                         .format(model_name) + \
                     """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
                         .format(WILLUMP_TREES_FEATURE_IMPORTANCES, model_name, "feature_importances_")

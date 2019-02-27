@@ -1,7 +1,7 @@
 # Data files are too large to include.  Download from Kaggle: https://www.kaggle.com/c/home-credit-default-risk/data
 # Code source:  https://www.kaggle.com/jsaguiar/lightgbm-with-simple-features
 
-import gc
+import argparse
 import pickle
 import time
 import warnings
@@ -9,14 +9,23 @@ from contextlib import contextmanager
 
 import numpy as np
 import pandas as pd
-from lightgbm import LGBMClassifier
-from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
+
 from willump.evaluation.willump_executor import willump_execute
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 base_folder = "tests/test_resources/home_credit_default_risk/"
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-k", "--top_k_cascade", type=int, help="Top-K to return")
+args = parser.parse_args()
+if args.top_k_cascade is None:
+    cascades = None
+    top_K = None
+else:
+    cascades = pickle.load(open(base_folder + "training_cascades.pk", "rb"))
+    top_K = args.top_k_cascade
 
 
 @contextmanager
@@ -60,7 +69,7 @@ def application_train_test(num_rows=None, nan_as_category=False):
     return df
 
 
-@willump_execute()
+@willump_execute(eval_cascades=cascades, top_k=top_K)
 def join_and_lgbm(df, bureau, prev, pos, ins, cc, clf):
     df = df.merge(bureau, how='left', on='SK_ID_CURR')
     df = df.merge(prev, how='left', on='SK_ID_CURR')
@@ -88,7 +97,11 @@ def main(debug=True):
     with timer("Joins and Prediction"):
         oof_preds = join_and_lgbm(valid_df, bureau, prev, pos, ins, cc, clf)
 
-    print('Full AUC score %.6f' % roc_auc_score(valid_df['TARGET'], oof_preds))
+    top_k_idx = np.argsort(oof_preds)[-1 * top_K:]
+    top_k_values = [oof_preds[i] for i in top_k_idx]
+
+    for idx, value in zip(top_k_idx, top_k_values):
+        print(idx, value)
 
 
 if __name__ == "__main__":

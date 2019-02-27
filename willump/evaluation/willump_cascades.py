@@ -266,7 +266,7 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, more_i
         node_efficiency = nodes_to_importances[node] / node.get_cost()
         if node_efficiency < average_efficiency / 3:
             break
-        if current_cost + node.get_cost() < more_important_cost_frac * total_cost:
+        if current_cost + node.get_cost() <= more_important_cost_frac * total_cost:
             more_important_inputs.append(node)
             current_importance += nodes_to_importances[node]
             current_cost += node.get_cost()

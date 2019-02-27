@@ -321,7 +321,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 return [output_var_name], stack_sparse_node
             elif ".fit" in called_function:
                 if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name) and \
-                        len(value.args) == 2 and isinstance(value.args[0], ast.Name) and isinstance(value.args[1],
+                        len(value.args) >= 2 and isinstance(value.args[0], ast.Name) and isinstance(value.args[1],
                                                                                                     ast.Name):
                     x_name = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
                     model_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)

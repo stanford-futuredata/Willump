@@ -10,8 +10,8 @@ from contextlib import contextmanager
 import numpy as np
 import pandas as pd
 from lightgbm import LGBMClassifier
-from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
+from willump.evaluation.willump_executor import willump_execute
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -236,16 +236,39 @@ def credit_card_balance(num_rows=None, nan_as_category=True):
     return cc_agg
 
 
-def join_and_lgbm(df, bureau, prev, pos, ins, cc):
+training_cascades = {}
+
+
+@willump_execute(training_cascades=training_cascades)
+def join_and_lgbm(df, bureau, prev, pos, ins, cc, train_y):
     df = df.merge(bureau, how='left', on='SK_ID_CURR')
     df = df.merge(prev, how='left', on='SK_ID_CURR')
     df = df.merge(pos, how='left', on='SK_ID_CURR')
     df = df.merge(ins, how='left', on='SK_ID_CURR')
     df = df.merge(cc, how='left', on='SK_ID_CURR')
-    return df
+    # LightGBM parameters found by Bayesian optimization
+    clf = LGBMClassifier(
+        nthread=1,
+        n_estimators=10000,
+        learning_rate=0.02,
+        num_leaves=34,
+        colsample_bytree=0.9497036,
+        subsample=0.8715623,
+        max_depth=8,
+        reg_alpha=0.041545473,
+        reg_lambda=0.0735294,
+        min_split_gain=0.0222415,
+        min_child_weight=39.3259775,
+        silent=-1,
+        verbose=-1, )
+    feats = [f for f in df.columns if
+             f not in ['TARGET', 'SK_ID_CURR', 'SK_ID_BUREAU', 'SK_ID_PREV', 'index']]
+    train_x = df[feats]
+    clf = clf.fit(train_x, train_y, eval_metric='auc', verbose=200)
+    return clf
 
 
-def main(debug=False):
+def main(debug=True):
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
     with timer("Process bureau and bureau_balance"):
@@ -263,45 +286,23 @@ def main(debug=False):
     with timer("Process credit card balance"):
         cc = credit_card_balance(num_rows)
         print("Credit card balance df shape:", cc.shape)
-    with timer("Run LightGBM with kfold"):  # Divide in training/validation and test data
-        train_df = df[df['TARGET'].notnull()]
-        train_df, valid_df = train_test_split(train_df, test_size=0.2, random_state=42)
-        train_df = join_and_lgbm(train_df, bureau, prev, pos, ins, cc)
-        valid_df = join_and_lgbm(valid_df, bureau, prev, pos, ins, cc)
-        print("Starting LightGBM. Train shape: {}".format(train_df.shape))
-        del df
-        gc.collect()
-        # Create arrays and dataframes to store results
-        feats = [f for f in train_df.columns if
-                 f not in ['TARGET', 'SK_ID_CURR', 'SK_ID_BUREAU', 'SK_ID_PREV', 'index']]
+    bureau = bureau.reset_index()
+    prev = prev.reset_index()
+    pos = pos.reset_index()
+    ins = ins.reset_index()
+    cc = cc.reset_index()
+    df = df[df['TARGET'].notnull()]
+    train_df, _ = train_test_split(df, test_size=0.2, random_state=42)
+    train_y = train_df['TARGET']
+    del df
+    with timer("First (Python) Training:"):
+        clf = join_and_lgbm(train_df, bureau, prev, pos, ins, cc, train_y)
+    with timer("Second (Willump) Training:"):
+        join_and_lgbm(train_df, bureau, prev, pos, ins, cc, train_y)
 
-        train_x, train_y = train_df[feats], train_df['TARGET']
-        valid_x, valid_y = valid_df[feats], valid_df['TARGET']
-
-        # LightGBM parameters found by Bayesian optimization
-        clf = LGBMClassifier(
-            nthread=4,
-            n_estimators=10000,
-            learning_rate=0.02,
-            num_leaves=34,
-            colsample_bytree=0.9497036,
-            subsample=0.8715623,
-            max_depth=8,
-            reg_alpha=0.041545473,
-            reg_lambda=0.0735294,
-            min_split_gain=0.0222415,
-            min_child_weight=39.3259775,
-            silent=-1,
-            verbose=-1, )
-
-        clf.fit(train_x, train_y, eval_set=[(train_x, train_y), (valid_x, valid_y)],
-                eval_metric='auc', verbose=200, early_stopping_rounds=200)
-
-        oof_preds = clf.predict_proba(valid_x, num_iteration=clf.best_iteration_)[:, 1]
-
-        print('Full AUC score %.6f' % roc_auc_score(valid_df['TARGET'], oof_preds))
-        pickle.dump((bureau, prev, pos, ins, cc, feats), open(base_folder + "tables.csv", "wb"))
-        pickle.dump(clf, open(base_folder + "lgbm_model.pk", "wb"))
+    pickle.dump((bureau, prev, pos, ins, cc), open(base_folder + "tables.csv", "wb"))
+    pickle.dump(clf, open(base_folder + "lgbm_model.pk", "wb"))
+    pickle.dump(training_cascades, open(base_folder + "training_cascades.pk", "wb"))
 
 
 if __name__ == "__main__":
