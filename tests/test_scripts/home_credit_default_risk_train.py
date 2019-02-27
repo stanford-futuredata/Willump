@@ -260,7 +260,8 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, train_y):
         min_split_gain=0.0222415,
         min_child_weight=39.3259775,
         silent=-1,
-        verbose=-1, )
+        verbose=-1,
+        random_state=42)
     feats = [f for f in df.columns if
              f not in ['TARGET', 'SK_ID_CURR', 'SK_ID_BUREAU', 'SK_ID_PREV', 'index']]
     train_x = df[feats]
@@ -268,7 +269,7 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, train_y):
     return clf
 
 
-def main(debug=True):
+def main(debug=False):
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
     with timer("Process bureau and bureau_balance"):
@@ -286,11 +287,11 @@ def main(debug=True):
     with timer("Process credit card balance"):
         cc = credit_card_balance(num_rows)
         print("Credit card balance df shape:", cc.shape)
-    bureau = bureau.reset_index()
-    prev = prev.reset_index()
-    pos = pos.reset_index()
-    ins = ins.reset_index()
-    cc = cc.reset_index()
+    bureau = bureau.reset_index().astype('float64')
+    prev = prev.reset_index().astype('float64')
+    pos = pos.reset_index().astype('float64')
+    ins = ins.reset_index().astype('float64')
+    cc = cc.reset_index().astype('float64')
     df = df[df['TARGET'].notnull()]
     train_df, _ = train_test_split(df, test_size=0.2, random_state=42)
     train_y = train_df['TARGET']

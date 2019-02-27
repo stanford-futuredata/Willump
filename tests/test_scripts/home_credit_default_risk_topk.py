@@ -83,7 +83,7 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, clf):
     return oof_preds_proba
 
 
-def main(debug=True):
+def main(debug=False):
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
     bureau, prev, pos, ins, cc = pickle.load(open(base_folder + "tables.csv", "rb"))
