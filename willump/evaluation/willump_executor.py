@@ -156,8 +156,9 @@ def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
     return new_functiondef
 
 
-def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades=None, eval_cascades=None,
-                    cascade_threshold=1.0, cached_funcs=(), max_cache_size=None, top_k=None, costly_statements=())\
+def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), training_cascades=None,
+                    eval_cascades=None, cascade_threshold=1.0, cached_funcs=(), max_cache_size=None, top_k=None,
+                    costly_statements=()) \
         -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
@@ -258,8 +259,10 @@ def willump_execute(batch=True, num_workers=0, async_funcs=(), training_cascades
             else:
                 # Run the compiled function.
                 return globals()[llvm_runner_func](*args)
-
-        return wrapper
+        if disable is False:
+            return wrapper
+        else:
+            return func
 
     return willump_execute_inner
 

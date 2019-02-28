@@ -1,14 +1,16 @@
-import time
-import pandas as pd
-import willump.evaluation.willump_executor
+import argparse
 import pickle
+import time
+
 import numpy
+import numpy as np
+import pandas as pd
+import scipy.sparse
 import scipy.sparse.csr
 from sklearn.metrics import mean_squared_error
-import scipy.sparse
-import argparse
 from sklearn.model_selection import train_test_split
-import numpy as np
+
+from willump.evaluation.willump_executor import willump_execute
 
 
 def rmse_score(y, pred):
@@ -17,6 +19,7 @@ def rmse_score(y, pred):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-k", "--top_k_cascade", type=int, help="Top-K to return")
+parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 args = parser.parse_args()
 if args.top_k_cascade is None:
     cascades = None
@@ -26,7 +29,7 @@ else:
     top_K = args.top_k_cascade
 
 
-@willump.evaluation.willump_executor.willump_execute(eval_cascades=cascades, top_k=top_K)
+@willump_execute(disable=args.disable, num_workers=0, eval_cascades=cascades)
 def vectorizer_transform(title_vect, input_df, color_vect, brand_vect):
     np_input = list(input_df.values)
     transformed_result = title_vect.transform(np_input)

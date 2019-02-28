@@ -61,9 +61,9 @@ class_name = "toxic"
 train_target = train[class_name]
 train_text, _, train_target, _ = train_test_split(train_text, train_target, test_size=0.33, random_state=42)
 
-vectorizer_transform(train_text, word_vectorizer, char_vectorizer, train_target)
-print("First (Python) Train Done")
 classifier = vectorizer_transform(train_text, word_vectorizer, char_vectorizer, train_target)
+print("First (Python) Train Done")
+vectorizer_transform(train_text, word_vectorizer, char_vectorizer, train_target)
 print("Second (Willump) Train Done")
 pickle.dump(classifier, open(base_path + "model.pk", "wb"))
 pickle.dump(training_cascades, open(base_path + "training_cascades.pk", "wb"))

@@ -2,15 +2,15 @@ import argparse
 import pickle
 import time
 
-from sklearn import metrics
 from sklearn.model_selection import train_test_split
 
-import willump.evaluation.willump_executor
+from willump.evaluation.willump_executor import willump_execute
 from wsdm_utilities import *
 
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
 parser = argparse.ArgumentParser()
 parser.add_argument("-k", "--top_k_cascade", type=int, help="Top-K to return")
+parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 args = parser.parse_args()
 if args.top_k_cascade is None:
     cascades = None
@@ -20,7 +20,7 @@ else:
     top_K = args.top_k_cascade
 
 
-@willump.evaluation.willump_executor.willump_execute(eval_cascades=cascades, top_k=top_K)
+@willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,

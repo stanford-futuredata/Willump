@@ -1,7 +1,7 @@
 # Data files are too large to include.  Download from Kaggle: https://www.kaggle.com/c/home-credit-default-risk/data
 # Code source:  https://www.kaggle.com/jsaguiar/lightgbm-with-simple-features
 
-import gc
+import argparse
 import pickle
 import time
 import warnings
@@ -9,14 +9,19 @@ from contextlib import contextmanager
 
 import numpy as np
 import pandas as pd
-from lightgbm import LGBMClassifier
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
+
 from willump.evaluation.willump_executor import willump_execute
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 base_folder = "tests/test_resources/home_credit_default_risk/"
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+args = parser.parse_args()
 
 
 @contextmanager
@@ -60,7 +65,7 @@ def application_train_test(num_rows=None, nan_as_category=False):
     return df
 
 
-@willump_execute()
+@willump_execute(disable=args.disable)
 def join_and_lgbm(df, bureau, prev, pos, ins, cc, clf):
     df = df.merge(bureau, how='left', on='SK_ID_CURR')
     df = df.merge(prev, how='left', on='SK_ID_CURR')
@@ -74,7 +79,7 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, clf):
     return oof_preds_proba
 
 
-def main(debug=True):
+def main(debug=False):
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
     bureau, prev, pos, ins, cc = pickle.load(open(base_folder + "tables.csv", "rb"))

@@ -19,6 +19,7 @@ base_folder = "tests/test_resources/home_credit_default_risk/"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-k", "--top_k_cascade", type=int, help="Top-K to return")
+parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 args = parser.parse_args()
 if args.top_k_cascade is None:
     cascades = None
@@ -69,7 +70,7 @@ def application_train_test(num_rows=None, nan_as_category=False):
     return df
 
 
-@willump_execute(eval_cascades=cascades, top_k=top_K)
+@willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K)
 def join_and_lgbm(df, bureau, prev, pos, ins, cc, clf):
     df = df.merge(bureau, how='left', on='SK_ID_CURR')
     df = df.merge(prev, how='left', on='SK_ID_CURR')

@@ -13,6 +13,7 @@ class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity
 base_path = "tests/test_resources/toxic_comment_classification/"
 parser = argparse.ArgumentParser()
 parser.add_argument("-k", "--top_k_cascade", type=int, help="Top-K to return")
+parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 args = parser.parse_args()
 if args.top_k_cascade is None:
     cascades = None
@@ -22,7 +23,7 @@ else:
     top_K = args.top_k_cascade
 
 
-@willump_execute(eval_cascades=cascades, top_k=top_K)
+@willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K)
 def vectorizer_transform(input_text, word_vect, char_vect):
     word_features = word_vect.transform(input_text)
     char_features = char_vect.transform(input_text)
