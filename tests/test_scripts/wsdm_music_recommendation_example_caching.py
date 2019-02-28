@@ -13,6 +13,7 @@ model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk",
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+parser.add_argument("-s", "--costly_statements", help="Mark costly (remotely stored) statements?", action="store_true")
 args = parser.parse_args()
 if args.cascades is None:
     cascades = None
@@ -152,8 +153,14 @@ cached_funcs = ["get_row_to_merge_features_uf", "get_row_to_merge_features_sf", 
                 "get_row_to_merge_ss_features", "get_row_to_merge_as_features",
                 "get_row_to_merge_composer_features", "get_row_to_merge_lyrs_features"]
 
+if args.costly_statements:
+    costly_statements = cached_funcs
+else:
+    costly_statements = ()
+
 
 @willump.evaluation.willump_executor.willump_execute(batch=False, cached_funcs=cached_funcs,
+                                                     costly_statements=costly_statements,
                                                      eval_cascades=cascades, cascade_threshold=cascade_threshold,
                                                      max_cache_size=None)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,

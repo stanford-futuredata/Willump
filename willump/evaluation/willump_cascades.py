@@ -252,8 +252,11 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, more_i
             indices = indices.values()
             sum_importance = sum([feature_importances[i] for i in indices])
         nodes_to_importances[node] = sum_importance
-        nodes_to_efficiencies[node] = sum_importance / node.get_cost()
-        total_cost += node.get_cost()
+        node_cost: float = node.get_cost()
+        if node.get_costly_node():
+            node_cost *= 5
+        nodes_to_efficiencies[node] = sum_importance / node_cost
+        total_cost += node_cost
     ranked_inputs = sorted(nodes_to_efficiencies.keys(), key=lambda x: nodes_to_efficiencies[x], reverse=True)
     current_cost = 0
     current_importance = 0
@@ -264,7 +267,7 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, more_i
         else:
             average_efficiency = current_importance / current_cost
         node_efficiency = nodes_to_importances[node] / node.get_cost()
-        if node_efficiency < average_efficiency / 3:
+        if node_efficiency < average_efficiency / 5:
             break
         if current_cost + node.get_cost() <= more_important_cost_frac * total_cost:
             more_important_inputs.append(node)

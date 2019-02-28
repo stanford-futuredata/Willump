@@ -21,11 +21,21 @@ training_cascades = {}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-t", "--trees", help="Train trees?", action="store_true")
+parser.add_argument("-s", "--costly_statements", help="Mark costly (remotely stored) statements?", action="store_true")
 args = parser.parse_args()
 trees: bool = args.trees
 
+if args.costly_statements:
+    costly_statements = ("features_one", "features_two", "uc_features",
+                    "sc_features", "ac_features", "us_features",
+                    "ss_features", "as_features",
+                    "comps_features", "lyrs_features")
+else:
+    costly_statements = ()
 
-@willump.evaluation.willump_executor.willump_execute(batch=True, training_cascades=training_cascades)
+
+@willump.evaluation.willump_executor.willump_execute(batch=True, training_cascades=training_cascades,
+                                                     costly_statements=costly_statements)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,

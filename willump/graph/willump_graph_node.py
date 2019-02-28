@@ -8,6 +8,9 @@ class WillumpGraphNode(object):
     Interface for Willump Graph Nodes.  All types of nodes subclass this class.  Nodes represent
     transforms.
     """
+
+    _is_costly_node = False
+
     def get_in_nodes(self) -> List['WillumpGraphNode']:
         """
         Return the node's in-nodes.  These are inputs to the transform represented by the node.
@@ -37,4 +40,10 @@ class WillumpGraphNode(object):
         Return the Weld IR code defining this node's transform.
         """
         ...
+
+    def set_costly_node(self, b: bool):
+        self._is_costly_node = b
+
+    def get_costly_node(self) -> bool:
+        return self._is_costly_node
 
