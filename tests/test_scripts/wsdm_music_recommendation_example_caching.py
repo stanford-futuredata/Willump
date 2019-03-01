@@ -13,6 +13,7 @@ model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk",
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+parser.add_argument("-a", "--caching", help="Enable caching", action="store_true")
 parser.add_argument("-s", "--costly_statements", help="Mark costly (remotely stored) statements?", action="store_true")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 args = parser.parse_args()
@@ -148,11 +149,14 @@ def get_row_to_merge_regs_features(key):
     return regs_features.loc[key]
 
 
-cached_funcs = ["get_row_to_merge_features_uf", "get_row_to_merge_features_sf", "get_row_to_merge_cluster_one",
-                "get_row_to_merge_cluster_two", "get_row_to_merge_cluster_three", "get_row_to_merge_uc_features",
-                "get_row_to_merge_sc_features", "get_row_to_merge_ac_features", "get_row_to_merge_us_features",
-                "get_row_to_merge_ss_features", "get_row_to_merge_as_features",
-                "get_row_to_merge_composer_features", "get_row_to_merge_lyrs_features"]
+if args.caching:
+    cached_funcs = ["get_row_to_merge_features_uf", "get_row_to_merge_features_sf", "get_row_to_merge_cluster_one",
+                    "get_row_to_merge_cluster_two", "get_row_to_merge_cluster_three", "get_row_to_merge_uc_features",
+                    "get_row_to_merge_sc_features", "get_row_to_merge_ac_features", "get_row_to_merge_us_features",
+                    "get_row_to_merge_ss_features", "get_row_to_merge_as_features",
+                    "get_row_to_merge_composer_features", "get_row_to_merge_lyrs_features"]
+else:
+    cached_funcs = ()
 
 if args.costly_statements:
     costly_statements = cached_funcs
