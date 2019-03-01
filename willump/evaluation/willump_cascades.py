@@ -31,7 +31,7 @@ from willump.willump_utilities import *
 
 def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: List[WillumpGraphNode],
                              typing_map: MutableMapping[str, WeldType],
-                             base_discovery_dict, which: str, small_model_output_name=None) \
+                             base_discovery_dict, which: str, small_model_output_node=None) \
         -> Optional[WillumpGraphNode]:
     """
     Take in a node and a list of input sources.  Return a node that only depends on the intersection of its
@@ -46,8 +46,8 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
         return_node = None
         if isinstance(node, ArrayCountVectorizerNode) or isinstance(node, ArrayTfIdfNode):
             if node in selected_input_sources:
-                if small_model_output_name is not None:
-                    node.push_cascade(small_model_output_name)
+                if small_model_output_node is not None:
+                    node.push_cascade(small_model_output_node)
                 return_node = node
         elif isinstance(node, StackSparseNode):
             node_input_nodes = node.get_in_nodes()
@@ -117,8 +117,8 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                         new_input_name = new_input_node.get_output_name()
                         new_input_type = new_input_node.get_output_type()
                 return_node = copy.copy(node)
-                if small_model_output_name is not None:
-                    return_node.push_cascade(small_model_output_name)
+                if small_model_output_node is not None:
+                    return_node.push_cascade(small_model_output_node)
                 return_node._input_nodes = copy.copy(node._input_nodes)
                 return_node._input_nodes[0] = new_input_node
                 return_node._input_names = copy.copy(node._input_names)
@@ -193,7 +193,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                 typing_map[new_output_name] = output_type
         elif isinstance(node, WillumpPythonNode):
             if node in selected_input_sources:
-                if small_model_output_name is not None:
+                if small_model_output_node is not None:
                     pass
                 return_node = node
         else:
@@ -558,7 +558,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     base_discovery_dict = {}
     less_important_inputs_head = graph_from_input_sources(model_input_node, less_important_inputs, typing_map,
                                                           base_discovery_dict, "less",
-                                                          small_model_output_name=small_model_preds_name)
+                                                          small_model_output_node=threshold_node)
     less_important_inputs_block = get_model_node_dependencies(less_important_inputs_head, base_discovery_dict)
     # The big model predicts "hard" (for the small model) examples from all inputs.
     combiner_node = get_combiner_node_eval(more_important_inputs_head, less_important_inputs_head, model_input_node,

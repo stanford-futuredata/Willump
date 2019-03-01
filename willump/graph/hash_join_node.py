@@ -123,8 +123,10 @@ class WillumpHashJoinNode(WillumpGraphNode):
         self._model_parameters = model_parameters
         self._model_index_map = model_index_map
 
-    def push_cascade(self, small_model_output_name: str):
-        self._small_model_output_name = small_model_output_name
+    def push_cascade(self, small_model_output_node: WillumpGraphNode):
+        self._small_model_output_name = small_model_output_node.get_output_names()[0]
+        self._input_nodes.append(small_model_output_node)
+        self._input_names.append(self._small_model_output_name)
 
     def get_node_weld(self) -> str:
         join_col_left_index = self.left_df_type.column_names.index(self.join_col_name)

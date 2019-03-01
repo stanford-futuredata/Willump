@@ -80,8 +80,11 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
         self._model_parameters = model_parameters
         self._start_index = start_index
 
-    def push_cascade(self, small_model_output_name: str):
+    def push_cascade(self, small_model_output_node: WillumpGraphNode):
+        small_model_output_name = small_model_output_node.get_output_names()[0]
         self._small_model_output_name = small_model_output_name
+        self._input_nodes.append(small_model_output_node)
+        self._input_names.append(small_model_output_name)
 
     def get_node_weld(self) -> str:
         if self._model_type is None:
