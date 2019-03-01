@@ -29,7 +29,7 @@ else:
     top_K = args.top_k_cascade
 
 
-@willump_execute(disable=args.disable, num_workers=0, eval_cascades=cascades)
+@willump_execute(disable=args.disable, num_workers=0, eval_cascades=cascades, top_k=top_K)
 def vectorizer_transform(title_vect, input_df, color_vect, brand_vect):
     np_input = list(input_df.values)
     transformed_result = title_vect.transform(np_input)
