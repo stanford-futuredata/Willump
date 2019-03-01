@@ -19,6 +19,7 @@ from willump.graph.linear_training_node import LinearTrainingNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
 from willump.graph.trees_training_node import TreesTrainingNode
 from willump.graph.trees_model_node import TreesModelNode
+from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.pandas_series_to_dataframe_node import PandasSeriesToDataFrameNode
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 from willump.graph.identity_node import IdentityNode
@@ -395,12 +396,22 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 return [output_var_name], series_to_df_node
             elif value.attr == "values" and isinstance(value.value, ast.Name):
                 input_name = self.get_load_name(value.value.id, value.lineno, self._type_map)
-                if isinstance(self._type_map[input_name], WeldSeriesPandas):
+                input_type = self._type_map[input_name]
+                if isinstance(input_type, WeldSeriesPandas):
                     input_node = self._node_dict[input_name]
                     output_type = self._type_map[output_var_name]
                     identity_node = IdentityNode(input_name=input_name, input_node=input_node,
                                                  output_name=output_var_name, output_type=output_type)
                     return [output_var_name], identity_node
+                elif isinstance(input_type, WeldPandas):
+                    input_node = self._node_dict[input_name]
+                    output_type = self._type_map[output_var_name]
+                    assert (isinstance(output_type, WeldVec))
+                    pandas_to_dense_matrix_node = PandasToDenseMatrixNode(input_node=input_node, input_name=input_name,
+                                                                          input_type=input_type,
+                                                                          output_name=output_var_name,
+                                                                          output_type=output_type)
+                    return [output_var_name], pandas_to_dense_matrix_node
         return self._create_py_node(node, is_costly_node=is_costly_node)
 
 

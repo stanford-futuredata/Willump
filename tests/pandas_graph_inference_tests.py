@@ -159,6 +159,12 @@ def pandas_series_concat(series_one, series_two):
     return combined_series
 
 
+@wexec.willump_execute()
+def pandas_df_to_numpy_array(df):
+    numpy_array = df.values
+    return numpy_array
+
+
 class PandasGraphInferenceTests(unittest.TestCase):
     def test_unpacked_pandas(self):
         print("\ntest_unpacked_pandas")
@@ -307,3 +313,12 @@ class PandasGraphInferenceTests(unittest.TestCase):
         pandas_series_concat(series_one, series_two)
         weld_output = pandas_series_concat(series_one, series_two)
         numpy.testing.assert_almost_equal(correct_output, weld_output)
+
+    def test_df_to_numpy_array(self):
+        print("\ntest_df_to_numpy_array")
+        left_table = pd.read_csv("tests/test_resources/toy_data_csv.csv")
+        correct_output = pandas_df_to_numpy_array(left_table)
+        pandas_df_to_numpy_array(left_table)
+        weld_output = pandas_df_to_numpy_array(left_table)
+        numpy.testing.assert_almost_equal(correct_output, weld_output)
+

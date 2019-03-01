@@ -14,6 +14,7 @@ from willump.graph.identity_node import IdentityNode
 from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
+from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.reshape_node import ReshapeNode
 from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.willump_graph import WillumpGraph
@@ -181,15 +182,13 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
                     if col in output_columns:
                         pushed_map[col] = curr_selection_map[col]
             model_inputs[input_node] = pushed_map
-        elif isinstance(input_node, IdentityNode):
+        elif isinstance(input_node, IdentityNode) or isinstance(input_node, ReshapeNode)\
+                or isinstance(input_node, PandasToDenseMatrixNode):
             node_input_node = input_node.get_in_nodes()[0]
             current_node_stack.append((node_input_node, (index_start, index_end), curr_selection_map))
         # TODO:  What to do here?
         elif isinstance(input_node, WillumpInputNode):
             pass
-        elif isinstance(input_node, ReshapeNode):
-            node_input_node = input_node.get_in_nodes()[0]
-            current_node_stack.append((node_input_node, (index_start, index_end), curr_selection_map))
         elif isinstance(input_node, WillumpPythonNode):
             if curr_selection_map is not None:
                 model_inputs[input_node] = curr_selection_map

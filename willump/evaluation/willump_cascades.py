@@ -16,6 +16,7 @@ from willump.graph.cascade_topk_selection_node import CascadeTopKSelectionNode
 from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.identity_node import IdentityNode
 from willump.graph.linear_regression_node import LinearRegressionNode
+from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 from willump.graph.reshape_node import ReshapeNode
@@ -178,6 +179,18 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                                           output_name=new_output_name, output_type=output_type,
                                           reshape_args=node.reshape_args)
                 typing_map[new_output_name] = output_type
+        elif isinstance(node, PandasToDenseMatrixNode):
+            input_node = node.get_in_nodes()[0]
+            new_input_node = graph_from_input_sources_recursive(input_node)
+            if new_input_node is not None:
+                output_name = node.get_output_name()
+                new_output_name = ("cascading__%s__" % which) + output_name
+                output_type = node.get_output_type()
+                new_input_name = new_input_node.get_output_name()
+                return_node = PandasToDenseMatrixNode(input_node=new_input_node, input_name=new_input_name,
+                                                      input_type=new_input_node.get_output_type(),
+                                                      output_name=new_output_name, output_type=output_type)
+                typing_map[new_output_name] = output_type
         elif isinstance(node, WillumpPythonNode):
             if node in selected_input_sources:
                 if small_model_output_name is not None:
@@ -203,13 +216,9 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
         input_node = current_node_stack.pop()
         if isinstance(input_node, ArrayCountVectorizerNode) or isinstance(input_node, ArrayTfIdfNode):
             output_block.insert(0, input_node)
-        elif isinstance(input_node, StackSparseNode):
-            output_block.insert(0, input_node)
-            current_node_stack += input_node.get_in_nodes()
-        elif isinstance(input_node, PandasColumnSelectionNode):
-            output_block.insert(0, input_node)
-            current_node_stack += input_node.get_in_nodes()
-        elif isinstance(input_node, PandasSeriesConcatenationNode):
+        elif isinstance(input_node, StackSparseNode) or isinstance(input_node, PandasColumnSelectionNode)\
+                or isinstance(input_node, PandasSeriesConcatenationNode) or isinstance(input_node, IdentityNode)\
+                or isinstance(input_node, ReshapeNode) or isinstance(input_node, PandasToDenseMatrixNode):
             output_block.insert(0, input_node)
             current_node_stack += input_node.get_in_nodes()
         elif isinstance(input_node, WillumpHashJoinNode):
@@ -218,12 +227,6 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
             if input_node is not base_node:
                 join_left_input_node = input_node.get_in_nodes()[0]
                 current_node_stack.append(join_left_input_node)
-        elif isinstance(input_node, IdentityNode):
-            output_block.insert(0, input_node)
-            current_node_stack += input_node.get_in_nodes()
-        elif isinstance(input_node, ReshapeNode):
-            output_block.insert(0, input_node)
-            current_node_stack += input_node.get_in_nodes()
         elif isinstance(input_node, WillumpPythonNode):
             output_block.insert(0, input_node)
             if input_node.does_not_modify_data:

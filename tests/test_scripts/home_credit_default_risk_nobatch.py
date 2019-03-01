@@ -77,11 +77,12 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, clf):
     feats = [f for f in df.columns if
              f not in ['TARGET', 'SK_ID_CURR', 'SK_ID_BUREAU', 'SK_ID_PREV', 'index']]
     valid_x = df[feats]
+    valid_x = valid_x.values
     oof_preds_proba = clf.predict_proba(valid_x, num_iteration=clf.best_iteration_)[:, 1]
     return oof_preds_proba
 
 
-def main(debug=True):
+def main(debug=False):
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
     bureau, prev, pos, ins, cc = pickle.load(open(base_folder + "tables.csv", "rb"))

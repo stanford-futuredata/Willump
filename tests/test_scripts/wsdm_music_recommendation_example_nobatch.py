@@ -63,7 +63,7 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
     combi = combi.merge(stypes_features, how='left', on=stypes_col)
     combi = combi.merge(regs_features, how='left', on=regs_col)
     combi = combi[FEATURES]
-    combi = combi.fillna(0)
+    combi = combi.values
     preds = model.predict(combi)
     return preds
 

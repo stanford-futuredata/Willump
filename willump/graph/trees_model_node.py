@@ -43,7 +43,7 @@ class TreesModelNode(WillumpModelNode, WillumpPythonNode):
                                                          model_name, proba, stripped_input_name,
                                                          proba_selection)
         prediction_control_string = \
-            """if %s.shape[0] > 0:\n""" \
+            """if len(%s) > 0:\n""" \
             """\t%s\n""" \
             """else:\n""" \
             """\t%s = scipy.zeros(0, dtype=scipy.%s)\n""" % (stripped_input_name, prediction_string,
