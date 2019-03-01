@@ -55,6 +55,11 @@ print("Classification Time %fs Num Rows %d Throughput %f rows/sec" %
 
 top_k_idx = np.argsort(y_preds)[-1 * top_K:]
 top_k_values = [y_preds[i] for i in top_k_idx]
+sum_values = 0
 
 for idx, value in zip(top_k_idx, top_k_values):
     print(idx, value)
+    sum_values += value
+
+
+print("Sum of top %d values: %f" % (top_K,  sum_values))

@@ -11,6 +11,7 @@ model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk",
 parser = argparse.ArgumentParser()
 parser.add_argument("-k", "--top_k_cascade", type=int, help="Top-K to return")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+parser.add_argument("-s", "--costly_statements", help="Mark costly (remotely stored) statements?", action="store_true")
 args = parser.parse_args()
 if args.top_k_cascade is None:
     cascades = None
@@ -19,8 +20,16 @@ else:
     cascades = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_training_cascades.pk", "rb"))
     top_K = args.top_k_cascade
 
+if args.costly_statements:
+    costly_statements = ("features_one", "features_two", "uc_features",
+                         "sc_features", "ac_features", "us_features",
+                         "ss_features", "as_features",
+                         "comps_features", "lyrs_features")
+else:
+    costly_statements = ()
 
-@willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K)
+
+@willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K, costly_statements=costly_statements)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,
@@ -148,9 +157,13 @@ def create_featureset(folder):
 
     top_k_idx = np.argsort(y_pred)[-1 * top_K:]
     top_k_values = [y_pred[i] for i in top_k_idx]
+    sum_values = 0
 
     for idx, value in zip(top_k_idx, top_k_values):
         print(idx, value)
+        sum_values += value
+
+    print("Sum of top %d values: %f" % (top_K, sum_values))
 
 
 if __name__ == '__main__':
