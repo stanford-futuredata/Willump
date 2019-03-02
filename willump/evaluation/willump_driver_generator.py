@@ -150,8 +150,10 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             """
             PyObject* ret_tuple = PyTuple_New(%d);
             """ % num_outputs
+        output_index = 0
         for output_num, output_types in enumerate(output_types_list):
-            buffer += generate_output_parser(output_num, output_types)
+            buffer += generate_output_parser(output_num, output_types, output_index)
+            output_index += len(output_types)
         buffer += \
             """
                 return (PyObject*) ret_tuple;
@@ -379,7 +381,7 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
     return buffer
 
 
-def generate_output_parser(output_num: int, output_types: List[WeldType]) -> str:
+def generate_output_parser(output_num: int, output_types: List[WeldType], output_index: int) -> str:
     buffer = ""
     # Parse Weld outputs and return them.
     for i, output_type in enumerate(output_types):
@@ -472,7 +474,7 @@ def generate_output_parser(output_num: int, output_types: List[WeldType]) -> str
             """
             PyTuple_SetItem(ret_tuple, %d, (PyObject*) ret);
             }
-            """ % (output_num + i)
+            """ % (output_index + i)
     return buffer
 
 

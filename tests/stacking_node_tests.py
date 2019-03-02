@@ -1,12 +1,14 @@
 import unittest
+
 import numpy
 import pandas as pd
-from sklearn.feature_extraction.text import CountVectorizer
-import sklearn.linear_model
-from sklearn.feature_extraction.text import TfidfVectorizer
-import willump.evaluation.willump_executor as wexec
-import scipy.sparse.csr
 import scipy.sparse
+import scipy.sparse.csr
+import sklearn.linear_model
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+import willump.evaluation.willump_executor as wexec
 
 with open("tests/test_resources/simple_vocabulary.txt") as simple_vocab:
     simple_vocab_dict = {word: index for index, word in
@@ -36,6 +38,17 @@ def stack_sparse_then_linear_regression(array_one, array_two, input_vect):
     transformed_result_one = input_vect.transform(array_one)
     transformed_result_two = input_vect.transform(array_two)
     combined_result = scipy.sparse.hstack([transformed_result_one, transformed_result_two], format="csr")
+    predicted_result = model.predict(combined_result)
+    return predicted_result
+
+
+@wexec.willump_execute(num_workers=1)
+def stack_sparse_then_linear_regression_coalesce_parallel(array_one, array_two, array_three, input_vect):
+    transformed_result_one = input_vect.transform(array_one)
+    transformed_result_two = input_vect.transform(array_two)
+    transformed_result_three = input_vect.transform(array_three)
+    combined_result = scipy.sparse.hstack([transformed_result_one, transformed_result_two, transformed_result_three],
+                                          format="csr")
     predicted_result = model.predict(combined_result)
     return predicted_result
 
@@ -87,6 +100,24 @@ class StackingNodeTests(unittest.TestCase):
         stack_sparse_then_linear_regression(array_one, array_two, vectorizer)
         weld_output = stack_sparse_then_linear_regression(array_one, array_two, vectorizer)
         numpy.testing.assert_equal(weld_output, correct_result)
+
+    def test_sparse_stacking_linear_model_parallel_coalesce(self):
+        print("\ntest_sparse_stacking_linear_model_parallel_coalesce")
+        model.coef_ = numpy.array([[0, 0.2, 0.3, 0.4, -0.5, 0.6, 0.2, 0.2, 0.3, 0.4, -0.5, 0.6, 0.1,
+                                    0.2, 0.3, 0.4, 0.5, 0.6]], dtype=numpy.float64)
+        array_one = ["dogdogdogdog house", "bobthe builder", "dog the the the the", "dog"]
+        array_two = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dogthethe the the the the the"]
+        array_three = ["dogdogdogdog house", "bobthe builder", "dog the the the the", "bbbbb"]
+        result_one = vectorizer.transform(array_one)
+        result_two = vectorizer.transform(array_two)
+        result_three = vectorizer.transform(array_three)
+        correct_result = model.predict(scipy.sparse.hstack([result_one, result_two, result_three], format="csr"))
+        stack_sparse_then_linear_regression_coalesce_parallel(array_one, array_two, array_three, vectorizer)
+        stack_sparse_then_linear_regression_coalesce_parallel(array_one, array_two, array_three, vectorizer)
+        weld_output = stack_sparse_then_linear_regression_coalesce_parallel(array_one, array_two, array_three,
+                                                                            vectorizer)
+        numpy.testing.assert_equal(weld_output, correct_result)
+
 
     def test_sparse_stacking_tfidf(self):
         print("\ntest_sparse_stacking_tfidf")

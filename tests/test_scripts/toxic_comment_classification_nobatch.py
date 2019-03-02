@@ -15,6 +15,7 @@ base_path = "tests/test_resources/toxic_comment_classification/"
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+parser.add_argument("-w", "--workers", type=int, help="Number of Workers")
 args = parser.parse_args()
 if args.cascades is None:
     cascades = None
@@ -24,9 +25,13 @@ else:
     assert(not args.disable)
     cascades = pickle.load(open(base_path + "training_cascades.pk", "rb"))
     cascade_threshold = args.cascades
+if args.workers is None:
+    workers = 0
+else:
+    workers = args.workers
 
 
-@willump_execute(disable=args.disable, num_workers=0, eval_cascades=cascades, cascade_threshold=cascade_threshold)
+@willump_execute(disable=args.disable, num_workers=workers, eval_cascades=cascades, cascade_threshold=cascade_threshold)
 def vectorizer_transform(input_text, word_vect, char_vect):
     word_features = word_vect.transform(input_text)
     char_features = char_vect.transform(input_text)
