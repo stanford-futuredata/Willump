@@ -5,10 +5,12 @@
 
 import pickle
 import time
+import argparse
 from contextlib import contextmanager
 from operator import itemgetter
 from typing import List, Dict, Union
 
+from keras.models import load_model
 import numpy as np
 import pandas as pd
 import scipy.sparse
@@ -20,6 +22,10 @@ from sklearn.preprocessing import FunctionTransformer, StandardScaler
 from willump.evaluation.willump_executor import willump_execute
 
 base_folder = "tests/test_resources/mercari_price_suggestion/"
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+args = parser.parse_args()
 
 
 @contextmanager
@@ -43,10 +49,10 @@ def to_records(df: pd.DataFrame) -> List[Dict]:
     return df.to_dict(orient='records')
 
 
-model = pickle.load(open(base_folder + "mercari_lr_model.pk", "rb"))
+model = load_model(base_folder + "mercari_model.h5")
 
 
-@willump_execute()
+@willump_execute(disable=args.disable)
 def process_input(model_input, name_vectorizer, text_vectorizer, dict_vectorizer):
     model_input = preprocess(model_input)
     name_input = model_input["name"].values
@@ -67,8 +73,7 @@ def main():
     cv = KFold(n_splits=3, shuffle=True, random_state=42)
     train_ids, valid_ids = next(cv.split(train))
     train, valid = train.iloc[train_ids], train.iloc[valid_ids]
-    y_train = y_scaler.fit_transform(np.log1p(train['price'].values.reshape(-1, 1)))
-    y_valid = y_scaler.transform(np.log1p(valid['price'].values.reshape(-1, 1)))
+    y_scaler.fit_transform(np.log1p(train['price'].values.reshape(-1, 1)))
     vectorizers = pickle.load(open(base_folder + "mercari_vect_lr.pk", "rb"))
     mini_valid = valid.iloc[0:3].copy()
     process_input(mini_valid, *vectorizers).astype(np.float32)
