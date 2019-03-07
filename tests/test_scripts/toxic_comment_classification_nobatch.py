@@ -63,8 +63,8 @@ for entry in tqdm(entry_list):
     preds = vectorizer_transform(entry, word_vectorizer, char_vectorizer)
     y_preds.append(preds)
 time_elapsed = time.time() - t0
-print("Classification Time %fs Num Rows %d Throughput %f rows/sec" %
-      (time_elapsed, set_size, set_size / time_elapsed))
+print("Classification Time %fs Num Rows %d Throughput %f rows/sec Latency %f sec/row" %
+      (time_elapsed, set_size, set_size / time_elapsed, time_elapsed / set_size))
 
 y_preds = np.hstack(y_preds)
 print("Validation ROC-AUC Score: %f" % roc_auc_score(valid_target, y_preds))

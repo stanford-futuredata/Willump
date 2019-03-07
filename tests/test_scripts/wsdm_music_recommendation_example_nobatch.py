@@ -151,8 +151,8 @@ def add_features_and_predict(folder, combi):
         preds.append(pred)
     elapsed_time = time.time() - start
 
-    print('Latent feature join in %f seconds rows %d throughput %f: ' % (
-        elapsed_time, num_rows, num_rows / elapsed_time))
+    print('Latent feature join in %f seconds rows %d throughput %f latency %f: ' % (
+        elapsed_time, num_rows, num_rows / elapsed_time, elapsed_time / num_rows))
 
     return preds
 
@@ -165,7 +165,7 @@ def create_featureset(folder):
     _, combi, _, y = train_test_split(combi, y, test_size=0.33, random_state=42)
 
     # add latent features
-    y_pred = add_features_and_predict(folder, combi)
+    y_pred = np.hstack(add_features_and_predict(folder, combi))
     print("Train AUC: %f" % auc_score(y, y_pred))
 
 
