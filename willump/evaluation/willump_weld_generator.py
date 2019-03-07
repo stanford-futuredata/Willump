@@ -15,7 +15,7 @@ from willump.graph.willump_multioutput_node import WillumpMultiOutputNode
 
 
 def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_block_output_set, weld_block_node_list,
-                       future_nodes, typing_map, num_workers, eval_cascades) \
+                       future_nodes, typing_map, num_workers, eval_cascades, batch) \
         -> List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]]:
     """
     Helper function for graph_to_weld.  Creates Willump statements for a block of Weld code given information about
@@ -39,7 +39,7 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
         wg_passes.weld_csr_marshalling_pass(weld_block_input_set, weld_block_output_set, typing_map)
     pandas_preprocess_nodes, pandas_postprocess_nodes = wg_passes.weld_pandas_marshalling_pass(weld_block_input_set,
                                                                                                weld_block_output_set,
-                                                                                               typing_map)
+                                                                                               typing_map, batch)
     series_preprocess_nodes, series_postprocess_nodes = wg_passes.weld_pandas_series_marshalling_pass(
         weld_block_input_set,
         weld_block_output_set, typing_map)
@@ -134,7 +134,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType]
                 processed_block_nodes = \
                     process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_block_output_set,
                                        weld_block_node_list, sorted_nodes[i:], typing_map, num_workers,
-                                       eval_cascades)
+                                       eval_cascades, batch)
                 for processed_node in processed_block_nodes:
                     weld_python_list.append(processed_node)
                 weld_block_input_set = set()
@@ -156,7 +156,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType]
     if len(weld_block_node_list) > 0:
         processed_block_nodes = process_weld_block(weld_block_input_set, weld_block_aux_input_set,
                                                    weld_block_output_set, weld_block_node_list,
-                                                   [sorted_nodes[-1]], typing_map, num_workers, eval_cascades)
+                                                   [sorted_nodes[-1]], typing_map, num_workers, eval_cascades, batch)
         for processed_node in processed_block_nodes:
             weld_python_list.append(processed_node)
     return weld_python_list

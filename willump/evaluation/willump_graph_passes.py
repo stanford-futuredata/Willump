@@ -139,9 +139,9 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
                 try:
                     output_width = stacked_node.output_width
                 except AttributeError:
-                    assert(len(stacked_node.get_output_types()) == 1)
+                    assert (len(stacked_node.get_output_types()) == 1)
                     node_output_type = stacked_node.get_output_types()[0]
-                    assert(isinstance(node_output_type, WeldCSR))
+                    assert (isinstance(node_output_type, WeldCSR))
                     output_width = node_output_type.width
                 current_node_stack.append(
                     (stacked_node, (stack_start_index, stack_start_index + output_width), curr_selection_map))
@@ -182,7 +182,7 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
                     if col in output_columns:
                         pushed_map[col] = curr_selection_map[col]
             model_inputs[input_node] = pushed_map
-        elif isinstance(input_node, IdentityNode) or isinstance(input_node, ReshapeNode)\
+        elif isinstance(input_node, IdentityNode) or isinstance(input_node, ReshapeNode) \
                 or isinstance(input_node, PandasToDenseMatrixNode):
             node_input_node = input_node.get_in_nodes()[0]
             current_node_stack.append((node_input_node, (index_start, index_end), curr_selection_map))
@@ -284,7 +284,7 @@ def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) 
 
 
 def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_set: Set[str],
-                                 typing_map: Mapping[str, WeldType]) \
+                                 typing_map: Mapping[str, WeldType], batch) \
         -> Tuple[List[WillumpPythonNode], List[WillumpPythonNode]]:
     """
     Processing pass creating Python code to marshall Pandas into a representation (struct of vec columns) Weld can
@@ -294,6 +294,8 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
     """
     pandas_input_processing_nodes: List[WillumpPythonNode] = []
     pandas_post_processing_nodes: List[WillumpPythonNode] = []
+    if not batch:  # TODO:  This is a hack, fix it
+        return pandas_input_processing_nodes, pandas_post_processing_nodes
     for input_name in weld_block_input_set:
         input_type = typing_map[input_name]
         if isinstance(input_type, WeldPandas):
@@ -307,7 +309,7 @@ def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_outp
                 else:
                     pandas_glue_python_args += "%s['%s'].values," % (stripped_input_name, column)
             pandas_glue_python = "%s, %s = (%s), %s" % (
-            stripped_input_name, df_temp_name, pandas_glue_python_args, stripped_input_name)
+                stripped_input_name, df_temp_name, pandas_glue_python_args, stripped_input_name)
             pandas_glue_ast: ast.Module = \
                 ast.parse(pandas_glue_python, "exec")
             pandas_input_node = WillumpPythonNode(python_ast=pandas_glue_ast.body[0], input_names=[],
