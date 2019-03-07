@@ -2,6 +2,7 @@ import argparse
 import pickle
 import time
 
+from lightgbm import LGBMClassifier
 from sklearn import metrics
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
@@ -27,9 +28,9 @@ trees: bool = args.trees
 
 if args.costly_statements:
     costly_statements = ("features_one", "features_two", "uc_features",
-                    "sc_features", "ac_features", "us_features",
-                    "ss_features", "as_features",
-                    "comps_features", "lyrs_features")
+                         "sc_features", "ac_features", "us_features",
+                         "ss_features", "as_features",
+                         "comps_features", "lyrs_features")
 else:
     costly_statements = ()
 
@@ -67,7 +68,11 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
     train_data = combi[FEATURES]
     train_data = train_data.fillna(0)
     if trees:
-        model = GradientBoostingClassifier()
+        model = LGBMClassifier(
+            learning_rate=0.1,
+            num_leaves=(2 ** 8),
+            max_depth=15,
+            metric="auc")
     else:
         model = LogisticRegression()
     model = model.fit(train_data, y_train)
@@ -163,21 +168,6 @@ def add_features_and_train_model(folder, combi):
 
     start = time.time()
     model = do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
-             join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
-             join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
-             ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
-             gs_col, cs_feature, cs_col,
-             ages_features, ages_col, ls_features, ls_col, gender_features, gender_col, composer_features,
-             composer_col,
-             lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
-             stypes_col, regs_features, regs_col, y)
-    elapsed_time = time.time() - start
-
-    print('First (Python) training in %f seconds rows %d throughput %f: ' % (
-        elapsed_time, num_rows, num_rows / elapsed_time))
-
-    start = time.time()
-    do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
                      join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
                      join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
                      ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
@@ -186,6 +176,21 @@ def add_features_and_train_model(folder, combi):
                      composer_col,
                      lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
                      stypes_col, regs_features, regs_col, y)
+    elapsed_time = time.time() - start
+
+    print('First (Python) training in %f seconds rows %d throughput %f: ' % (
+        elapsed_time, num_rows, num_rows / elapsed_time))
+
+    start = time.time()
+    do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
+             join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
+             join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
+             ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
+             gs_col, cs_feature, cs_col,
+             ages_features, ages_col, ls_features, ls_col, gender_features, gender_col, composer_features,
+             composer_col,
+             lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
+             stypes_col, regs_features, regs_col, y)
     elapsed_time = time.time() - start
 
     print('Second (Willump) training in %f seconds rows %d throughput %f: ' % (
