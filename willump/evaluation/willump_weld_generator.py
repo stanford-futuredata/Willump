@@ -33,8 +33,8 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
         if not appears_later:
             weld_block_output_set.remove(entry)
     # Do optimization passes over the block.
-    if eval_cascades is None:
-        weld_block_node_list = wg_passes.pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map)
+    # if eval_cascades is None:
+    #     weld_block_node_list = wg_passes.pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map)
     csr_preprocess_nodes, csr_postprocess_nodes = \
         wg_passes.weld_csr_marshalling_pass(weld_block_input_set, weld_block_output_set, typing_map)
     pandas_preprocess_nodes, pandas_postprocess_nodes = wg_passes.weld_pandas_marshalling_pass(weld_block_input_set,

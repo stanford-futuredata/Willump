@@ -40,19 +40,16 @@ def get_row_to_merge_features_sf(key):
 
 def get_row_to_merge_cluster_one(key):
     global num_queries
-    num_queries += 1
     return cluster_one.loc[key]
 
 
 def get_row_to_merge_cluster_two(key):
     global num_queries
-    num_queries += 1
     return cluster_two.loc[key]
 
 
 def get_row_to_merge_cluster_three(key):
     global num_queries
-    num_queries += 1
     return cluster_three.loc[key]
 
 
