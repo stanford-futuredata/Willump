@@ -348,12 +348,14 @@ def create_featureset(folder):
     # Add features and predict.
     y_pred = np.hstack(add_features_and_predict(folder, combi_train))
     print("Train AUC: %f" % roc_auc_score(y_train, y_pred))
-    print("Train: Number of \"remote\" queries made: %d" % num_queries)
+    print("Valid: Number of \"remote\" queries made: %d  Requests per row:  %f" %
+          (num_queries, num_queries / len(y_pred)))
     num_queries = 0
 
     y_pred = np.hstack(add_features_and_predict(folder, combi_valid))
     print("Valid AUC: %f" % roc_auc_score(y_valid, y_pred))
-    print("Valid: Number of \"remote\" queries made: %d" % num_queries)
+    print("Valid: Number of \"remote\" queries made: %d  Requests per row:  %f" %
+          (num_queries, num_queries / len(y_pred)))
 
 
 if __name__ == '__main__':
