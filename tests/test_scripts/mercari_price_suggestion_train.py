@@ -22,24 +22,10 @@ from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
 base_folder = "tests/test_resources/mercari_price_suggestion/"
 
+config = tf.ConfigProto(
+    intra_op_parallelism_threads=1, use_per_session_threads=1, inter_op_parallelism_threads=1)
 
-def fit_neural_net(X_train, y_train) -> np.ndarray:
-    config = tf.ConfigProto(
-        intra_op_parallelism_threads=1, use_per_session_threads=1, inter_op_parallelism_threads=1)
-    with tf.Session(graph=tf.Graph(), config=config) as sess, timer('fit_predict'):
-        ks.backend.set_session(sess)
-        model_in = ks.Input(shape=(X_train.shape[1],), dtype='float32', sparse=True)
-        out = ks.layers.Dense(192, activation='relu')(model_in)
-        out = ks.layers.Dense(64, activation='relu')(out)
-        out = ks.layers.Dense(64, activation='relu')(out)
-        out = ks.layers.Dense(1)(out)
-        model = ks.Model(model_in, out)
-        model.compile(loss='mean_squared_error', optimizer=ks.optimizers.Adam(lr=3e-3))
-        for i in range(1):
-            with timer(f'epoch {i + 1}'):
-                model.fit(x=X_train, y=y_train, batch_size=2 ** (11 + i), epochs=1, verbose=0)
-        model.save(base_folder + "mercari_model.h5")
-
+sess = tf.Session(config=config)
 
 @contextmanager
 def timer(name):
@@ -76,7 +62,7 @@ def create_vectorizers(train):
     return name_vectorizer, text_vectorizer, dict_vectorizer
 
 
-def process_input(model_input, name_vectorizer, text_vectorizer, dict_vectorizer):
+def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_vectorizer, y_train):
     model_input = preprocess(model_input)
     name_input = model_input["name"].values
     name_vec = name_vectorizer.transform(name_input)
@@ -85,7 +71,16 @@ def process_input(model_input, name_vectorizer, text_vectorizer, dict_vectorizer
     valid_records = to_records(model_input[["shipping", "item_condition_id"]])
     dict_vec = dict_vectorizer.transform(valid_records)
     combined_vec = scipy.sparse.hstack([name_vec, text_vec, dict_vec], format="csr")
-    return combined_vec
+    ks.backend.set_session(sess)
+    model_in = ks.Input(shape=(combined_vec.shape[1],), dtype='float32', sparse=True)
+    out = ks.layers.Dense(192, activation='relu')(model_in)
+    out = ks.layers.Dense(64, activation='relu')(out)
+    out = ks.layers.Dense(64, activation='relu')(out)
+    out = ks.layers.Dense(1)(out)
+    model = ks.Model(model_in, out)
+    model.compile(loss='mean_squared_error', optimizer=ks.optimizers.Adam(lr=3e-3))
+    model.fit(x=combined_vec, y=y_train, batch_size=2 ** (11 + 1), epochs=1, verbose=0)
+    return model
 
 
 def main():
@@ -93,8 +88,9 @@ def main():
     train = pd.read_table(base_folder + 'train.tsv')
     train = train[train['price'] > 0].reset_index(drop=True)
     cv = KFold(n_splits=3, shuffle=True, random_state=42)
-    train_ids, valid_ids = next(cv.split(train))
-    train, valid = train.iloc[train_ids], train.iloc[valid_ids]
+    train_ids, _ = next(cv.split(train))
+    train = train.iloc[train_ids]
+    print("Training set rows %d" % len(train))
     y_train = y_scaler.fit_transform(np.log1p(train['price'].values.reshape(-1, 1)))
     try:
         vectorizers = pickle.load(open(base_folder + "mercari_vect_lr.pk", "rb"))
@@ -102,10 +98,9 @@ def main():
         with timer('create vectorizers'):
             vectorizers = create_vectorizers(train)
             pickle.dump(vectorizers, open(base_folder + "mercari_vect_lr.pk", "wb"))
-    with timer('Process Train Input'):
-        X_train = process_input(train, *vectorizers).astype(np.float32)
-    with timer("Train model"):
-        fit_neural_net(X_train, y_train)
+    with timer('First (Python) Training'):
+        model = process_input_and_train(train, *vectorizers, y_train)
+    model.save(base_folder + "mercari_model.h5")
 
 
 if __name__ == '__main__':
