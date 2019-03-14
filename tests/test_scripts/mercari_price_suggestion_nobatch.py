@@ -9,6 +9,7 @@ import argparse
 from contextlib import contextmanager
 from operator import itemgetter
 from typing import List, Dict, Union
+from tqdm import tqdm
 
 from keras.models import load_model
 import numpy as np
@@ -78,8 +79,15 @@ def main():
     mini_valid = valid.iloc[0:3].copy()
     predict_from_input(mini_valid, *vectorizers).astype(np.float32)
     predict_from_input(mini_valid, *vectorizers).astype(np.float32)
+    entry_list = []
+    for i in range(len(valid)):
+        entry_list.append(valid.iloc[i].to_frame().T)
+    y_pred = []
     with timer('Process Train Input'):
-        y_pred = predict_from_input(valid, *vectorizers).astype(np.float32)
+        for entry in tqdm(entry_list):
+            pred = predict_from_input(entry, *vectorizers).astype(np.float32)
+            y_pred.append(pred)
+    y_pred = np.hstack(y_pred)
     y_pred = np.expm1(y_scaler.inverse_transform(y_pred.reshape(-1, 1))[:, 0])
     y_pred[y_pred < 0] = 0
     print('Valid RMSLE: {:.7f}'.format(np.sqrt(mean_squared_log_error(valid["price"], y_pred))))
