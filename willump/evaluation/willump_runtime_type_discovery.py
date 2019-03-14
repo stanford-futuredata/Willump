@@ -119,7 +119,18 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 trees_instrumentation_ast: ast.Module = \
                     ast.parse(static_variable_extraction_code, "exec")
                 trees_instrumentation_statements: List[ast.stmt] = trees_instrumentation_ast.body
-                return logit_instrumentation_statements + trees_instrumentation_statements
+                static_variable_extraction_code = \
+                    """if "keras.engine.training" in type({0}).__module__:\n""" \
+                        .format(model_name) + \
+                    """\twillump_static_vars["{0}"] = {1}.get_config()\n""" \
+                        .format(WILLUMP_KERAS_MODEL_CONFIG, model_name) + \
+                    """\twillump_static_vars["{0}"] = {1}.get_weights()\n""" \
+                        .format(WILLUMP_KERAS_MODEL_WEIGHTS, model_name)
+                keras_instrumentation_ast: ast.Module = \
+                    ast.parse(static_variable_extraction_code, "exec")
+                keras_instrumentation_statements: List[ast.stmt] = keras_instrumentation_ast.body
+                return logit_instrumentation_statements + trees_instrumentation_statements + \
+                    keras_instrumentation_statements
 
         return_statements: List[ast.stmt] = []
         if isinstance(value, ast.Subscript):
@@ -139,7 +150,9 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 return_statements += predict_statements
         elif isinstance(value, ast.Call):
             called_function_name: str = WillumpGraphBuilder._get_function_name(value)
-            if ".predict" in called_function_name or "fit" in called_function_name:
+            if called_function_name is None:
+                pass
+            elif ".predict" in called_function_name or "fit" in called_function_name:
                 predict_statements = extract_predict_variables(value)
                 return_statements += predict_statements
             elif ".transform" in called_function_name:

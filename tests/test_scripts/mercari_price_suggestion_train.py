@@ -19,13 +19,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer as Tfidf
 from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
+from willump.evaluation.willump_executor import willump_execute
 
 base_folder = "tests/test_resources/mercari_price_suggestion/"
 
 config = tf.ConfigProto(
     intra_op_parallelism_threads=1, use_per_session_threads=1, inter_op_parallelism_threads=1)
-
-sess = tf.Session(config=config)
 
 @contextmanager
 def timer(name):
@@ -62,6 +61,7 @@ def create_vectorizers(train):
     return name_vectorizer, text_vectorizer, dict_vectorizer
 
 
+@willump_execute()
 def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_vectorizer, y_train):
     model_input = preprocess(model_input)
     name_input = model_input["name"].values
@@ -71,24 +71,27 @@ def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_
     valid_records = to_records(model_input[["shipping", "item_condition_id"]])
     dict_vec = dict_vectorizer.transform(valid_records)
     combined_vec = scipy.sparse.hstack([name_vec, text_vec, dict_vec], format="csr")
-    ks.backend.set_session(sess)
     model_in = ks.Input(shape=(combined_vec.shape[1],), dtype='float32', sparse=True)
     out = ks.layers.Dense(192, activation='relu')(model_in)
     out = ks.layers.Dense(64, activation='relu')(out)
     out = ks.layers.Dense(64, activation='relu')(out)
     out = ks.layers.Dense(1)(out)
     model = ks.Model(model_in, out)
-    model.compile(loss='mean_squared_error', optimizer=ks.optimizers.Adam(lr=3e-3))
-    model.fit(x=combined_vec, y=y_train, batch_size=2 ** (11 + 1), epochs=1, verbose=0)
+    nothing = model.compile(loss='mean_squared_error', optimizer=ks.optimizers.Adam(lr=3e-3))
+    history = model.fit(combined_vec, y_train, batch_size=2 ** (11 + 1), epochs=1, verbose=0)
     return model
 
 
 def main():
+    global sess
+    debug = False
     y_scaler = StandardScaler()
     train = pd.read_table(base_folder + 'train.tsv')
     train = train[train['price'] > 0].reset_index(drop=True)
     cv = KFold(n_splits=3, shuffle=True, random_state=42)
     train_ids, _ = next(cv.split(train))
+    if debug:
+        train_ids = train_ids[:1000]
     train = train.iloc[train_ids]
     print("Training set rows %d" % len(train))
     y_train = y_scaler.fit_transform(np.log1p(train['price'].values.reshape(-1, 1)))
@@ -98,9 +101,18 @@ def main():
         with timer('create vectorizers'):
             vectorizers = create_vectorizers(train)
             pickle.dump(vectorizers, open(base_folder + "mercari_vect_lr.pk", "wb"))
+
+    sess = tf.Session(config=config)
+    ks.backend.set_session(sess)
     with timer('First (Python) Training'):
         model = process_input_and_train(train, *vectorizers, y_train)
     model.save(base_folder + "mercari_model.h5")
+    sess.close()
+    sess = tf.Session(config=config)
+    ks.backend.set_session(sess)
+    with timer('Second (Willump) Training'):
+        process_input_and_train(train, *vectorizers, y_train)
+    sess.close()
 
 
 if __name__ == '__main__':

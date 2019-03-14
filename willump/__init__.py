@@ -18,6 +18,8 @@ WILLUMP_JOIN_COL = "willump_join_col"
 WILLUMP_SUBSCRIPT_INDEX_NAME = "willump_subscript_index"
 WILLUMP_TREES_FEATURE_IMPORTANCES = "willump_trees_feature_importances"
 WILLUMP_LINEAR_MODEL_IS_REGRESSION = "willump_linear_model_is_regression"
+WILLUMP_KERAS_MODEL_CONFIG = "willump_keras_model_config"
+WILLUMP_KERAS_MODEL_WEIGHTS = "willump_keras_model_weights"
 
 # Names
 WILLUMP_THREAD_POOL_EXECUTOR = "__willump_threadpool_executor"

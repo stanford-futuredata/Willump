@@ -24,6 +24,7 @@ from willump.graph.pandas_series_to_dataframe_node import PandasSeriesToDataFram
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 from willump.graph.identity_node import IdentityNode
 from willump.graph.reshape_node import ReshapeNode
+from willump.graph.keras_training_node import KerasTrainingNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 from weld.types import *
@@ -348,6 +349,16 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                           output_names=[output_var_name],
                                                           feature_importances=feature_importances)
                         return [output_var_name], training_node
+                    elif WILLUMP_KERAS_MODEL_WEIGHTS in self._static_vars:
+                        model_weights = self._static_vars[WILLUMP_KERAS_MODEL_WEIGHTS]
+                        model_config = self._static_vars[WILLUMP_KERAS_MODEL_CONFIG]
+                        training_node = KerasTrainingNode(python_ast=node,
+                                                          in_nodes=[x_node, model_node, y_node],
+                                                          input_names=[x_name, model_name, y_name],
+                                                          output_names=[model_name],
+                                                          model_config=model_config,
+                                                          model_weights=model_weights)
+                        return [model_name], training_node
             elif ".fillna" in called_function and isinstance(value.func, ast.Attribute) and \
                     isinstance(value.func.value, ast.Name):
                 input_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
@@ -380,6 +391,15 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                output_name=output_var_name, output_type=output_type,
                                                reshape_args=value.args)
                     return [output_var_name], reshape_node
+            elif ".compile" in called_function:
+                if isinstance(value.func.value, ast.Name):
+                    input_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
+                    input_node = self._node_dict[input_name]
+                    output_type = self._type_map[output_var_name]
+                    compile_node = WillumpPythonNode(python_ast=node, input_names=[input_name],
+                                                     in_nodes=[input_node], output_names=[input_name],
+                                                     output_types=[output_type])
+                    return [input_name], compile_node
             elif called_function in self._async_funcs:
                 return self._create_py_node(node, is_costly_node=is_costly_node, is_async_func=True)
             elif called_function in self._cached_funcs:
