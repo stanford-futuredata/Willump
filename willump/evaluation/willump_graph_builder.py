@@ -25,6 +25,7 @@ from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatena
 from willump.graph.identity_node import IdentityNode
 from willump.graph.reshape_node import ReshapeNode
 from willump.graph.keras_training_node import KerasTrainingNode
+from willump.graph.keras_model_node import KerasModelNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 from weld.types import *
@@ -124,6 +125,18 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                             input_width=len(feature_importances),
                                             output_type=self._type_map[output_var_name],
                                             predict_proba=predict_proba)
+                return [output_var_name], trees_node
+            elif WILLUMP_KERAS_MODEL_CONFIG in self._static_vars:
+                trees_input_var: str = self.get_load_name(predict_node_value.args[0].id,
+                                                          predict_node_value.lineno, self._type_map)
+                trees_input_node: WillumpGraphNode = self._node_dict[trees_input_var]
+                model_name = predict_node_value.func.value.id
+                model_config = self._static_vars[WILLUMP_KERAS_MODEL_CONFIG]
+                input_width = model_config["layers"][0]["config"]["batch_input_shape"][1]
+                trees_node = KerasModelNode(input_node=trees_input_node, input_name=trees_input_var,
+                                            output_name=output_var_name, model_name=model_name,
+                                            input_width=input_width,
+                                            output_type=self._type_map[output_var_name])
                 return [output_var_name], trees_node
             else:
                 return self._create_py_node(node)

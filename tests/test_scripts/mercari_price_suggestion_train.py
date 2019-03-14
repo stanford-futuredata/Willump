@@ -88,7 +88,7 @@ def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_
 
 def main():
     global sess
-    debug = True
+    debug = False
     y_scaler = StandardScaler()
     train = pd.read_table(base_folder + 'train.tsv')
     train = train[train['price'] > 0].reset_index(drop=True)

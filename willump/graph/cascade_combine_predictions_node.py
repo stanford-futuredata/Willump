@@ -31,6 +31,12 @@ class CascadeCombinePredictionsNode(WillumpGraphNode):
     def get_node_weld(self) -> str:
         assert(isinstance(self._output_type, WeldVec))
         elem_type = self._output_type.elemType
+        if isinstance(elem_type, WeldVec):
+            small_merge_statement = "[%s(small_model_output)]" % str(elem_type.elemType)
+            big_merge_statement = "(lookup(BIG_MODEL_OUTPUT, less_important_iter))"
+        else:
+            small_merge_statement = "ELEM_TYPE(small_model_output)"
+            big_merge_statement = "ELEM_TYPE(lookup(BIG_MODEL_OUTPUT, less_important_iter))"
         weld_program = \
             """
             let output_len: i64 = len(SMALL_MODEL_OUTPUT);
@@ -43,14 +49,16 @@ class CascadeCombinePredictionsNode(WillumpGraphNode):
                         {{more_important_iter, less_important_iter, output_array}, false},
                         let small_model_output = lookup(SMALL_MODEL_OUTPUT, more_important_iter);
                         if(small_model_output != 2c,
-                            {{more_important_iter + 1L, less_important_iter, merge(output_array, ELEM_TYPE(small_model_output))}, true},
-                            {{more_important_iter + 1L, less_important_iter + 1L, merge(output_array, ELEM_TYPE(lookup(BIG_MODEL_OUTPUT, less_important_iter)))}, true}
+                            {{more_important_iter + 1L, less_important_iter, merge(output_array, SMALL_MERGE)}, true},
+                            {{more_important_iter + 1L, less_important_iter + 1L, merge(output_array, BIG_MERGE)}, true}
                         )
                     )
             );  
             let OUTPUT_NAME: vec[ELEM_TYPE] = result(pre_output.$2);
             """
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
+        weld_program = weld_program.replace("SMALL_MERGE", small_merge_statement)
+        weld_program = weld_program.replace("BIG_MERGE", big_merge_statement)
         weld_program = weld_program.replace("SMALL_MODEL_OUTPUT", self._small_model_predictions_name)
         weld_program = weld_program.replace("BIG_MODEL_OUTPUT", self._big_model_predictions_name)
         weld_program = weld_program.replace("ELEM_TYPE", str(elem_type))
