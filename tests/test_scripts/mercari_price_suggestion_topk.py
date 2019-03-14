@@ -58,6 +58,7 @@ def to_records(df: pd.DataFrame) -> List[Dict]:
     return df.to_dict(orient='records')
 
 
+# model = load_model(base_folder + "mercari_big_model.h5")
 model = load_model(base_folder + "mercari_model.h5")
 
 
@@ -71,6 +72,7 @@ def predict_from_input(model_input, name_vectorizer, text_vectorizer, dict_vecto
     valid_records = to_records(model_input[["shipping", "item_condition_id"]])
     dict_vec = dict_vectorizer.transform(valid_records)
     combined_vec = scipy.sparse.hstack([name_vec, text_vec, dict_vec], format="csr")
+    # combined_vec = scipy.sparse.hstack([text_vec, dict_vec, name_vec], format="csr")
     preds = model.predict(combined_vec)
     return preds
 
