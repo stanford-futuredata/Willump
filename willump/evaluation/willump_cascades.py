@@ -27,6 +27,7 @@ from willump.graph.willump_model_node import WillumpModelNode
 from willump.graph.willump_python_node import WillumpPythonNode
 from willump.graph.willump_training_node import WillumpTrainingNode
 from willump.willump_utilities import *
+from willump.graph.keras_training_node import KerasTrainingNode
 
 
 def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: List[WillumpGraphNode],
@@ -60,7 +61,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                 return_node = graph_from_input_sources_recursive(node_input_node)
                 if return_node is not None:
                     new_input_nodes.append(return_node)
-                    new_input_names.append(return_node.get_output_name())
+                    new_input_names.append(return_node.get_output_names()[0])
             return_node = StackSparseNode(input_nodes=new_input_nodes,
                                           input_names=new_input_names,
                                           output_name=new_output_name,
@@ -236,7 +237,7 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
     return output_block
 
 
-def split_model_inputs(model_node: WillumpModelNode, feature_importances, more_important_cost_frac=0.5) -> \
+def split_model_inputs(model_node: WillumpModelNode, feature_importances, batch, more_important_cost_frac=0.5) -> \
         Tuple[List[WillumpGraphNode], List[WillumpGraphNode]]:
     """
     Use a model's feature importances to divide its inputs into those more and those less important.  Return
@@ -276,13 +277,17 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, more_i
             more_important_inputs.append(node)
             current_importance += nodes_to_importances[node]
             current_cost += node.get_cost()
+    for node in ranked_inputs:
+        if batch is True and isinstance(node, WillumpPythonNode):
+            more_important_inputs.append(node)
     less_important_inputs = [entry for entry in ranked_inputs if entry not in more_important_inputs]
     return more_important_inputs, less_important_inputs
 
 
 def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                 typing_map: MutableMapping[str, WeldType],
-                                training_cascades: dict) -> List[WillumpGraphNode]:
+                                training_cascades: dict,
+                                batch=True) -> List[WillumpGraphNode]:
     """
     Take in a program training a model.  Rank features in the model by importance.  Partition
     features into "more important" and "less important."  Train a small model on only more important features
@@ -338,7 +343,7 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         new_python_ast = copy.deepcopy(orig_node.get_python())
         new_python_ast.value.args[0].id = strip_linenos_from_var(new_input_node.get_output_name())
         new_python_ast.value.func.value.id = strip_linenos_from_var(new_output_name)
-        new_python_ast.targets[0].id = strip_linenos_from_var(new_output_name)
+        new_python_ast.targets[0].id = "__does_nothing__willump_"
         return WillumpTrainingNode(python_ast=new_python_ast, input_names=new_input_names, in_nodes=new_input_nodes,
                                    output_names=[new_output_name], feature_importances=node_feature_importances)
 
@@ -350,7 +355,7 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         return sorted_nodes
     feature_importances = training_node.get_feature_importances()
     training_cascades["feature_importances"] = feature_importances
-    more_important_inputs, less_important_inputs = split_model_inputs(training_node, feature_importances)
+    more_important_inputs, less_important_inputs = split_model_inputs(training_node, feature_importances, batch)
     training_input_node = training_node.get_in_nodes()[0]
     # Create Willump graphs and code blocks that produce the more and less important inputs.
     base_discovery_dict = {}
@@ -380,7 +385,12 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                              input_names=[small_model_python_name],
                                              output_names=[], output_types=[], in_nodes=[small_training_node])
     # Copy the original model so the small and big models aren't the same.
-    duplicate_model_python = "%s = copy.copy(%s)" % (small_model_python_name, big_model_python_name)
+    if not isinstance(training_node, KerasTrainingNode):
+        duplicate_model_python = "%s = copy.copy(%s)" % (small_model_python_name, big_model_python_name)
+    else:
+        duplicate_model_python = "%s = willump_duplicate_keras(%s, %s.shape[1])" % \
+                                 (small_model_python_name, big_model_python_name,
+                                  strip_linenos_from_var(more_important_inputs_head.get_output_names()[0]))
     duplicate_model_ast: ast.Module = \
         ast.parse(duplicate_model_python, "exec")
     duplicate_model_node = WillumpPythonNode(python_ast=duplicate_model_ast.body[0],
@@ -543,7 +553,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     feature_importances = eval_cascades["feature_importances"]
     big_model = eval_cascades["big_model"]
     small_model = eval_cascades["small_model"]
-    more_important_inputs, less_important_inputs = split_model_inputs(model_node, feature_importances)
+    more_important_inputs, less_important_inputs = split_model_inputs(model_node, feature_importances, batch)
     model_input_node = model_node.get_in_nodes()[0]
     # Create Willump graphs and code blocks that produce the more important inputs.
     base_discovery_dict = {}

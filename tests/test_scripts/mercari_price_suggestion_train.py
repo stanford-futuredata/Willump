@@ -26,6 +26,7 @@ base_folder = "tests/test_resources/mercari_price_suggestion/"
 config = tf.ConfigProto(
     intra_op_parallelism_threads=1, use_per_session_threads=1, inter_op_parallelism_threads=1)
 
+
 @contextmanager
 def timer(name):
     t0 = time.time()
@@ -61,7 +62,10 @@ def create_vectorizers(train):
     return name_vectorizer, text_vectorizer, dict_vectorizer
 
 
-@willump_execute()
+training_cascades = {}
+
+
+@willump_execute(training_cascades=training_cascades)
 def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_vectorizer, y_train):
     model_input = preprocess(model_input)
     name_input = model_input["name"].values
@@ -71,7 +75,7 @@ def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_
     valid_records = to_records(model_input[["shipping", "item_condition_id"]])
     dict_vec = dict_vectorizer.transform(valid_records)
     combined_vec = scipy.sparse.hstack([name_vec, text_vec, dict_vec], format="csr")
-    model_in = ks.Input(shape=(combined_vec.shape[1],), dtype='float32', sparse=True)
+    model_in = ks.Input(shape=(100000 + 100000 + 2,), dtype='float32', sparse=True)
     out = ks.layers.Dense(192, activation='relu')(model_in)
     out = ks.layers.Dense(64, activation='relu')(out)
     out = ks.layers.Dense(64, activation='relu')(out)
@@ -84,7 +88,7 @@ def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_
 
 def main():
     global sess
-    debug = False
+    debug = True
     y_scaler = StandardScaler()
     train = pd.read_table(base_folder + 'train.tsv')
     train = train[train['price'] > 0].reset_index(drop=True)
@@ -112,6 +116,9 @@ def main():
     ks.backend.set_session(sess)
     with timer('Second (Willump) Training'):
         process_input_and_train(train, *vectorizers, y_train)
+    training_cascades["big_model"].save(base_folder + "mercari_big_model.h5")
+    training_cascades["small_model"].save(base_folder + "mercari_small_model.h5")
+    pickle.dump(training_cascades, open(base_folder + "mercari_cascades.pk", "wb"))
     sess.close()
 
 
