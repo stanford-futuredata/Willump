@@ -135,105 +135,104 @@ if __name__ == "__main__":
 
     print("Adding X Features")
     selected_columns = ['ip', 'channel']
-    gp = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
+    X_ip_channel = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X0'})
-    train_df = train_df.merge(gp, on=selected_columns[0:-1], how='left')
+    X_ip_channel_jc = selected_columns[0:-1]
+    train_df = train_df.merge(X_ip_channel, on=X_ip_channel_jc, how='left')
 
     selected_columns = ['ip', 'device', 'os', 'app']
-    gp = train_df[selected_columns].groupby(by=selected_columns[0:-1])[selected_columns[-1]].cumcount()
-    train_df['X1'] = gp.values
+    X_ip_device_os_app = train_df[selected_columns].groupby(by=selected_columns[0:-1])[selected_columns[-1]].cumcount()
+    train_df['X1'] = X_ip_device_os_app.values
 
     selected_columns = ['ip', 'day', 'hour']
-    gp = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
+    X_ip_day_hour = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X2'})
-    train_df = train_df.merge(gp, on=selected_columns[0:-1], how='left')
+    X_ip_day_hour_jc = selected_columns[0:-1]
+    train_df = train_df.merge(X_ip_day_hour, on=X_ip_day_hour_jc, how='left')
 
     selected_columns = ['ip', 'app']
-    gp = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
+    X_ip_app = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X3'})
-    train_df = train_df.merge(gp, on=selected_columns[0:-1], how='left')
+    X_ip_app_jc = selected_columns[0:-1]
+    train_df = train_df.merge(X_ip_app, on=X_ip_app_jc, how='left')
 
     selected_columns = ['ip', 'app', 'os']
-    gp = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
+    X_ip_app_os = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X4'})
-    train_df = train_df.merge(gp, on=selected_columns[0:-1], how='left')
+    X_ip_app_os_jc = selected_columns[0:-1]
+    train_df = train_df.merge(X_ip_app_os, on=X_ip_app_os_jc, how='left')
 
     selected_columns = ['ip', 'device']
-    gp = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
+    X_ip_device = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X5'})
-    train_df = train_df.merge(gp, on=selected_columns[0:-1], how='left')
+    X_ip_device_jc = selected_columns[0:-1]
+    train_df = train_df.merge(X_ip_device, on=X_ip_device_jc, how='left')
 
     selected_columns = ['app', 'channel']
-    gp = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
+    X_app_channel = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X6'})
-    train_df = train_df.merge(gp, on=selected_columns[0:-1], how='left')
+    X_app_channel_jc = selected_columns[0:-1]
+    train_df = train_df.merge(X_app_channel, on=X_app_channel_jc, how='left')
 
     selected_columns = ['ip', 'os']
-    gp = train_df[selected_columns].groupby(by=selected_columns[0:-1])[selected_columns[-1]].cumcount()
-    train_df['X7'] = gp.values
+    X_ip_os = train_df[selected_columns].groupby(by=selected_columns[0:-1])[selected_columns[-1]].cumcount()
+    train_df['X7'] = X_ip_os.values
 
     selected_columns = ['ip', 'device', 'os', 'app']
-    gp = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
+    X_ip_device_app_os = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X8'})
-    train_df = train_df.merge(gp, on=selected_columns[0:-1], how='left')
+    X_ip_device_app_os_jc = selected_columns[0:-1]
+    train_df = train_df.merge(X_ip_device_app_os, on=X_ip_device_app_os_jc, how='left')
 
     print('grouping by ip-day-hour combination...')
-    gp = train_df[['ip', 'day', 'hour', 'channel']].groupby(by=['ip', 'day', 'hour'])[
+    ip_day_hour = train_df[['ip', 'day', 'hour', 'channel']].groupby(by=['ip', 'day', 'hour'])[
         ['channel']].count().reset_index().rename(index=str, columns={'channel': 'ip_tcount'})
-    train_df = train_df.merge(gp, on=['ip', 'day', 'hour'], how='left')
-    del gp
-    gc.collect()
+    ip_day_hour_jc = ['ip', 'day', 'hour']
+    train_df = train_df.merge(ip_day_hour, on=ip_day_hour_jc, how='left')
 
     print('grouping by ip-app combination...')
-    gp = train_df[['ip', 'app', 'channel']].groupby(by=['ip', 'app'])[['channel']].count().reset_index().rename(
+    ip_app = train_df[['ip', 'app', 'channel']].groupby(by=['ip', 'app'])[['channel']].count().reset_index().rename(
         index=str, columns={'channel': 'ip_app_count'})
-    train_df = train_df.merge(gp, on=['ip', 'app'], how='left')
-    del gp
-    gc.collect()
+    ip_app_jc = ['ip', 'app']
+    train_df = train_df.merge(ip_app, on=ip_app_jc, how='left')
 
     print('grouping by ip-app-os combination...')
-    gp = train_df[['ip', 'app', 'os', 'channel']].groupby(by=['ip', 'app', 'os'])[
+    ip_app_os = train_df[['ip', 'app', 'os', 'channel']].groupby(by=['ip', 'app', 'os'])[
         ['channel']].count().reset_index().rename(index=str, columns={'channel': 'ip_app_os_count'})
-    train_df = train_df.merge(gp, on=['ip', 'app', 'os'], how='left')
-    del gp
-    gc.collect()
+    ip_app_os_jc = ['ip', 'app', 'os']
+    train_df = train_df.merge(ip_app_os, on=ip_app_os_jc, how='left')
 
     # Adding features with var and mean hour (inspired from nuhsikander's script)
     print('grouping by : ip_day_chl_var_hour')
-    gp = train_df[['ip', 'day', 'hour', 'channel']].groupby(by=['ip', 'day', 'channel'])[
+    ip_day_hour_channel = train_df[['ip', 'day', 'hour', 'channel']].groupby(by=['ip', 'day', 'channel'])[
         ['hour']].var().reset_index().rename(index=str, columns={'hour': 'ip_tchan_count'})
-    train_df = train_df.merge(gp, on=['ip', 'day', 'channel'], how='left')
-    del gp
-    gc.collect()
+    ip_day_hour_channel_jc = ['ip', 'day', 'channel']
+    train_df = train_df.merge(ip_day_hour_channel, on=ip_day_hour_channel_jc, how='left')
 
     print('grouping by : ip_app_os_var_hour')
-    gp = train_df[['ip', 'app', 'os', 'hour']].groupby(by=['ip', 'app', 'os'])[['hour']].var().reset_index().rename(
+    ip_app_os_hour = train_df[['ip', 'app', 'os', 'hour']].groupby(by=['ip', 'app', 'os'])[['hour']].var().reset_index().rename(
         index=str, columns={'hour': 'ip_app_os_var'})
-    train_df = train_df.merge(gp, on=['ip', 'app', 'os'], how='left')
-    del gp
-    gc.collect()
+    ip_app_os_hour_jc = ['ip', 'app', 'os']
+    train_df = train_df.merge(ip_app_os_hour, on=ip_app_os_hour_jc, how='left')
 
     print('grouping by : ip_app_channel_var_day')
-    gp = train_df[['ip', 'app', 'channel', 'day']].groupby(by=['ip', 'app', 'channel'])[
+    ip_app_channel_var_day = train_df[['ip', 'app', 'channel', 'day']].groupby(by=['ip', 'app', 'channel'])[
         ['day']].var().reset_index().rename(index=str, columns={'day': 'ip_app_channel_var_day'})
-    train_df = train_df.merge(gp, on=['ip', 'app', 'channel'], how='left')
-    del gp
-    gc.collect()
+    ip_app_channel_var_day_jc = ['ip', 'app', 'channel']
+    train_df = train_df.merge(ip_app_channel_var_day, on=ip_app_channel_var_day_jc, how='left')
 
     print('grouping by : ip_app_chl_mean_hour')
-    gp = train_df[['ip', 'app', 'channel', 'hour']].groupby(by=['ip', 'app', 'channel'])[
+    ip_app_chl_mean_hour = train_df[['ip', 'app', 'channel', 'hour']].groupby(by=['ip', 'app', 'channel'])[
         ['hour']].mean().reset_index().rename(index=str, columns={'hour': 'ip_app_channel_mean_hour'})
-    print("merging...")
-    train_df = train_df.merge(gp, on=['ip', 'app', 'channel'], how='left')
-    del gp
-    gc.collect()
+    ip_app_chl_mean_hour_jc = ['ip', 'app', 'channel']
+    train_df = train_df.merge(ip_app_chl_mean_hour, on=ip_app_chl_mean_hour_jc, how='left')
 
     print("vars and data type: ")
     train_df.info()
