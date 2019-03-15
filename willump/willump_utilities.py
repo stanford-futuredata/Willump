@@ -23,10 +23,16 @@ def numpy_type_to_weld_type(numpy_array_dtype) -> WeldType:
         return WeldUnsignedChar()
     elif numpy_array_dtype == numpy.int16:
         return WeldInt16()
+    elif numpy_array_dtype == numpy.uint16:
+        return WeldUnsignedInt16()
     elif numpy_array_dtype == numpy.int32:
         return WeldInt()
+    elif numpy_array_dtype == numpy.uint32:
+        return WeldUnsignedInt()
     elif numpy_array_dtype == numpy.int64:
         return WeldLong()
+    elif numpy_array_dtype == numpy.uint64:
+        return WeldUnsignedLong()
     elif numpy_array_dtype == numpy.float16:
         return WeldFloat()
     elif numpy_array_dtype == numpy.float32:
@@ -48,10 +54,16 @@ def weld_scalar_type_to_numpy_type(w_type: WeldType) -> str:
         return "uint8"
     elif isinstance(w_type, WeldInt16):
         return "int16"
+    elif isinstance(w_type, WeldUnsignedInt16):
+        return "uint16"
     elif isinstance(w_type, WeldInt):
         return "int32"
+    elif isinstance(w_type, WeldUnsignedInt):
+        return "uint32"
     elif isinstance(w_type, WeldLong):
         return "int64"
+    elif isinstance(w_type, WeldUnsignedLong):
+        return "uint64"
     elif isinstance(w_type, WeldFloat):
         return "float32"
     elif isinstance(w_type, WeldDouble):

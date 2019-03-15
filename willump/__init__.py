@@ -33,7 +33,7 @@ WILLUMP_CACHE_ITER_NUMBER = "__willump_cache_iter_number"
 
 def panic(error: str):
     print("Error: {0}".format(error))
-    sys.exit(1)
+    assert False
 
 
 def pprint_weld(weld_prog: str) -> None:

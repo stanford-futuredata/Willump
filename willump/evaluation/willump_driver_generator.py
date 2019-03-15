@@ -481,7 +481,8 @@ def generate_output_parser(output_num: int, output_types: List[WeldType], output
 def wtype_is_scalar(wtype: WeldType) -> bool:
     if isinstance(wtype, WeldLong) or isinstance(wtype, WeldInt) or isinstance(wtype, WeldInt16) or \
             isinstance(wtype, WeldChar) or isinstance(wtype, WeldDouble) or isinstance(wtype, WeldFloat) \
-            or isinstance(wtype, WeldUnsignedChar):
+            or isinstance(wtype, WeldUnsignedChar) or isinstance(wtype, WeldUnsignedInt16) \
+            or isinstance(wtype, WeldUnsignedInt) or isinstance(wtype, WeldUnsignedLong):
         return True
     else:
         return False
@@ -517,10 +518,16 @@ def weld_type_to_numpy_macro(wtype: WeldType) -> str:
             return "NPY_UINT8"
         elif isinstance(wtype.elemType, WeldInt16):
             return "NPY_INT16"
+        elif isinstance(wtype.elemType, WeldUnsignedInt16):
+            return "NPY_UINT16"
         elif isinstance(wtype.elemType, WeldInt):
             return "NPY_INT32"
+        elif isinstance(wtype.elemType, WeldUnsignedInt):
+            return "NPY_UINT32"
         elif isinstance(wtype.elemType, WeldLong):
             return "NPY_INT64"
+        elif isinstance(wtype.elemType, WeldUnsignedLong):
+            return "NPY_UINT64"
         elif isinstance(wtype, WeldVec):
             return weld_type_to_numpy_macro(wtype.elemType)
         else:

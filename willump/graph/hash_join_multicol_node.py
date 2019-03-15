@@ -57,12 +57,23 @@ class WillumpHashJoinMultiColNode(WillumpGraphNode):
         """
         import willump.evaluation.willump_executor as wexec
 
+        join_col_field_types = []
+        join_col_type_map = {}
+        join_col_lookup_string = ""
+        for column, col_type in zip(self.left_df_type.column_names, self.left_df_type.field_types):
+            if column in self.join_col_name:
+                assert(isinstance(col_type, WeldVec))
+                col_type = col_type.elemType
+                join_col_field_types.append(col_type)
+                join_col_type_map[column] = col_type
+                col_right_df_index = list(right_dataframe.columns).index(column)
+                join_col_lookup_string += "%s(lookup(_inp%d, i))," % (str(join_col_type_map[column]), col_right_df_index)
+        join_col_weld_type = WeldStruct(join_col_field_types)
+
         types_string = "{"
         row_types_list = []
         types_list = []
         right_df_column_names = []
-        join_col_field_types = []
-        join_col_lookup_string = ""
         for i, column in enumerate(right_dataframe):
             col_weld_type: WeldType = numpy_type_to_weld_type(right_dataframe[column].values.dtype)
             if column not in self.join_col_name:
@@ -70,12 +81,8 @@ class WillumpHashJoinMultiColNode(WillumpGraphNode):
                 row_types_list.append(col_weld_type)
                 types_list.append(WeldVec(col_weld_type))
                 right_df_column_names.append(column)
-            else:
-                join_col_field_types.append(col_weld_type)
-                join_col_lookup_string += "lookup(_inp%d, i)," % i
-        types_string = types_string[:-1] + "}"
 
-        join_col_weld_type = WeldStruct(join_col_field_types)
+        types_string = types_string[:-1] + "}"
 
         values_string = "{"
         for i, column in enumerate(right_dataframe):

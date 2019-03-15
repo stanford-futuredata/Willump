@@ -69,7 +69,7 @@ def lgb_modelfit_nocv(params, dtrain, dvalid, train_y, valid_y, objective='binar
     return bst1, bst1.best_iteration
 
 
-# @willump_execute()
+@willump_execute()
 def process_input(input_df):
     input_df = input_df.merge(X_ip_channel, how='left', on=X_ip_channel_jc)
     input_df = input_df.merge(X_ip_day_hour, how='left', on=X_ip_day_hour_jc)
