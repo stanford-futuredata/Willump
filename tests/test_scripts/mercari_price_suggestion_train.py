@@ -74,7 +74,7 @@ def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_
     text_vec = text_vectorizer.transform(text_input)
     valid_records = to_records(model_input[["shipping", "item_condition_id"]])
     dict_vec = dict_vectorizer.transform(valid_records)
-    combined_vec = scipy.sparse.hstack([name_vec, text_vec, dict_vec], format="csr")
+    combined_vec = scipy.sparse.hstack([text_vec, name_vec, dict_vec], format="csr")
     model_in = ks.Input(shape=(100000 + 100000 + 2,), dtype='float32', sparse=True)
     out = ks.layers.Dense(192, activation='relu')(model_in)
     out = ks.layers.Dense(64, activation='relu')(out)
