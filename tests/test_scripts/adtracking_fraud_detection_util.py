@@ -6,11 +6,9 @@ import pandas as pd
 
 
 def gen_aggregate_statistics_tables(train_df, base_folder, train_start_point, train_end_point, debug):
-    print('Extracting new features...')
     train_df['hour'] = pd.to_datetime(train_df.click_time).dt.hour.astype('uint8')
     train_df['day'] = pd.to_datetime(train_df.click_time).dt.day.astype('uint8')
 
-    print('doing nextClick')
     nextClick_filename = base_folder + 'nextClick_%d_%d.csv' % (train_start_point, train_end_point)
     if os.path.exists(nextClick_filename):
         print('loading from save file')
@@ -39,7 +37,6 @@ def gen_aggregate_statistics_tables(train_df, base_folder, train_start_point, tr
     del nextClick
     gc.collect()
 
-    print("Adding X Features")
     selected_columns = ['ip', 'channel']
     X_ip_channel = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
         selected_columns[-1]].nunique().reset_index(). \
@@ -90,38 +87,31 @@ def gen_aggregate_statistics_tables(train_df, base_folder, train_start_point, tr
         rename(index=str, columns={selected_columns[-1]: 'X8'})
     X_ip_device_app_os_jc = selected_columns[0:-1]
 
-    print('grouping by ip-day-hour combination...')
     ip_day_hour = train_df[['ip', 'day', 'hour', 'channel']].groupby(by=['ip', 'day', 'hour'])[
         ['channel']].count().reset_index().rename(index=str, columns={'channel': 'ip_tcount'})
     ip_day_hour_jc = ['ip', 'day', 'hour']
 
-    print('grouping by ip-app combination...')
     ip_app = train_df[['ip', 'app', 'channel']].groupby(by=['ip', 'app'])[['channel']].count().reset_index().rename(
         index=str, columns={'channel': 'ip_app_count'})
     ip_app_jc = ['ip', 'app']
 
-    print('grouping by ip-app-os combination...')
     ip_app_os = train_df[['ip', 'app', 'os', 'channel']].groupby(by=['ip', 'app', 'os'])[
         ['channel']].count().reset_index().rename(index=str, columns={'channel': 'ip_app_os_count'})
     ip_app_os_jc = ['ip', 'app', 'os']
 
     # Adding features with var and mean hour (inspired from nuhsikander's script)
-    print('grouping by : ip_day_chl_var_hour')
     ip_day_hour_channel = train_df[['ip', 'day', 'hour', 'channel']].groupby(by=['ip', 'day', 'channel'])[
         ['hour']].var().reset_index().rename(index=str, columns={'hour': 'ip_tchan_count'})
     ip_day_hour_channel_jc = ['ip', 'day', 'channel']
 
-    print('grouping by : ip_app_os_var_hour')
     ip_app_os_hour = train_df[['ip', 'app', 'os', 'hour']].groupby(by=['ip', 'app', 'os'])[['hour']].var().reset_index().rename(
         index=str, columns={'hour': 'ip_app_os_var'})
     ip_app_os_hour_jc = ['ip', 'app', 'os']
 
-    print('grouping by : ip_app_channel_var_day')
     ip_app_channel_var_day = train_df[['ip', 'app', 'channel', 'day']].groupby(by=['ip', 'app', 'channel'])[
         ['day']].var().reset_index().rename(index=str, columns={'day': 'ip_app_channel_var_day'})
     ip_app_channel_var_day_jc = ['ip', 'app', 'channel']
 
-    print('grouping by : ip_app_chl_mean_hour')
     ip_app_chl_mean_hour = train_df[['ip', 'app', 'channel', 'hour']].groupby(by=['ip', 'app', 'channel'])[
         ['hour']].mean().reset_index().rename(index=str, columns={'hour': 'ip_app_channel_mean_hour'})
     ip_app_chl_mean_hour_jc = ['ip', 'app', 'channel']

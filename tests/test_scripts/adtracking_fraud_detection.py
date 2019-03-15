@@ -7,6 +7,7 @@ import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 
 from adtracking_fraud_detection_util import *
+from willump.evaluation.willump_executor import willump_execute
 
 debug = 1
 
@@ -40,8 +41,6 @@ def lgb_modelfit_nocv(params, dtrain, dvalid, train_y, valid_y, objective='binar
 
     lgb_params.update(params)
 
-    print("preparing validation datasets")
-
     xgtrain = lgb.Dataset(dtrain.values, label=train_y,
                           feature_name=predictors,
                           categorical_feature=categorical_features
@@ -70,21 +69,22 @@ def lgb_modelfit_nocv(params, dtrain, dvalid, train_y, valid_y, objective='binar
     return bst1, bst1.best_iteration
 
 
+# @willump_execute()
 def process_input(input_df):
-    input_df = input_df.merge(X_ip_channel, on=X_ip_channel_jc, how='left')
-    input_df = input_df.merge(X_ip_day_hour, on=X_ip_day_hour_jc, how='left')
-    input_df = input_df.merge(X_ip_app, on=X_ip_app_jc, how='left')
-    input_df = input_df.merge(X_ip_app_os, on=X_ip_app_os_jc, how='left')
-    input_df = input_df.merge(X_ip_device, on=X_ip_device_jc, how='left')
-    input_df = input_df.merge(X_app_channel, on=X_app_channel_jc, how='left')
-    input_df = input_df.merge(X_ip_device_app_os, on=X_ip_device_app_os_jc, how='left')
-    input_df = input_df.merge(ip_app_os, on=ip_app_os_jc, how='left')
-    input_df = input_df.merge(ip_day_hour, on=ip_day_hour_jc, how='left')
-    input_df = input_df.merge(ip_app, on=ip_app_jc, how='left')
-    input_df = input_df.merge(ip_day_hour_channel, on=ip_day_hour_channel_jc, how='left')
-    input_df = input_df.merge(ip_app_channel_var_day, on=ip_app_channel_var_day_jc, how='left')
-    input_df = input_df.merge(ip_app_os_hour, on=ip_app_os_hour_jc, how='left')
-    input_df = input_df.merge(ip_app_chl_mean_hour, on=ip_app_chl_mean_hour_jc, how='left')
+    input_df = input_df.merge(X_ip_channel, how='left', on=X_ip_channel_jc)
+    input_df = input_df.merge(X_ip_day_hour, how='left', on=X_ip_day_hour_jc)
+    input_df = input_df.merge(X_ip_app, how='left', on=X_ip_app_jc)
+    input_df = input_df.merge(X_ip_app_os, how='left', on=X_ip_app_os_jc)
+    input_df = input_df.merge(X_ip_device, how='left', on=X_ip_device_jc)
+    input_df = input_df.merge(X_app_channel, how='left', on=X_app_channel_jc)
+    input_df = input_df.merge(X_ip_device_app_os, how='left', on=X_ip_device_app_os_jc)
+    input_df = input_df.merge(ip_app_os, how='left', on=ip_app_os_jc)
+    input_df = input_df.merge(ip_day_hour, how='left', on=ip_day_hour_jc)
+    input_df = input_df.merge(ip_app, how='left', on=ip_app_jc)
+    input_df = input_df.merge(ip_day_hour_channel, how='left', on=ip_day_hour_channel_jc)
+    input_df = input_df.merge(ip_app_channel_var_day, how='left', on=ip_app_channel_var_day_jc)
+    input_df = input_df.merge(ip_app_os_hour, how='left', on=ip_app_os_hour_jc)
+    input_df = input_df.merge(ip_app_chl_mean_hour, how='left', on=ip_app_chl_mean_hour_jc)
     input_df = input_df[predictors]
     return input_df
 
@@ -129,7 +129,7 @@ if __name__ == "__main__":
                                         train_end_point,
                                         debug)
 
-    print("vars and data type: ")
+    print("Train Dataframe Information: ")
     train_df.info()
 
     target = 'is_attributed'
@@ -138,9 +138,8 @@ if __name__ == "__main__":
                   'ip_app_channel_mean_hour', 'X0', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8']
     categorical = ['app', 'device', 'os', 'channel', 'hour', 'day']
 
-    print('Predictors', predictors)
-
     train_y = train_df[target].values
+    process_input(train_df)
     train_df = process_input(train_df)
 
     train_df, val_df, train_y, val_y = train_test_split(train_df, train_y, test_size=0.1, random_state=42)

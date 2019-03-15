@@ -61,6 +61,12 @@ def sample_merge_with_pushed_null(left, right):
     return predicted_result
 
 
+@wexec.willump_execute()
+def sample_multicolumn_join(left, right, on):
+    new = left.merge(right, how="left", on=on)
+    return new
+
+
 class HashJoinNodeTests(unittest.TestCase):
     def test_basic_hash_join(self):
         print("\ntest_basic_hash_join")
@@ -160,3 +166,15 @@ class HashJoinNodeTests(unittest.TestCase):
         weld_output = sample_merge_with_pushed_null(left_table, right_table)
         numpy.testing.assert_equal(
             weld_output, correct_output)
+
+    def test_multicol_join(self):
+        print("\ntest_multicol_join")
+        on_cols = ["join_column", "join_column2"]
+        left_table = pd.read_csv("tests/test_resources/toy_data_csv_multicol.csv")
+        right_table = pd.read_csv("tests/test_resources/toy_metadata_multicol.csv")
+        correct_output = sample_multicolumn_join(left_table, right_table, on_cols)
+        sample_multicolumn_join(left_table, right_table, on_cols)
+        weld_output = sample_multicolumn_join(left_table, right_table, on_cols)
+        numpy.testing.assert_equal(
+            weld_output.values, correct_output.values)
+

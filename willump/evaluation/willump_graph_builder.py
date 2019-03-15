@@ -26,6 +26,7 @@ from willump.graph.identity_node import IdentityNode
 from willump.graph.reshape_node import ReshapeNode
 from willump.graph.keras_training_node import KerasTrainingNode
 from willump.graph.keras_model_node import KerasModelNode
+from willump.graph.hash_join_multicol_node import WillumpHashJoinMultiColNode
 
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 from weld.types import *
@@ -313,12 +314,21 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 right_df = self._static_vars[WILLUMP_JOIN_RIGHT_DATAFRAME + str(node.lineno)]
                 left_df_input_var: str = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
                 left_df_input_node = self._node_dict[left_df_input_var]
-                willump_hash_join_node = WillumpHashJoinNode(input_node=left_df_input_node,
-                                                             input_name=left_df_input_var,
-                                                             output_name=output_var_name,
-                                                             left_input_type=self._type_map[left_df_input_var],
-                                                             join_col_name=join_col,
-                                                             right_dataframe=right_df, aux_data=self.aux_data)
+                if isinstance(join_col, str):
+                    willump_hash_join_node = WillumpHashJoinNode(input_node=left_df_input_node,
+                                                                 input_name=left_df_input_var,
+                                                                 output_name=output_var_name,
+                                                                 left_input_type=self._type_map[left_df_input_var],
+                                                                 join_col_name=join_col,
+                                                                 right_dataframe=right_df, aux_data=self.aux_data)
+                else:
+                    assert(isinstance(join_col, list))
+                    willump_hash_join_node = WillumpHashJoinMultiColNode(input_node=left_df_input_node,
+                                                                 input_name=left_df_input_var,
+                                                                 output_name=output_var_name,
+                                                                 left_input_type=self._type_map[left_df_input_var],
+                                                                 join_col_names=join_col,
+                                                                 right_dataframe=right_df, aux_data=self.aux_data)
                 willump_hash_join_node.set_costly_node(is_costly_node)
                 return [output_var_name], willump_hash_join_node
             elif "sparse.hstack" in called_function:
