@@ -1,6 +1,7 @@
 # Custom
 tests/test_resources/home_credit_default_risk/*.csv
 tests/test_resources/mercari_price_suggestion/*.tsv
+tests/test_resources/adtracking_fraud_detection/*.csv
 *.7z
 *.h5
 
