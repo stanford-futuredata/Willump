@@ -15,7 +15,7 @@ debug = 1
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
 
-def lgb_modelfit_nocv(params, dtrain, dvalid, predictors, target='target', objective='binary', metrics='auc',
+def lgb_modelfit_nocv(params, dtrain, dvalid, train_y, valid_y, objective='binary', metrics='auc',
                       feval=None, early_stopping_rounds=20, num_boost_round=3000, categorical_features=None):
     lgb_params = {
         'boosting_type': 'gbdt',
@@ -44,11 +44,11 @@ def lgb_modelfit_nocv(params, dtrain, dvalid, predictors, target='target', objec
 
     print("preparing validation datasets")
 
-    xgtrain = lgb.Dataset(dtrain[predictors].values, label=dtrain[target].values,
+    xgtrain = lgb.Dataset(dtrain.values, label=train_y,
                           feature_name=predictors,
                           categorical_feature=categorical_features
                           )
-    xgvalid = lgb.Dataset(dvalid[predictors].values, label=dvalid[target].values,
+    xgvalid = lgb.Dataset(dvalid.values, label=valid_y,
                           feature_name=predictors,
                           categorical_feature=categorical_features
                           )
@@ -70,6 +70,25 @@ def lgb_modelfit_nocv(params, dtrain, dvalid, predictors, target='target', objec
     print(metrics + ":", evals_results['valid'][metrics][bst1.best_iteration - 1])
 
     return bst1, bst1.best_iteration
+
+
+def process_input(input_df):
+    input_df = input_df.merge(X_ip_channel, on=X_ip_channel_jc, how='left')
+    input_df = input_df.merge(X_ip_day_hour, on=X_ip_day_hour_jc, how='left')
+    input_df = input_df.merge(X_ip_app, on=X_ip_app_jc, how='left')
+    input_df = input_df.merge(X_ip_app_os, on=X_ip_app_os_jc, how='left')
+    input_df = input_df.merge(X_ip_device, on=X_ip_device_jc, how='left')
+    input_df = input_df.merge(X_app_channel, on=X_app_channel_jc, how='left')
+    input_df = input_df.merge(X_ip_device_app_os, on=X_ip_device_app_os_jc, how='left')
+    input_df = input_df.merge(ip_app_os, on=ip_app_os_jc, how='left')
+    input_df = input_df.merge(ip_day_hour, on=ip_day_hour_jc, how='left')
+    input_df = input_df.merge(ip_app, on=ip_app_jc, how='left')
+    input_df = input_df.merge(ip_day_hour_channel, on=ip_day_hour_channel_jc, how='left')
+    input_df = input_df.merge(ip_app_channel_var_day, on=ip_app_channel_var_day_jc, how='left')
+    input_df = input_df.merge(ip_app_os_hour, on=ip_app_os_hour_jc, how='left')
+    input_df = input_df.merge(ip_app_chl_mean_hour, on=ip_app_chl_mean_hour_jc, how='left')
+    input_df = input_df[predictors]
+    return input_df
 
 
 if __name__ == "__main__":
@@ -139,7 +158,6 @@ if __name__ == "__main__":
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X0'})
     X_ip_channel_jc = selected_columns[0:-1]
-    train_df = train_df.merge(X_ip_channel, on=X_ip_channel_jc, how='left')
 
     selected_columns = ['ip', 'device', 'os', 'app']
     X_ip_device_os_app = train_df[selected_columns].groupby(by=selected_columns[0:-1])[selected_columns[-1]].cumcount()
@@ -150,35 +168,30 @@ if __name__ == "__main__":
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X2'})
     X_ip_day_hour_jc = selected_columns[0:-1]
-    train_df = train_df.merge(X_ip_day_hour, on=X_ip_day_hour_jc, how='left')
 
     selected_columns = ['ip', 'app']
     X_ip_app = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X3'})
     X_ip_app_jc = selected_columns[0:-1]
-    train_df = train_df.merge(X_ip_app, on=X_ip_app_jc, how='left')
 
     selected_columns = ['ip', 'app', 'os']
     X_ip_app_os = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X4'})
     X_ip_app_os_jc = selected_columns[0:-1]
-    train_df = train_df.merge(X_ip_app_os, on=X_ip_app_os_jc, how='left')
 
     selected_columns = ['ip', 'device']
     X_ip_device = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X5'})
     X_ip_device_jc = selected_columns[0:-1]
-    train_df = train_df.merge(X_ip_device, on=X_ip_device_jc, how='left')
 
     selected_columns = ['app', 'channel']
     X_app_channel = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X6'})
     X_app_channel_jc = selected_columns[0:-1]
-    train_df = train_df.merge(X_app_channel, on=X_app_channel_jc, how='left')
 
     selected_columns = ['ip', 'os']
     X_ip_os = train_df[selected_columns].groupby(by=selected_columns[0:-1])[selected_columns[-1]].cumcount()
@@ -189,50 +202,42 @@ if __name__ == "__main__":
         selected_columns[-1]].nunique().reset_index(). \
         rename(index=str, columns={selected_columns[-1]: 'X8'})
     X_ip_device_app_os_jc = selected_columns[0:-1]
-    train_df = train_df.merge(X_ip_device_app_os, on=X_ip_device_app_os_jc, how='left')
 
     print('grouping by ip-day-hour combination...')
     ip_day_hour = train_df[['ip', 'day', 'hour', 'channel']].groupby(by=['ip', 'day', 'hour'])[
         ['channel']].count().reset_index().rename(index=str, columns={'channel': 'ip_tcount'})
     ip_day_hour_jc = ['ip', 'day', 'hour']
-    train_df = train_df.merge(ip_day_hour, on=ip_day_hour_jc, how='left')
 
     print('grouping by ip-app combination...')
     ip_app = train_df[['ip', 'app', 'channel']].groupby(by=['ip', 'app'])[['channel']].count().reset_index().rename(
         index=str, columns={'channel': 'ip_app_count'})
     ip_app_jc = ['ip', 'app']
-    train_df = train_df.merge(ip_app, on=ip_app_jc, how='left')
 
     print('grouping by ip-app-os combination...')
     ip_app_os = train_df[['ip', 'app', 'os', 'channel']].groupby(by=['ip', 'app', 'os'])[
         ['channel']].count().reset_index().rename(index=str, columns={'channel': 'ip_app_os_count'})
     ip_app_os_jc = ['ip', 'app', 'os']
-    train_df = train_df.merge(ip_app_os, on=ip_app_os_jc, how='left')
 
     # Adding features with var and mean hour (inspired from nuhsikander's script)
     print('grouping by : ip_day_chl_var_hour')
     ip_day_hour_channel = train_df[['ip', 'day', 'hour', 'channel']].groupby(by=['ip', 'day', 'channel'])[
         ['hour']].var().reset_index().rename(index=str, columns={'hour': 'ip_tchan_count'})
     ip_day_hour_channel_jc = ['ip', 'day', 'channel']
-    train_df = train_df.merge(ip_day_hour_channel, on=ip_day_hour_channel_jc, how='left')
 
     print('grouping by : ip_app_os_var_hour')
     ip_app_os_hour = train_df[['ip', 'app', 'os', 'hour']].groupby(by=['ip', 'app', 'os'])[['hour']].var().reset_index().rename(
         index=str, columns={'hour': 'ip_app_os_var'})
     ip_app_os_hour_jc = ['ip', 'app', 'os']
-    train_df = train_df.merge(ip_app_os_hour, on=ip_app_os_hour_jc, how='left')
 
     print('grouping by : ip_app_channel_var_day')
     ip_app_channel_var_day = train_df[['ip', 'app', 'channel', 'day']].groupby(by=['ip', 'app', 'channel'])[
         ['day']].var().reset_index().rename(index=str, columns={'day': 'ip_app_channel_var_day'})
     ip_app_channel_var_day_jc = ['ip', 'app', 'channel']
-    train_df = train_df.merge(ip_app_channel_var_day, on=ip_app_channel_var_day_jc, how='left')
 
     print('grouping by : ip_app_chl_mean_hour')
     ip_app_chl_mean_hour = train_df[['ip', 'app', 'channel', 'hour']].groupby(by=['ip', 'app', 'channel'])[
         ['hour']].mean().reset_index().rename(index=str, columns={'hour': 'ip_app_channel_mean_hour'})
     ip_app_chl_mean_hour_jc = ['ip', 'app', 'channel']
-    train_df = train_df.merge(ip_app_chl_mean_hour, on=ip_app_chl_mean_hour_jc, how='left')
 
     print("vars and data type: ")
     train_df.info()
@@ -245,7 +250,10 @@ if __name__ == "__main__":
 
     print('Predictors', predictors)
 
-    train_df, val_df = train_test_split(train_df, test_size=0.1, random_state=42)
+    train_y = train_df[target].values
+    train_df = process_input(train_df)
+
+    train_df, val_df, train_y, val_y = train_test_split(train_df, train_y, test_size=0.1, random_state=42)
 
     print("train size: ", len(train_df))
     print("valid size: ", len(val_df))
@@ -271,8 +279,8 @@ if __name__ == "__main__":
     (bst, best_iteration) = lgb_modelfit_nocv(params,
                                               train_df,
                                               val_df,
-                                              predictors,
-                                              target,
+                                              train_y,
+                                              val_y,
                                               objective='binary',
                                               metrics='auc',
                                               early_stopping_rounds=30,
