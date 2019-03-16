@@ -157,7 +157,7 @@ def create_featureset(folder):
     # add latent features
     y_pred = add_features_and_predict(folder, combi)
 
-    print("Train AUC: %f" % auc_score(y, y_pred))
+    print("Validation AUC: %f" % auc_score(y, y_pred))
 
 
 if __name__ == '__main__':

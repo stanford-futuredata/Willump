@@ -274,12 +274,20 @@ def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
             return WeldVec(py_var_to_weld_type(py_var[0]))
         if py_var.dtype == numpy.int8:
             return WeldVec(WeldChar())
+        elif py_var.dtype == numpy.uint8:
+            return WeldVec(WeldUnsignedChar())
         elif py_var.dtype == numpy.int16:
             return WeldVec(WeldInt16())
+        elif py_var.dtype == numpy.uint16:
+            return WeldVec(WeldUnsignedInt16())
         elif py_var.dtype == numpy.int32:
             return WeldVec(WeldInt())
+        elif py_var.dtype == numpy.uint32:
+            return WeldVec(WeldUnsignedInt())
         elif py_var.dtype == numpy.int64:
             return WeldVec(WeldLong())
+        elif py_var.dtype == numpy.uint64:
+            return WeldVec(WeldUnsignedLong())
         elif py_var.dtype == numpy.float32:
             return WeldVec(WeldFloat())
         elif py_var.dtype == numpy.float64:
