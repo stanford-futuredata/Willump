@@ -1,35 +1,34 @@
 import ast
+from typing import MutableMapping, List, Tuple, Optional, Mapping
+
 import astor
+from weld.types import *
 
 from willump import *
-from willump.willump_utilities import *
+from willump.graph.array_binop_node import ArrayBinopNode
+from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
+from willump.graph.array_tfidf_node import ArrayTfIdfNode
+from willump.graph.hash_join_node import WillumpHashJoinNode
+from willump.graph.identity_node import IdentityNode
+from willump.graph.keras_model_node import KerasModelNode
+from willump.graph.keras_training_node import KerasTrainingNode
+from willump.graph.linear_regression_node import LinearRegressionNode
+from willump.graph.linear_training_node import LinearTrainingNode
+from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
+from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
+from willump.graph.pandas_series_to_dataframe_node import PandasSeriesToDataFrameNode
+from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
+from willump.graph.reshape_node import ReshapeNode
+from willump.graph.stack_sparse_node import StackSparseNode
+from willump.graph.string_lower_node import StringLowerNode
+from willump.graph.trees_model_node import TreesModelNode
+from willump.graph.trees_training_node import TreesTrainingNode
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
-from willump.graph.string_lower_node import StringLowerNode
-from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
-from willump.graph.linear_regression_node import LinearRegressionNode
-from willump.graph.array_binop_node import ArrayBinopNode
-from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.willump_python_node import WillumpPythonNode
-from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
-from willump.graph.stack_sparse_node import StackSparseNode
-from willump.graph.linear_training_node import LinearTrainingNode
-from willump.graph.array_tfidf_node import ArrayTfIdfNode
-from willump.graph.trees_training_node import TreesTrainingNode
-from willump.graph.trees_model_node import TreesModelNode
-from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
-from willump.graph.pandas_series_to_dataframe_node import PandasSeriesToDataFrameNode
-from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
-from willump.graph.identity_node import IdentityNode
-from willump.graph.reshape_node import ReshapeNode
-from willump.graph.keras_training_node import KerasTrainingNode
-from willump.graph.keras_model_node import KerasModelNode
-from willump.graph.hash_join_multicol_node import WillumpHashJoinMultiColNode
-
-from typing import MutableMapping, List, Tuple, Optional, Mapping
-from weld.types import *
+from willump.willump_utilities import *
 
 
 class WillumpGraphBuilder(ast.NodeVisitor):
@@ -315,20 +314,14 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 left_df_input_var: str = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
                 left_df_input_node = self._node_dict[left_df_input_var]
                 if isinstance(join_col, str):
-                    willump_hash_join_node = WillumpHashJoinNode(input_node=left_df_input_node,
-                                                                 input_name=left_df_input_var,
-                                                                 output_name=output_var_name,
-                                                                 left_input_type=self._type_map[left_df_input_var],
-                                                                 join_col_name=join_col,
-                                                                 right_dataframe=right_df, aux_data=self.aux_data)
-                else:
-                    assert(isinstance(join_col, list))
-                    willump_hash_join_node = WillumpHashJoinMultiColNode(input_node=left_df_input_node,
-                                                                 input_name=left_df_input_var,
-                                                                 output_name=output_var_name,
-                                                                 left_input_type=self._type_map[left_df_input_var],
-                                                                 join_col_names=join_col,
-                                                                 right_dataframe=right_df, aux_data=self.aux_data)
+                    join_col = [join_col]
+                assert(isinstance(join_col, list))
+                willump_hash_join_node = WillumpHashJoinNode(input_node=left_df_input_node,
+                                                             input_name=left_df_input_var,
+                                                             output_name=output_var_name,
+                                                             left_input_type=self._type_map[left_df_input_var],
+                                                             join_col_names=join_col,
+                                                             right_dataframe=right_df, aux_data=self.aux_data)
                 willump_hash_join_node.set_costly_node(is_costly_node)
                 return [output_var_name], willump_hash_join_node
             elif "sparse.hstack" in called_function:

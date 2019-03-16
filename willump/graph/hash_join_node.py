@@ -10,18 +10,18 @@ import importlib
 
 class WillumpHashJoinNode(WillumpGraphNode):
     """
-    Implements a left join between two dataframes on a specific column.  Fills missing rows with zeros.
+    Implements a left join between two dataframes on several columns.  Fills missing rows with zeros.
     """
     left_input_name: str
     left_df_type: WeldPandas
     right_df_row_type: WeldPandas
     right_df_type: WeldPandas
-    join_col_name: str
+    join_col_names: List[str]
 
     # Protected Cascade Variables
     _small_model_output_name: Optional[str] = None
 
-    def __init__(self, input_node: WillumpGraphNode, input_name: str, left_input_type: WeldType, output_name: str, join_col_name: str,
+    def __init__(self, input_node: WillumpGraphNode, input_name: str, left_input_type: WeldType, output_name: str, join_col_names: List[str],
                  right_dataframe, aux_data: List[Tuple[int, WeldType]]) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
@@ -30,17 +30,11 @@ class WillumpHashJoinNode(WillumpGraphNode):
         self._output_name = output_name
         self._right_dataframe = right_dataframe
         self._right_dataframe_name = "AUX_DATA_{0}".format(len(aux_data))
-        self.join_col_name = join_col_name
+        self.join_col_names = join_col_names
         self._input_nodes = [input_node, WillumpInputNode(self._right_dataframe_name)]
         self._input_names = [input_name, self._right_dataframe_name]
         assert(isinstance(left_input_type, WeldPandas))
         self.left_df_type = left_input_type
-        self._join_col_elem_type = left_input_type.field_types[left_input_type.column_names.index(join_col_name)]
-        if isinstance(self._join_col_elem_type, WeldVec):
-            self._join_col_elem_type = self._join_col_elem_type.elemType
-        self._model_type = None
-        self._model_parameters = None
-        self._model_index_map = None
         for entry in self._process_aux_data(right_dataframe):
             aux_data.append(entry)
         self._output_type = WeldPandas(field_types=self.left_df_type.field_types + self.right_df_type.field_types,
@@ -62,24 +56,42 @@ class WillumpHashJoinNode(WillumpGraphNode):
         indexed by join_col_name.
         """
         import willump.evaluation.willump_executor as wexec
-        join_col_index = list(right_dataframe.columns).index(self.join_col_name)
+
+        join_col_field_types = []
+        join_col_type_map = {}
+        join_col_lookup_string = ""
+        for column, col_type in zip(self.left_df_type.column_names, self.left_df_type.field_types):
+            if column in self.join_col_names:
+                assert(isinstance(col_type, WeldVec))
+                col_type = col_type.elemType
+                join_col_field_types.append(col_type)
+                join_col_type_map[column] = col_type
+                col_right_df_index = list(right_dataframe.columns).index(column)
+                join_col_lookup_string += "%s(lookup(_inp%d, i))," % (str(join_col_type_map[column]), col_right_df_index)
+        if len(self.join_col_names) > 1:
+            join_col_weld_type = WeldStruct(join_col_field_types)
+            join_col_lookup_string = "{" + join_col_lookup_string + "}"
+        else:
+            join_col_weld_type = join_col_field_types[0]
+            join_col_lookup_string = join_col_lookup_string[:-1]
 
         types_string = "{"
         row_types_list = []
         types_list = []
         right_df_column_names = []
-        for column in right_dataframe:
-            if column != self.join_col_name:
-                col_weld_type: WeldType = numpy_type_to_weld_type(right_dataframe[column].values.dtype)
+        for i, column in enumerate(right_dataframe):
+            col_weld_type: WeldType = numpy_type_to_weld_type(right_dataframe[column].values.dtype)
+            if column not in self.join_col_names:
                 types_string += str(col_weld_type) + ","
                 row_types_list.append(col_weld_type)
                 types_list.append(WeldVec(col_weld_type))
                 right_df_column_names.append(column)
+
         types_string = types_string[:-1] + "}"
 
         values_string = "{"
         for i, column in enumerate(right_dataframe):
-            if column != self.join_col_name:
+            if column not in self.join_col_names:
                 values_string += "lookup(_inp%d, i)," % i
         values_string = values_string[:-1] + "}"
 
@@ -88,10 +100,11 @@ class WillumpHashJoinNode(WillumpGraphNode):
             result(for(_inp%d,
                 dictmerger[JOIN_COL_TYPE, %s, +],
                 | bs: dictmerger[JOIN_COL_TYPE, %s, +], i: i64, x |
-                    merge(bs, {JOIN_COL_TYPE(x), %s})
+                    merge(bs, {JOIN_COL_LOOKUP, %s})
             ))
-            """ % (join_col_index, types_string, types_string, values_string)
-        weld_program = weld_program.replace("JOIN_COL_TYPE", str(self._join_col_elem_type))
+            """ % (0, types_string, types_string, values_string)
+        weld_program = weld_program.replace("JOIN_COL_TYPE", str(join_col_weld_type))
+        weld_program = weld_program.replace("JOIN_COL_LOOKUP", join_col_lookup_string)
 
         input_arg_types = {}
         input_arg_list = []
@@ -116,12 +129,7 @@ class WillumpHashJoinNode(WillumpGraphNode):
         indexed_right_dataframe = hash_join_dataframe_indexer.caller_func(*input_args)
         self.right_df_row_type = WeldPandas(row_types_list, right_df_column_names)
         self.right_df_type = WeldPandas(types_list, right_df_column_names)
-        return [(indexed_right_dataframe, WeldDict(self._join_col_elem_type, self.right_df_row_type))]
-
-    def push_model(self, model_type: str, model_parameters: Tuple, model_index_map: Mapping[str, int]):
-        self._model_type = model_type
-        self._model_parameters = model_parameters
-        self._model_index_map = model_index_map
+        return [(indexed_right_dataframe, WeldDict(join_col_weld_type, self.right_df_row_type))]
 
     def push_cascade(self, small_model_output_node: WillumpGraphNode):
         self._small_model_output_name = small_model_output_node.get_output_names()[0]
@@ -129,95 +137,69 @@ class WillumpHashJoinNode(WillumpGraphNode):
         self._input_names.append(self._small_model_output_name)
 
     def get_node_weld(self) -> str:
-        join_col_left_index = self.left_df_type.column_names.index(self.join_col_name)
-        if self._model_type is None:
-            if self._small_model_output_name is None:
-                cascade_statement = "true"
-            else:
-                cascade_statement = "lookup(%s, i) == 2c" % self._small_model_output_name
-            struct_builder_statement = "{"
-            merge_statement = "{"
-            merge_zeros_statement = "{"
-            result_statement = "{"
-            switch = 0
-            for i in range(len(self.left_df_type.column_names)):
-                result_statement += "%s.$%d," % (self.left_input_name, i)
-            for i, column in enumerate(self._right_dataframe):
-                if column != self.join_col_name:
-                    col_type = str(numpy_type_to_weld_type(self._right_dataframe[column].values.dtype))
-                    struct_builder_statement += "appender[%s](col_len)," % col_type
-                    merge_statement += "merge(bs.$%d, right_dataframe_row.$%d)," % (i - switch, i - switch)
-                    result_statement += "result(pre_output.$%d)," % (i - switch)
-                    merge_zeros_statement += "merge(bs.$%d, %s(0))," % (i - switch, col_type)
-                else:
-                    switch = 1
-            struct_builder_statement = struct_builder_statement[:-1] + "}"
-            merge_statement = merge_statement[:-1] + "}"
-            result_statement = result_statement[:-1] + "}"
-            merge_zeros_statement = merge_zeros_statement[:-1] + "}"
-            weld_program = \
-                """
-                let col_len = len(INPUT_NAME.$JOIN_COL_LEFT_INDEX);
-                let pre_output = (for(INPUT_NAME.$JOIN_COL_LEFT_INDEX,
-                    STRUCT_BUILDER,
-                    |bs, i: i64, x |
-                        if(CASCADE_STATEMENT,
-                            let right_dataframe_row_present = optlookup(RIGHT_DATAFRAME_NAME, x);
-                            if(right_dataframe_row_present.$0,
-                                let right_dataframe_row = right_dataframe_row_present.$1;
-                                MERGE_STATEMENT,
-                                MERGE_ZEROS_STATEMENT
-                            ),    
-                            bs
-                        )
-                ));
-                let OUTPUT_NAME = RESULT_STATEMENT;
-                """
-            weld_program = weld_program.replace("JOIN_COL_LEFT_INDEX", str(join_col_left_index))
-            weld_program = weld_program.replace("STRUCT_BUILDER", struct_builder_statement)
-            weld_program = weld_program.replace("MERGE_STATEMENT", merge_statement)
-            weld_program = weld_program.replace("RESULT_STATEMENT", result_statement)
-            weld_program = weld_program.replace("RIGHT_DATAFRAME_NAME", self._right_dataframe_name)
-            weld_program = weld_program.replace("INPUT_NAME", self.left_input_name)
-            weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
-            weld_program = weld_program.replace("CASCADE_STATEMENT", cascade_statement)
-            weld_program = weld_program.replace("MERGE_ZEROS_STATEMENT", merge_zeros_statement)
+        if self._small_model_output_name is None:
+            cascade_statement = "true"
         else:
-            assert(self._model_type == 'linear')
-            weights_name, = self._model_parameters
-            left_index_map = {}
-            for i, col_name in enumerate(self.left_df_type.column_names):
-                if col_name in self._model_index_map:
-                    left_index_map[i] = self._model_index_map[col_name]
-            right_index_map = {}
-            for i, col_name in enumerate(self.right_df_row_type.column_names):
-                if col_name in self._model_index_map:
-                    right_index_map[i] = self._model_index_map[col_name]
-            sum_statement = ""
-            for left_index, weight_index in left_index_map.items():
-                sum_statement += "f64(lookup(INPUT_NAME.$%d, i)) * lookup(WEIGHTS_NAME, %dL)+" % (left_index, weight_index)
-            for right_index, weight_index in right_index_map.items():
-                sum_statement += "f64(right_dataframe_row.$%d) * lookup(WEIGHTS_NAME, %dL)+" % (right_index, weight_index)
-            sum_statement = sum_statement[:-1]
-            weld_program = \
-                """
-                let OUTPUT_NAME: vec[f64] = result(for(INPUT_NAME.$JOIN_COL_LEFT_INDEX,
-                    appender[f64],
-                    |bs, i: i64, x |
-                        let right_dataframe_row_present = optlookup(RIGHT_DATAFRAME_NAME, x);
+            cascade_statement = "lookup(%s, i) == 2c" % self._small_model_output_name
+        join_col_left_index = self.left_df_type.column_names.index(self.join_col_names[0])
+        struct_builder_statement = "{"
+        merge_statement = "{"
+        merge_zeros_statement = "{"
+        result_statement = "{"
+        switch = 0
+        for i in range(len(self.left_df_type.column_names)):
+            result_statement += "%s.$%d," % (self.left_input_name, i)
+        for i, column in enumerate(self._right_dataframe):
+            if column not in self.join_col_names:
+                col_type = str(numpy_type_to_weld_type(self._right_dataframe[column].values.dtype))
+                struct_builder_statement += "appender[%s](col_len)," % col_type
+                merge_statement += "merge(bs.$%d, right_dataframe_row.$%d)," % (i - switch, i - switch)
+                result_statement += "result(pre_output.$%d)," % (i - switch)
+                merge_zeros_statement += "merge(bs.$%d, %s(0))," % (i - switch, col_type)
+            else:
+                switch += 1
+
+        join_col_lookup_string = ""
+        for i, column in enumerate(self.left_df_type.column_names):
+            if column in self.join_col_names:
+                join_col_lookup_string += "lookup(INPUT_NAME.$%d, i)," % i
+        if len(self.join_col_names) > 1:
+            join_col_lookup_string = "{" + join_col_lookup_string + "}"
+        else:
+            join_col_lookup_string = "x"
+
+        struct_builder_statement = struct_builder_statement[:-1] + "}"
+        merge_statement = merge_statement[:-1] + "}"
+        result_statement = result_statement[:-1] + "}"
+        merge_zeros_statement = merge_zeros_statement[:-1] + "}"
+        weld_program = \
+            """
+            let col_len = len(INPUT_NAME.$0);
+            let pre_output = (for(INPUT_NAME.$JOIN_COL_LEFT_INDEX,
+                STRUCT_BUILDER,
+                |bs, i: i64, x |
+                    if(CASCADE_STATEMENT,
+                        let right_dataframe_row_present = optlookup(RIGHT_DATAFRAME_NAME, JOIN_COL_LOOKUP);
                         if(right_dataframe_row_present.$0,
                             let right_dataframe_row = right_dataframe_row_present.$1;
-                            merge(bs, SUM_STATEMENT),
-                            merge(bs, 0.0)
-                        )
-                ));
-                """
-            weld_program = weld_program.replace("SUM_STATEMENT", sum_statement)
-            weld_program = weld_program.replace("JOIN_COL_LEFT_INDEX", str(join_col_left_index))
-            weld_program = weld_program.replace("RIGHT_DATAFRAME_NAME", self._right_dataframe_name)
-            weld_program = weld_program.replace("INPUT_NAME", self.left_input_name)
-            weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
-            weld_program = weld_program.replace("WEIGHTS_NAME", weights_name)
+                            MERGE_STATEMENT,
+                            MERGE_ZEROS_STATEMENT
+                        ),    
+                        bs
+                    )
+            ));
+            let OUTPUT_NAME = RESULT_STATEMENT;
+            """
+        weld_program = weld_program.replace("STRUCT_BUILDER", struct_builder_statement)
+        weld_program = weld_program.replace("JOIN_COL_LOOKUP", join_col_lookup_string)
+        weld_program = weld_program.replace("MERGE_STATEMENT", merge_statement)
+        weld_program = weld_program.replace("RESULT_STATEMENT", result_statement)
+        weld_program = weld_program.replace("RIGHT_DATAFRAME_NAME", self._right_dataframe_name)
+        weld_program = weld_program.replace("INPUT_NAME", self.left_input_name)
+        weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)
+        weld_program = weld_program.replace("CASCADE_STATEMENT", cascade_statement)
+        weld_program = weld_program.replace("MERGE_ZEROS_STATEMENT", merge_zeros_statement)
+        weld_program = weld_program.replace("JOIN_COL_LEFT_INDEX", str(join_col_left_index))
         return weld_program
 
     def get_output_name(self) -> str:

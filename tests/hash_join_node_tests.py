@@ -76,7 +76,7 @@ class HashJoinNodeTests(unittest.TestCase):
         aux_data = []
         hash_join_node: WillumpHashJoinNode = \
             WillumpHashJoinNode(input_node=input_node, input_name="input_table", output_name="output",
-                                join_col_name="join_column",
+                                join_col_names=["join_column"],
                                 right_dataframe=right_table, aux_data=aux_data,
                                 left_input_type=WeldPandas(
                                     [WeldVec(WeldLong()), WeldVec(WeldLong()), WeldVec(WeldLong())],
