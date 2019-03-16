@@ -10,12 +10,14 @@ from sklearn.model_selection import train_test_split
 from adtracking_fraud_detection_util import *
 from willump.evaluation.willump_executor import willump_execute
 
-debug = 1
+debug = True
 
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
+training_cascades = {}
 
-@willump_execute()
+
+@willump_execute(training_cascades=training_cascades)
 def process_input_and_train(input_df, input_y):
     input_df = input_df.merge(X_ip_channel, how='left', on=X_ip_channel_jc)
     input_df = input_df.merge(X_ip_day_hour, how='left', on=X_ip_day_hour_jc)
@@ -43,7 +45,7 @@ def process_input_and_train(input_df, input_y):
         subsample_freq=1,
         colsample_bytree=0.9,
         min_child_weight=0,
-        scale_pos_weight=200,
+        scale_pos_weight=200
     )
     clf = clf.fit(input_df, input_y, eval_metric="auc")
     return clf
@@ -104,15 +106,16 @@ if __name__ == "__main__":
     num_rows = len(train_df)
 
     start = time.time()
-    process_input_and_train(train_df, train_y)
+    clf = process_input_and_train(train_df, train_y)
     elapsed_time = time.time() - start
     print('First (Python) training in %f seconds rows %d throughput %f: ' % (
         elapsed_time, num_rows, num_rows / elapsed_time))
 
     start = time.time()
-    clf = process_input_and_train(train_df, train_y)
+    process_input_and_train(train_df, train_y)
     elapsed_time = time.time() - start
     print('Second (Willump) training in %f seconds rows %d throughput %f: ' % (
         elapsed_time, num_rows, num_rows / elapsed_time))
 
     pickle.dump(clf, open(base_folder + "model.pk", "wb"))
+    pickle.dump(training_cascades, open(base_folder + "cascades.pk", "wb"))

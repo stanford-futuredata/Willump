@@ -1,6 +1,7 @@
 # Original source: https://www.kaggle.com/bk0000/non-blending-lightgbm-model-lb-0-977
 # Data files can be found on Kaggle:  https://www.kaggle.com/c/talkingdata-adtracking-fraud-detection
 
+import argparse
 import pickle
 import time
 
@@ -10,12 +11,25 @@ from sklearn.model_selection import train_test_split
 from adtracking_fraud_detection_util import *
 from willump.evaluation.willump_executor import willump_execute
 
-debug = 1
+debug = True
 
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+args = parser.parse_args()
+if args.cascades is None:
+    cascades = None
+    cascade_threshold = 1.0
+else:
+    assert (0.5 <= args.cascades <= 1.0)
+    assert(not args.disable)
+    cascades = pickle.load(open(base_folder + "cascades.pk", "rb"))
+    cascade_threshold = args.cascades
 
-@willump_execute()
+
+@willump_execute(disable=args.disable, batch=True, eval_cascades=cascades, cascade_threshold=cascade_threshold)
 def process_input_and_predict(input_df):
     input_df = input_df.merge(X_ip_channel, how='left', on=X_ip_channel_jc)
     input_df = input_df.merge(X_ip_day_hour, how='left', on=X_ip_day_hour_jc)
