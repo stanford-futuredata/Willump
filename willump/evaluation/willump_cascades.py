@@ -85,6 +85,13 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                            selected_columns))
                 orig_output_type = node.get_output_type()
                 if isinstance(orig_output_type, WeldPandas):
+                    # Hacky code so that the pre-joins dataframe columns don't appear twice in the full output.
+                    base_node = wg_passes.find_dataframe_base_node(node_input_nodes[0], base_discovery_dict)
+                    new_base_node = wg_passes.find_dataframe_base_node(new_input_nodes[0], base_discovery_dict)
+                    assert(isinstance(base_node, WillumpHashJoinNode))
+                    if base_node.get_output_type().column_names != new_base_node.get_output_type().column_names:
+                        base_left_df_col_names = base_node.left_df_type.column_names
+                        new_selected_columns = list(filter(lambda x: x not in base_left_df_col_names, new_selected_columns))
                     col_map = {col_name: col_type for col_name, col_type in
                                zip(orig_output_type.column_names, orig_output_type.field_types)}
                     new_field_types = [col_map[col_name] for col_name in new_selected_columns]
