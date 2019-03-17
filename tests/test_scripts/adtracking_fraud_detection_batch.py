@@ -80,17 +80,21 @@ if __name__ == "__main__":
     len_train = len(train_df)
     gc.collect()
 
-    (train_df, X_ip_channel, X_ip_channel_jc, X_ip_day_hour, X_ip_day_hour_jc, X_ip_app, X_ip_app_jc,
+    (X_ip_channel, X_ip_channel_jc, X_ip_day_hour, X_ip_day_hour_jc, X_ip_app, X_ip_app_jc,
      X_ip_app_os, X_ip_app_os_jc,
      X_ip_device, X_ip_device_jc, X_app_channel, X_app_channel_jc, X_ip_device_app_os, X_ip_device_app_os_jc,
      ip_app_os, ip_app_os_jc, ip_day_hour, ip_day_hour_jc, ip_app, ip_app_jc, ip_day_hour_channel,
      ip_day_hour_channel_jc, ip_app_channel_var_day, ip_app_channel_var_day_jc, ip_app_os_hour,
-     ip_app_os_hour_jc, ip_app_chl_mean_hour, ip_app_chl_mean_hour_jc) = \
-        gen_aggregate_statistics_tables(train_df,
-                                        base_folder,
-                                        train_start_point,
-                                        train_end_point,
-                                        debug)
+     ip_app_os_hour_jc, ip_app_chl_mean_hour, ip_app_chl_mean_hour_jc, nextClick, nextClick_shift, X1, X7) = \
+        pickle.load(open(base_folder + "aggregate_tables.pk", "rb"))
+
+    train_df['hour'] = pd.to_datetime(train_df.click_time).dt.hour.astype('uint8')
+    train_df['day'] = pd.to_datetime(train_df.click_time).dt.day.astype('uint8')
+    train_df["nextClick"] = nextClick
+    train_df["nextClick_shift"] = nextClick_shift
+    train_df["X1"] = X1
+    train_df["X7"] = X7
+    train_df = train_df.drop(columns=["click_time"])
 
     print("Train Dataframe Information: ")
     train_df.info()

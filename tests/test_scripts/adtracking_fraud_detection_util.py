@@ -6,8 +6,6 @@ import pandas as pd
 
 
 def gen_aggregate_statistics_tables(train_df, base_folder, train_start_point, train_end_point, debug):
-    train_df['hour'] = pd.to_datetime(train_df.click_time).dt.hour.astype('uint8')
-    train_df['day'] = pd.to_datetime(train_df.click_time).dt.day.astype('uint8')
 
     nextClick_filename = base_folder + 'nextClick_%d_%d.csv' % (train_start_point, train_end_point)
     if os.path.exists(nextClick_filename):
@@ -31,10 +29,6 @@ def gen_aggregate_statistics_tables(train_df, base_folder, train_start_point, tr
             print('saving')
             pd.DataFrame(nextClick).to_csv(nextClick_filename, index=False)
 
-    train_df['nextClick'] = nextClick
-    train_df['nextClick_shift'] = pd.DataFrame(nextClick).shift(+1).values
-    train_df = train_df.drop(columns=["click_time"])
-    del nextClick
     gc.collect()
 
     selected_columns = ['ip', 'channel']
@@ -45,7 +39,6 @@ def gen_aggregate_statistics_tables(train_df, base_folder, train_start_point, tr
 
     selected_columns = ['ip', 'device', 'os', 'app']
     X_ip_device_os_app = train_df[selected_columns].groupby(by=selected_columns[0:-1])[selected_columns[-1]].cumcount()
-    train_df['X1'] = X_ip_device_os_app.values
 
     selected_columns = ['ip', 'day', 'hour']
     X_ip_day_hour = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
@@ -79,7 +72,6 @@ def gen_aggregate_statistics_tables(train_df, base_folder, train_start_point, tr
 
     selected_columns = ['ip', 'os']
     X_ip_os = train_df[selected_columns].groupby(by=selected_columns[0:-1])[selected_columns[-1]].cumcount()
-    train_df['X7'] = X_ip_os.values
 
     selected_columns = ['ip', 'device', 'os', 'app']
     X_ip_device_app_os = train_df[selected_columns].groupby(by=selected_columns[0:-1])[
@@ -116,9 +108,10 @@ def gen_aggregate_statistics_tables(train_df, base_folder, train_start_point, tr
         ['hour']].mean().reset_index().rename(index=str, columns={'hour': 'ip_app_channel_mean_hour'})
     ip_app_chl_mean_hour_jc = ['ip', 'app', 'channel']
 
-    return train_df, X_ip_channel, X_ip_channel_jc, X_ip_day_hour, X_ip_day_hour_jc, X_ip_app, X_ip_app_jc, \
+    return X_ip_channel, X_ip_channel_jc, X_ip_day_hour, X_ip_day_hour_jc, X_ip_app, X_ip_app_jc, \
         X_ip_app_os, X_ip_app_os_jc, \
         X_ip_device, X_ip_device_jc, X_app_channel, X_app_channel_jc, X_ip_device_app_os, X_ip_device_app_os_jc, \
         ip_app_os, ip_app_os_jc, ip_day_hour, ip_day_hour_jc, ip_app, ip_app_jc, ip_day_hour_channel, \
         ip_day_hour_channel_jc, ip_app_channel_var_day, ip_app_channel_var_day_jc, ip_app_os_hour,\
-        ip_app_os_hour_jc, ip_app_chl_mean_hour, ip_app_chl_mean_hour_jc
+        ip_app_os_hour_jc, ip_app_chl_mean_hour, ip_app_chl_mean_hour_jc, \
+           nextClick, pd.DataFrame(nextClick).shift(+1).values, X_ip_device_os_app.values, X_ip_os.values

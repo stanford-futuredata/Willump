@@ -1,11 +1,13 @@
 # Original source: https://www.kaggle.com/bk0000/non-blending-lightgbm-model-lb-0-977
 # Data files can be found on Kaggle:  https://www.kaggle.com/c/talkingdata-adtracking-fraud-detection
 
-import time
+import argparse
 import pickle
+import time
 
-from lightgbm import LGBMClassifier
+from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 from adtracking_fraud_detection_util import *
 from willump.evaluation.willump_executor import willump_execute
@@ -14,11 +16,23 @@ debug = True
 
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
-training_cascades = {}
+parser = argparse.ArgumentParser()
+parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+args = parser.parse_args()
+if args.cascades is None:
+    cascades = None
+    cascade_threshold = 1.0
+else:
+    assert (0.5 <= args.cascades <= 1.0)
+    assert(not args.disable)
+    cascades = pickle.load(open(base_folder + "cascades.pk", "rb"))
+    cascade_threshold = args.cascades
 
 
-@willump_execute(training_cascades=training_cascades)
-def process_input_and_train(input_df, input_y):
+@willump_execute(disable=args.disable, batch=False, eval_cascades=cascades, cascade_threshold=cascade_threshold)
+def process_input_and_predict(input_df):
+    input_df = input_df.to_frame().T
     input_df = input_df.merge(X_ip_channel, how='left', on=X_ip_channel_jc)
     input_df = input_df.merge(X_ip_day_hour, how='left', on=X_ip_day_hour_jc)
     input_df = input_df.merge(X_ip_app, how='left', on=X_ip_app_jc)
@@ -34,24 +48,14 @@ def process_input_and_train(input_df, input_y):
     input_df = input_df.merge(ip_app_os_hour, how='left', on=ip_app_os_hour_jc)
     input_df = input_df.merge(ip_app_chl_mean_hour, how='left', on=ip_app_chl_mean_hour_jc)
     input_df = input_df[predictors]
-    clf = LGBMClassifier(
-        boosting_type="gbdt",
-        objective="binary",
-        num_leaves=7,
-        max_depth=3,
-        min_child_samples=100,
-        max_bin=100,
-        subsample=0.7,
-        subsample_freq=1,
-        colsample_bytree=0.9,
-        min_child_weight=0,
-        scale_pos_weight=200
-    )
-    clf = clf.fit(input_df, input_y, eval_metric="auc")
-    return clf
+    input_df = input_df.values
+    preds = clf.predict(input_df)
+    return preds
 
 
 if __name__ == "__main__":
+    clf = pickle.load(open(base_folder + "model.pk", "rb"))
+
     max_rows = 10000000
     if debug:
         train_start_point = 0
@@ -79,20 +83,16 @@ if __name__ == "__main__":
     len_train = len(train_df)
     gc.collect()
 
+    (X_ip_channel, X_ip_channel_jc, X_ip_day_hour, X_ip_day_hour_jc, X_ip_app, X_ip_app_jc,
+     X_ip_app_os, X_ip_app_os_jc,
+     X_ip_device, X_ip_device_jc, X_app_channel, X_app_channel_jc, X_ip_device_app_os, X_ip_device_app_os_jc,
+     ip_app_os, ip_app_os_jc, ip_day_hour, ip_day_hour_jc, ip_app, ip_app_jc, ip_day_hour_channel,
+     ip_day_hour_channel_jc, ip_app_channel_var_day, ip_app_channel_var_day_jc, ip_app_os_hour,
+     ip_app_os_hour_jc, ip_app_chl_mean_hour, ip_app_chl_mean_hour_jc, nextClick, nextClick_shift, X1, X7) = \
+        pickle.load(open(base_folder + "aggregate_tables.pk", "rb"))
+
     train_df['hour'] = pd.to_datetime(train_df.click_time).dt.hour.astype('uint8')
     train_df['day'] = pd.to_datetime(train_df.click_time).dt.day.astype('uint8')
-    aggregate_statistics_tables = \
-        (X_ip_channel, X_ip_channel_jc, X_ip_day_hour, X_ip_day_hour_jc, X_ip_app, X_ip_app_jc,
-         X_ip_app_os, X_ip_app_os_jc,
-         X_ip_device, X_ip_device_jc, X_app_channel, X_app_channel_jc, X_ip_device_app_os, X_ip_device_app_os_jc,
-         ip_app_os, ip_app_os_jc, ip_day_hour, ip_day_hour_jc, ip_app, ip_app_jc, ip_day_hour_channel,
-         ip_day_hour_channel_jc, ip_app_channel_var_day, ip_app_channel_var_day_jc, ip_app_os_hour,
-         ip_app_os_hour_jc, ip_app_chl_mean_hour, ip_app_chl_mean_hour_jc, nextClick, nextClick_shift, X1, X7) = \
-        gen_aggregate_statistics_tables(train_df,
-                                        base_folder,
-                                        train_start_point,
-                                        train_end_point,
-                                        debug)
     train_df["nextClick"] = nextClick
     train_df["nextClick_shift"] = nextClick_shift
     train_df["X1"] = X1
@@ -110,21 +110,25 @@ if __name__ == "__main__":
 
     train_y = train_df[target].values
 
-    train_df, _, train_y, _ = train_test_split(train_df, train_y, test_size=0.1, random_state=42)
-    num_rows = len(train_df)
+    _, valid_df, _, valid_y = train_test_split(train_df, train_y, test_size=0.1, random_state=42)
+    del train_df, train_y
 
+    num_rows = len(valid_df)
+
+    mini_df = valid_df.iloc[0]
+    process_input_and_predict(mini_df)
+    process_input_and_predict(mini_df)
+    entry_list = []
+    for i in range(num_rows):
+        entry_list.append(valid_df.iloc[i])
+    y_preds = []
     start = time.time()
-    clf = process_input_and_train(train_df, train_y)
+    for entry in tqdm(entry_list):
+        pred = process_input_and_predict(entry)
+        y_preds.append(pred)
     elapsed_time = time.time() - start
-    print('First (Python) training in %f seconds rows %d throughput %f: ' % (
+    y_preds = np.hstack(y_preds)
+    print('Prediction in %f seconds rows %d throughput %f: ' % (
         elapsed_time, num_rows, num_rows / elapsed_time))
 
-    start = time.time()
-    process_input_and_train(train_df, train_y)
-    elapsed_time = time.time() - start
-    print('Second (Willump) training in %f seconds rows %d throughput %f: ' % (
-        elapsed_time, num_rows, num_rows / elapsed_time))
-
-    pickle.dump(clf, open(base_folder + "model.pk", "wb"))
-    pickle.dump(training_cascades, open(base_folder + "cascades.pk", "wb"))
-    pickle.dump(aggregate_statistics_tables, open(base_folder + "aggregate_tables.pk", "wb"))
+    print("Validation ROC-AUC Score: %f" % roc_auc_score(valid_y, y_preds))
