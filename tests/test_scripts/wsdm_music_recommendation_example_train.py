@@ -1,10 +1,11 @@
+# Original Source: https://github.com/rn5l/wsdm-cup-2018-music
+
 import argparse
 import pickle
 import time
 
 from lightgbm import LGBMClassifier
 from sklearn import metrics
-from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 

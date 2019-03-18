@@ -1,3 +1,5 @@
+# Original Source: http://ls3.rnet.ryerson.ca/wp-content/uploads/2017/10/CIKM_AnalytiCup_2017_Solution.zip
+
 from sklearn.feature_extraction.text import CountVectorizer
 import time
 import pandas as pd

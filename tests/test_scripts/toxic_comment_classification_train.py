@@ -1,3 +1,5 @@
+# Original Source:  https://www.kaggle.com/tunguz/logistic-regression-with-words-and-char-n-grams
+
 import gc
 import pandas as pd
 import pickle
