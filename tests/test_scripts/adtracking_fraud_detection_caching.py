@@ -176,9 +176,10 @@ if __name__ == "__main__":
     clf = pickle.load(open(base_folder + "model.pk", "rb"))
 
     max_rows = 10000000
+    debug_size = 100000
     if debug:
         train_start_point = 0
-        train_end_point = 100000
+        train_end_point = debug_size
     else:
         train_start_point = 0
         train_end_point = max_rows
@@ -193,7 +194,6 @@ if __name__ == "__main__":
         'click_id': 'uint32',
     }
 
-    print('loading train data...', train_start_point, train_end_point)
     train_df = pd.read_csv(base_folder + "train.csv", parse_dates=['click_time'], skiprows=range(1, train_start_point),
                            nrows=train_end_point - train_start_point,
                            dtype=dtypes,
@@ -241,17 +241,37 @@ if __name__ == "__main__":
 
     train_y = train_df[target].values
 
-    _, valid_df, _, valid_y = train_test_split(train_df, train_y, test_size=0.1, random_state=42)
-    del train_df, train_y
+    train_df, valid_df, _, valid_y = train_test_split(train_df, train_y, test_size=0.1, random_state=42)
+    del train_y
 
-    num_rows = len(valid_df)
+    if debug:
+        train_num_rows = 20000
+        valid_num_rows = 10000
+    else:
+        train_num_rows = len(train_df)
+        valid_num_rows = len(valid_df)
 
     num_queries = 0
     mini_df = valid_df.iloc[0]
     process_input_and_predict(mini_df)
     process_input_and_predict(mini_df)
+
     entry_list = []
-    for i in range(num_rows):
+    for i in range(train_num_rows):
+        entry_list.append(train_df.iloc[i])
+    y_preds = []
+    num_queries = 0
+    start = time.time()
+    for entry in tqdm(entry_list):
+        pred = process_input_and_predict(entry)
+        y_preds.append(pred)
+    elapsed_time = time.time() - start
+    y_preds = np.hstack(y_preds)
+    print('Train prediction in %f seconds rows %d throughput %f Number Requests %d Requests per Row %f: ' % (
+        elapsed_time, train_num_rows, train_num_rows / elapsed_time, num_queries, num_queries / train_num_rows))
+
+    entry_list = []
+    for i in range(valid_num_rows):
         entry_list.append(valid_df.iloc[i])
     y_preds = []
     num_queries = 0
@@ -261,7 +281,7 @@ if __name__ == "__main__":
         y_preds.append(pred)
     elapsed_time = time.time() - start
     y_preds = np.hstack(y_preds)
-    print('Prediction in %f seconds rows %d throughput %f Number Requests %d Requests per Row %f: ' % (
-        elapsed_time, num_rows, num_rows / elapsed_time, num_queries, num_queries / num_rows))
+    print('Valid prediction in %f seconds rows %d throughput %f Number Requests %d Requests per Row %f: ' % (
+        elapsed_time, valid_num_rows, valid_num_rows / elapsed_time, num_queries, num_queries / valid_num_rows))
 
     print("Validation ROC-AUC Score: %f" % roc_auc_score(valid_y, y_preds))
