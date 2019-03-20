@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 from adtracking_fraud_detection_util import *
 from willump.evaluation.willump_executor import willump_execute
 
-debug = False
+debug = True
 
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
@@ -47,7 +47,7 @@ def process_input_and_train(input_df, input_y):
         min_child_weight=0,
         scale_pos_weight=200
     )
-    clf = clf.fit(input_df, input_y, eval_metric="auc")
+    clf = clf.fit(input_df, input_y, eval_metric="auc", categorical_feature=categorical_indices)
     return clf
 
 
@@ -107,6 +107,7 @@ if __name__ == "__main__":
                   'ip_tchan_count', 'ip_app_count', 'ip_app_os_count', 'ip_app_os_var', 'ip_app_channel_var_day',
                   'ip_app_channel_mean_hour', 'X0', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8']
     categorical = ['app', 'device', 'os', 'channel', 'hour', 'day']
+    categorical_indices = list(map(lambda x: predictors.index(x), categorical))
 
     train_y = train_df[target].values
 

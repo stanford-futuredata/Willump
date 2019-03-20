@@ -72,7 +72,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         """
         for arg in node.args.args:
             arg_name: str = self.get_store_name(arg.arg, node.lineno)
-            input_node: WillumpInputNode = WillumpInputNode(arg_name)
+            arg_type: WeldType = self._type_map[arg_name]
+            input_node: WillumpInputNode = WillumpInputNode(arg_name, arg_type=arg_type)
             self._node_dict[arg_name] = input_node
             self.arg_list.append(arg_name)
         for entry in node.body:

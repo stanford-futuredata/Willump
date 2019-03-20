@@ -2,7 +2,6 @@ import copy
 from typing import Callable
 
 import numpy as np
-import keras as ks
 
 from willump import *
 
@@ -40,6 +39,7 @@ def csr_marshall(csr_matrix):
 
 
 def willump_duplicate_keras(original_model, new_input_length):
+    import keras as ks
     # TODO: Hardcoded placeholder needs fix
     copied_model = copy.deepcopy(original_model)
     new_input_layer = ks.Input(shape=(new_input_length,), dtype='float32', sparse=True)

@@ -167,30 +167,24 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
             if curr_selection_map is None:
                 curr_selection_map = {col: index_start + i for i, col in enumerate(output_columns)}
             join_base_node = find_dataframe_base_node(input_node, nodes_to_base_map)
+            pushed_map = {}
+            next_map = {}
+            for col in curr_selection_map.keys():
+                if col in join_right_columns:
+                    pushed_map[col] = curr_selection_map[col]
+                else:
+                    next_map[col] = curr_selection_map[col]
+            join_left_input = input_node.get_in_nodes()[0]
+            model_inputs[input_node] = pushed_map
             if join_base_node is not input_node:
-                pushed_map = {}
-                next_map = {}
-                for col in curr_selection_map.keys():
-                    if col in join_right_columns:
-                        pushed_map[col] = curr_selection_map[col]
-                    else:
-                        next_map[col] = curr_selection_map[col]
-                join_left_input = input_node.get_in_nodes()[0]
                 current_node_stack.append((join_left_input, (index_start, index_end), next_map))
             else:
-                pushed_map = {}
-                for col in curr_selection_map.keys():
-                    if col in output_columns:
-                        pushed_map[col] = curr_selection_map[col]
-            model_inputs[input_node] = pushed_map
+                model_inputs[join_left_input] = next_map
         elif isinstance(input_node, IdentityNode) or isinstance(input_node, ReshapeNode) \
                 or isinstance(input_node, PandasToDenseMatrixNode):
             node_input_node = input_node.get_in_nodes()[0]
             current_node_stack.append((node_input_node, (index_start, index_end), curr_selection_map))
-        # TODO:  What to do here?
-        elif isinstance(input_node, WillumpInputNode):
-            pass
-        elif isinstance(input_node, WillumpPythonNode):
+        elif isinstance(input_node, WillumpInputNode) or isinstance(input_node, WillumpPythonNode):
             if curr_selection_map is not None:
                 model_inputs[input_node] = curr_selection_map
             else:

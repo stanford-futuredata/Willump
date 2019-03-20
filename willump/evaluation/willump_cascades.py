@@ -23,6 +23,7 @@ from willump.graph.reshape_node import ReshapeNode
 from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.trees_model_node import TreesModelNode
 from willump.graph.willump_graph_node import WillumpGraphNode
+from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_model_node import WillumpModelNode
 from willump.graph.willump_python_node import WillumpPythonNode
 from willump.graph.willump_training_node import WillumpTrainingNode
@@ -205,6 +206,9 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                 if small_model_output_node is not None:
                     pass
                 return_node = node
+        elif isinstance(node, WillumpInputNode):
+            if node in selected_input_sources:
+                return_node = node
         else:
             panic("Unrecognized node found when making cascade %s" % node.__repr__())
         return return_node
@@ -227,7 +231,8 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
             output_block.insert(0, input_node)
         elif isinstance(input_node, StackSparseNode) or isinstance(input_node, PandasColumnSelectionNode)\
                 or isinstance(input_node, PandasSeriesConcatenationNode) or isinstance(input_node, IdentityNode)\
-                or isinstance(input_node, ReshapeNode) or isinstance(input_node, PandasToDenseMatrixNode):
+                or isinstance(input_node, ReshapeNode) or isinstance(input_node, PandasToDenseMatrixNode)\
+                or isinstance(input_node, WillumpInputNode):
             output_block.insert(0, input_node)
             current_node_stack += input_node.get_in_nodes()
         elif isinstance(input_node, WillumpHashJoinNode):
@@ -283,8 +288,9 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, batch,
             break
         if current_cost + node.get_cost() <= more_important_cost_frac * total_cost:
             more_important_inputs.append(node)
-            current_importance += nodes_to_importances[node]
-            current_cost += node.get_cost()
+            if node.get_cost() > 0:
+                current_importance += nodes_to_importances[node]
+                current_cost += node.get_cost()
     for node in ranked_inputs:
         if batch is True and isinstance(node, WillumpPythonNode):
             more_important_inputs.append(node)
