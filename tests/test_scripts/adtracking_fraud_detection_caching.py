@@ -19,6 +19,7 @@ base_folder = "tests/test_resources/adtracking_fraud_detection/"
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+parser.add_argument("-a", "--caching", type=float, help="Max cache size")
 args = parser.parse_args()
 if args.cascades is None:
     cascades = None
@@ -114,7 +115,23 @@ def get_row_to_merge_ip_app_chl_mean_hour(key):
     return ip_app_chl_mean_hour.loc[key]
 
 
-@willump_execute(disable=args.disable, batch=False, eval_cascades=cascades, cascade_threshold=cascade_threshold)
+remote_funcs = ["get_row_to_merge_X_ip_channel", "get_row_to_merge_X_ip_day_hour", "get_row_to_merge_X_ip_app"
+    , "get_row_to_merge_X_ip_app_os", "get_row_to_merge_X_ip_device", "get_row_to_merge_X_app_channel",
+                "get_row_to_merge_X_ip_device_app_os", "get_row_to_merge_ip_app_os", "get_row_to_merge_ip_day_hour",
+                "get_row_to_merge_ip_app", "get_row_to_merge_ip_day_hour_channel",
+                "get_row_to_merge_ip_app_channel_var_day"
+    , "get_row_to_merge_ip_app_os_hour", "get_row_to_merge_ip_app_chl_mean_hour"]
+
+if args.caching is not None:
+    cached_funcs = remote_funcs
+    max_cache_size = args.caching
+else:
+    cached_funcs = ()
+    max_cache_size = None
+
+
+@willump_execute(disable=args.disable, batch=False, eval_cascades=cascades, cascade_threshold=cascade_threshold,
+                 cached_funcs=cached_funcs, max_cache_size=max_cache_size)
 def process_input_and_predict(input_df):
     X_ip_channel_entry = tuple(input_df[X_ip_channel_jc])
     X_ip_channel_row = get_row_to_merge_X_ip_channel(X_ip_channel_entry)
