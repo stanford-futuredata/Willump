@@ -12,7 +12,7 @@ from tqdm import tqdm
 from adtracking_fraud_detection_util import *
 from willump.evaluation.willump_executor import willump_execute
 
-debug = True
+debug = False
 
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
