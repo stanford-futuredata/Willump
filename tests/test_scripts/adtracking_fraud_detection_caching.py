@@ -241,7 +241,7 @@ if __name__ == "__main__":
 
     train_y = train_df[target].values
 
-    train_df, valid_df, _, valid_y = train_test_split(train_df, train_y, test_size=0.1, random_state=42)
+    train_df, valid_df, _, valid_y = train_test_split(train_df, train_y, test_size=0.1, shuffle=False)
     del train_y
 
     if debug:

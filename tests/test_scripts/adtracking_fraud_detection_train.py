@@ -34,7 +34,7 @@ def process_input_and_train(input_df, train_y):
     input_df = input_df.merge(ip_app_os_hour, how='left', on=ip_app_os_hour_jc)
     input_df = input_df.merge(ip_app_chl_mean_hour, how='left', on=ip_app_chl_mean_hour_jc)
     input_df = input_df[predictors]
-    # train_df, valid_df = train_test_split(input_df, test_size=0.1, random_state=42)
+    # train_df, valid_df = train_test_split(input_df, test_size=0.1, shuffle=False)
     clf = LGBMClassifier(
         boosting_type="gbdt",
         objective="binary",
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
     train_y = train_df[target].values
 
-    train_df, _, train_y, _ = train_test_split(train_df, train_y, test_size=0.1, random_state=42)
+    train_df, _, train_y, _ = train_test_split(train_df, train_y, test_size=0.1, shuffle=False)
     num_rows = len(train_df)
 
     start = time.time()
