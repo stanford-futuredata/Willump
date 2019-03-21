@@ -30,6 +30,9 @@ class PandasSeriesToDataFrameNode(WillumpGraphNode):
     def get_in_names(self) -> List[str]:
         return self._input_names
 
+    def get_cost(self):
+        return 0
+
     def get_node_weld(self) -> str:
         conversion_string = ""
         for i in range(len(self._input_type.column_names)):
