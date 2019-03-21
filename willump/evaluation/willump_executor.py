@@ -230,8 +230,8 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
                                                                                              willump_typing_map,
                                                                                              num_workers=num_workers)
                     compiled_functiondef = py_weld_statements_to_ast(python_statement_list, python_ast)
-                    # import astor
-                    # print(astor.to_source(compiled_functiondef))
+                    import astor
+                    print(astor.to_source(compiled_functiondef))
                     augmented_globals = copy.copy(func.__globals__)
                     # Import all of the compiled Weld blocks called from the transformed function.
                     for module in modules_to_import:

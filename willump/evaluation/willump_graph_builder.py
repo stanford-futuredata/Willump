@@ -21,6 +21,7 @@ from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.reshape_node import ReshapeNode
 from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.string_lower_node import StringLowerNode
+from willump.graph.train_test_split_node import TrainTestSplitNode
 from willump.graph.trees_model_node import TreesModelNode
 from willump.graph.trees_training_node import TreesTrainingNode
 from willump.graph.willump_graph import WillumpGraph
@@ -149,10 +150,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             is_costly_node = False
         target: ast.expr = node.targets[0]
         output_var_name_base = self.get_assignment_target_name(target)
-        if output_var_name_base is None:
-            return self._create_py_node(node)
-        output_var_name = self.get_store_name(output_var_name_base, target.lineno)
-        output_type = self._type_map[output_var_name]
+        if output_var_name_base is not None:
+            output_var_name = self.get_store_name(output_var_name_base, target.lineno)
+            output_type = self._type_map[output_var_name]
         value: ast.expr = node.value
         if isinstance(value, ast.BinOp):
             if not isinstance(output_type, WeldVec):
@@ -417,6 +417,21 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                      in_nodes=[input_node], output_names=[input_name],
                                                      output_types=[output_type])
                     return [input_name], compile_node
+            elif "train_test_split" in called_function:
+                assert(isinstance(target, ast.Tuple))
+                if len(target.elts) == 2 and isinstance(value.args[0], ast.Name):
+                    train_output_var = self.get_store_name(target.elts[0].id, target.lineno)
+                    test_output_var = self.get_store_name(target.elts[1].id, target.lineno)
+                    input_var = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
+                    input_node = self._node_dict[input_var]
+                    output_type = self._type_map[train_output_var]
+                    keyword_args = value.keywords
+                    train_test_split_node = TrainTestSplitNode(input_node=input_node, input_name=input_var,
+                                                               train_name=train_output_var,
+                                                               test_name=test_output_var,
+                                                               output_type=output_type,
+                                                               keyword_args=keyword_args)
+                    return [train_output_var, test_output_var], train_test_split_node
             elif called_function in self._async_funcs:
                 return self._create_py_node(node, is_costly_node=is_costly_node, is_async_func=True)
             elif called_function in self._cached_funcs:

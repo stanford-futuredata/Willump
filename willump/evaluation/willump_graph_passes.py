@@ -17,6 +17,7 @@ from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatena
 from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.reshape_node import ReshapeNode
 from willump.graph.stack_sparse_node import StackSparseNode
+from willump.graph.train_test_split_node import TrainTestSplitNode
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
@@ -181,7 +182,7 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
             else:
                 model_inputs[join_left_input] = next_map
         elif isinstance(input_node, IdentityNode) or isinstance(input_node, ReshapeNode) \
-                or isinstance(input_node, PandasToDenseMatrixNode):
+                or isinstance(input_node, PandasToDenseMatrixNode) or isinstance(input_node, TrainTestSplitNode):
             node_input_node = input_node.get_in_nodes()[0]
             current_node_stack.append((node_input_node, (index_start, index_end), curr_selection_map))
         elif isinstance(input_node, WillumpInputNode) or isinstance(input_node, WillumpPythonNode):

@@ -1,8 +1,8 @@
 # Original source: https://www.kaggle.com/bk0000/non-blending-lightgbm-model-lb-0-977
 # Data files can be found on Kaggle:  https://www.kaggle.com/c/talkingdata-adtracking-fraud-detection
 
-import time
 import pickle
+import time
 
 from lightgbm import LGBMClassifier
 from sklearn.model_selection import train_test_split
@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 from adtracking_fraud_detection_util import *
 from willump.evaluation.willump_executor import willump_execute
 
-debug = False
+debug = True
 
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
@@ -18,7 +18,7 @@ training_cascades = {}
 
 
 @willump_execute(training_cascades=training_cascades)
-def process_input_and_train(input_df, input_y):
+def process_input_and_train(input_df, train_y):
     input_df = input_df.merge(X_ip_channel, how='left', on=X_ip_channel_jc)
     input_df = input_df.merge(X_ip_day_hour, how='left', on=X_ip_day_hour_jc)
     input_df = input_df.merge(X_ip_app, how='left', on=X_ip_app_jc)
@@ -34,6 +34,7 @@ def process_input_and_train(input_df, input_y):
     input_df = input_df.merge(ip_app_os_hour, how='left', on=ip_app_os_hour_jc)
     input_df = input_df.merge(ip_app_chl_mean_hour, how='left', on=ip_app_chl_mean_hour_jc)
     input_df = input_df[predictors]
+    train_df, valid_df = train_test_split(input_df, test_size=0.1, random_state=42)
     clf = LGBMClassifier(
         boosting_type="gbdt",
         objective="binary",
@@ -47,7 +48,8 @@ def process_input_and_train(input_df, input_y):
         min_child_weight=0,
         scale_pos_weight=200
     )
-    clf = clf.fit(input_df, input_y, eval_metric="auc", categorical_feature=categorical_indices)
+    clf = clf.fit(train_df, train_y, eval_metric='auc', categorical_feature=categorical_indices,
+                  eval_set=[(valid_df, valid_y)], early_stopping_rounds=30)
     return clf
 
 
@@ -111,7 +113,7 @@ if __name__ == "__main__":
 
     train_y = train_df[target].values
 
-    train_df, _, train_y, _ = train_test_split(train_df, train_y, test_size=0.1, random_state=42)
+    train_y, valid_y = train_test_split(train_y, test_size=0.1, random_state=42)
     num_rows = len(train_df)
 
     start = time.time()

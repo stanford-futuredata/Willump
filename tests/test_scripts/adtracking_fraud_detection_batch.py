@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from adtracking_fraud_detection_util import *
 from willump.evaluation.willump_executor import willump_execute
 
-debug = False
+debug = True
 
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
