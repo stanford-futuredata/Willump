@@ -89,9 +89,8 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                 if isinstance(orig_output_type, WeldPandas):
                     # Hacky code so that the pre-joins dataframe columns don't appear twice in the full output.
                     base_node = wg_passes.find_dataframe_base_node(node_input_nodes[0], base_discovery_dict)
-                    new_base_node = wg_passes.find_dataframe_base_node(new_input_nodes[0], base_discovery_dict)
                     assert(isinstance(base_node, WillumpHashJoinNode))
-                    if base_node.get_output_type().column_names != new_base_node.get_output_type().column_names:
+                    if base_node.get_in_nodes()[0] not in selected_input_sources:
                         base_left_df_col_names = base_node.left_df_type.column_names
                         new_selected_columns = list(filter(lambda x: x not in base_left_df_col_names, new_selected_columns))
                     col_map = {col_name: col_type for col_name, col_type in
@@ -306,7 +305,9 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, batch,
                 current_importance += nodes_to_importances[node]
                 current_cost += node.get_cost()
     for node in ranked_inputs:
-        if batch is True and isinstance(node, WillumpPythonNode):
+        if batch is True and isinstance(node, WillumpPythonNode) and node not in more_important_inputs:
+            more_important_inputs.append(node)
+        if node.get_cost() == 0 and node not in more_important_inputs:
             more_important_inputs.append(node)
     less_important_inputs = [entry for entry in ranked_inputs if entry not in more_important_inputs]
     return more_important_inputs, less_important_inputs
