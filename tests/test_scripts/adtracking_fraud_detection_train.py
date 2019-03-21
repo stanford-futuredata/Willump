@@ -34,7 +34,7 @@ def process_input_and_train(input_df, train_y):
     input_df = input_df.merge(ip_app_os_hour, how='left', on=ip_app_os_hour_jc)
     input_df = input_df.merge(ip_app_chl_mean_hour, how='left', on=ip_app_chl_mean_hour_jc)
     input_df = input_df[predictors]
-    train_df, valid_df = train_test_split(input_df, test_size=0.1, random_state=42)
+    # train_df, valid_df = train_test_split(input_df, test_size=0.1, random_state=42)
     clf = LGBMClassifier(
         boosting_type="gbdt",
         objective="binary",
@@ -48,8 +48,7 @@ def process_input_and_train(input_df, train_y):
         min_child_weight=0,
         scale_pos_weight=200
     )
-    clf = clf.fit(train_df, train_y, eval_metric='auc', categorical_feature=categorical_indices,
-                  eval_set=[(valid_df, valid_y)], early_stopping_rounds=30)
+    clf = clf.fit(input_df, train_y, eval_metric='auc', categorical_feature=categorical_indices)
     return clf
 
 
@@ -83,18 +82,26 @@ if __name__ == "__main__":
 
     train_df['hour'] = pd.to_datetime(train_df.click_time).dt.hour.astype('uint8')
     train_df['day'] = pd.to_datetime(train_df.click_time).dt.day.astype('uint8')
-    aggregate_statistics_tables = \
-        (X_ip_channel, X_ip_channel_jc, X_ip_day_hour, X_ip_day_hour_jc, X_ip_app, X_ip_app_jc,
-         X_ip_app_os, X_ip_app_os_jc,
-         X_ip_device, X_ip_device_jc, X_app_channel, X_app_channel_jc, X_ip_device_app_os, X_ip_device_app_os_jc,
-         ip_app_os, ip_app_os_jc, ip_day_hour, ip_day_hour_jc, ip_app, ip_app_jc, ip_day_hour_channel,
-         ip_day_hour_channel_jc, ip_app_channel_var_day, ip_app_channel_var_day_jc, ip_app_os_hour,
-         ip_app_os_hour_jc, ip_app_chl_mean_hour, ip_app_chl_mean_hour_jc, nextClick, nextClick_shift, X1, X7) = \
-        gen_aggregate_statistics_tables(train_df,
-                                        base_folder,
-                                        train_start_point,
-                                        train_end_point,
-                                        debug)
+
+    tables_filename = base_folder + "aggregate_tables%s%s.pk" % (train_start_point, train_end_point)
+    try:
+        aggregate_statistics_tables = pickle.load(open(tables_filename, "rb"))
+    except FileNotFoundError:
+        aggregate_statistics_tables = \
+            gen_aggregate_statistics_tables(train_df,
+                                            base_folder,
+                                            train_start_point,
+                                            train_end_point,
+                                            debug)
+        pickle.dump(aggregate_statistics_tables, open(tables_filename, "wb"))
+
+    (X_ip_channel, X_ip_channel_jc, X_ip_day_hour, X_ip_day_hour_jc, X_ip_app, X_ip_app_jc,
+        X_ip_app_os, X_ip_app_os_jc,
+        X_ip_device, X_ip_device_jc, X_app_channel, X_app_channel_jc, X_ip_device_app_os, X_ip_device_app_os_jc,
+        ip_app_os, ip_app_os_jc, ip_day_hour, ip_day_hour_jc, ip_app, ip_app_jc, ip_day_hour_channel,
+        ip_day_hour_channel_jc, ip_app_channel_var_day, ip_app_channel_var_day_jc, ip_app_os_hour,
+        ip_app_os_hour_jc, ip_app_chl_mean_hour, ip_app_chl_mean_hour_jc, nextClick, nextClick_shift, X1, X7) = aggregate_statistics_tables
+
     train_df["nextClick"] = nextClick
     train_df["nextClick_shift"] = nextClick_shift
     train_df["X1"] = X1
@@ -113,7 +120,7 @@ if __name__ == "__main__":
 
     train_y = train_df[target].values
 
-    train_y, valid_y = train_test_split(train_y, test_size=0.1, random_state=42)
+    train_df, _, train_y, _ = train_test_split(train_df, train_y, test_size=0.1, random_state=42)
     num_rows = len(train_df)
 
     start = time.time()
@@ -130,4 +137,3 @@ if __name__ == "__main__":
 
     pickle.dump(clf, open(base_folder + "model.pk", "wb"))
     pickle.dump(training_cascades, open(base_folder + "cascades.pk", "wb"))
-    pickle.dump(aggregate_statistics_tables, open(base_folder + "aggregate_tables.pk", "wb"))

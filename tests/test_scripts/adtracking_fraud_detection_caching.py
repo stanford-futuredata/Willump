@@ -201,14 +201,14 @@ if __name__ == "__main__":
 
     len_train = len(train_df)
     gc.collect()
-
+    tables_filename = base_folder + "aggregate_tables%s%s.pk" % (train_start_point, train_end_point)
     (X_ip_channel, X_ip_channel_jc, X_ip_day_hour, X_ip_day_hour_jc, X_ip_app, X_ip_app_jc,
      X_ip_app_os, X_ip_app_os_jc,
      X_ip_device, X_ip_device_jc, X_app_channel, X_app_channel_jc, X_ip_device_app_os, X_ip_device_app_os_jc,
      ip_app_os, ip_app_os_jc, ip_day_hour, ip_day_hour_jc, ip_app, ip_app_jc, ip_day_hour_channel,
      ip_day_hour_channel_jc, ip_app_channel_var_day, ip_app_channel_var_day_jc, ip_app_os_hour,
      ip_app_os_hour_jc, ip_app_chl_mean_hour, ip_app_chl_mean_hour_jc, nextClick, nextClick_shift, X1, X7) = \
-        pickle.load(open(base_folder + "aggregate_tables.pk", "rb"))
+        pickle.load(open(tables_filename, "rb"))
 
     X_ip_channel = X_ip_channel.set_index(X_ip_channel_jc)
     X_ip_day_hour = X_ip_day_hour.set_index(X_ip_day_hour_jc)
