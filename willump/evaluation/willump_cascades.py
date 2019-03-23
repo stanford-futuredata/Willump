@@ -271,7 +271,7 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, batch,
     """
     training_node_inputs: Mapping[
         WillumpGraphNode, Union[Tuple[int, int], Mapping[str, int]]] = model_node.get_model_inputs()
-    nodes_to_efficiencies: MutableMapping[WillumpGraphNode, float] = {}
+    nodes_to_costs: MutableMapping[WillumpGraphNode, float] = {}
     nodes_to_importances: MutableMapping[WillumpGraphNode, float] = {}
     total_cost = 0
     for node, indices in training_node_inputs.items():
@@ -285,31 +285,13 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, batch,
         node_cost: float = node.get_cost()
         if node.get_costly_node():
             node_cost *= 5
-        nodes_to_efficiencies[node] = sum_importance / node_cost
+        nodes_to_costs[node] = node_cost
         total_cost += node_cost
-    ranked_inputs = sorted(nodes_to_efficiencies.keys(), key=lambda x: nodes_to_efficiencies[x], reverse=True)
-    current_cost = 0
-    current_importance = 0
-    more_important_inputs = []
-    for node in ranked_inputs:
-        if current_cost == 0:
-            average_efficiency = 0
-        else:
-            average_efficiency = current_importance / current_cost
-        node_efficiency = nodes_to_importances[node] / node.get_cost()
-        if node_efficiency < average_efficiency / 5:
-            break
-        if current_cost + node.get_cost() <= more_important_cost_frac * total_cost:
-            more_important_inputs.append(node)
-            if node.get_cost() > 0:
-                current_importance += nodes_to_importances[node]
-                current_cost += node.get_cost()
-    for node in ranked_inputs:
-        if batch is True and isinstance(node, WillumpPythonNode) and node not in more_important_inputs:
-            more_important_inputs.append(node)
-        if node.get_cost() == 0 and node not in more_important_inputs:
-            more_important_inputs.append(node)
+    ranked_inputs = sorted(nodes_to_costs.keys(), key=lambda x: nodes_to_costs[x], reverse=False)
+    more_important_inputs = [ranked_inputs[0]]
     less_important_inputs = [entry for entry in ranked_inputs if entry not in more_important_inputs]
+    print(more_important_inputs)
+    print(less_important_inputs)
     return more_important_inputs, less_important_inputs
 
 

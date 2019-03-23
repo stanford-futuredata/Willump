@@ -32,7 +32,7 @@ def vectorizer_transform(title_vect, input_df, color_vect, brand_vect, y_df):
     transformed_result = title_vect.transform(np_input)
     color_result = color_vect.transform(np_input)
     brand_result = brand_vect.transform(np_input)
-    combined_result = scipy.sparse.hstack([transformed_result, color_result, brand_result], format="csr")
+    combined_result = scipy.sparse.hstack([transformed_result, brand_result, color_result], format="csr")
     if trees:
         model = GradientBoostingClassifier()
     else:
