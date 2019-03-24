@@ -98,6 +98,7 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             """
             static PyObject *
             caller_func(PyObject *self, PyObject* args) {
+            auto t1 = std::chrono::high_resolution_clock::now();
             """
         # Generate the input parser
         buffer += generate_input_parser(input_types, aux_data)
@@ -129,7 +130,9 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
         # Start computation on the main thread.
         buffer += \
             """
+            auto t2 = std::chrono::high_resolution_clock::now();
             weld_output_args = %s(&weld_input_args_%d);
+            auto t3 = std::chrono::high_resolution_clock::now();
             weld_output_%d = (return_type_%d*) weld_output_args->output;
             """ % (entry_point_names[0], 0, 0, 0)
         # Wait for the workers to terminate, collect their output.  As before, second job is run by first worker.
@@ -156,6 +159,10 @@ def generate_cpp_driver(file_version: int, type_map: Mapping[str, WeldType],
             output_index += len(output_types)
         buffer += \
             """
+                auto t4 = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<double, std::micro> fp_us = t2 - t1 + t4 - t3;
+                std::chrono::duration<double, std::micro> runtime = t3-t2;
+                std::cout << fp_us.count() << " microseconds " <<  runtime.count() << " microseconds\\n";
                 return (PyObject*) ret_tuple;
             }
             """
