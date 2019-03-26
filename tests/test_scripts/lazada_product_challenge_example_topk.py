@@ -1,5 +1,6 @@
 import argparse
 import pickle
+import random
 import time
 
 import numpy
@@ -20,6 +21,7 @@ def rmse_score(y, pred):
 parser = argparse.ArgumentParser()
 parser.add_argument("-k", "--top_k_cascade", type=int, help="Top-K to return")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+parser.add_argument("-m", "--sample", type=float, help="Sample one in S elements")
 args = parser.parse_args()
 if args.top_k_cascade is None:
     cascades = None
@@ -66,6 +68,12 @@ time_elapsed = time.time() - t0
 print("Title Processing Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
 
+if args.sample is not None:
+    assert args.disable
+    for i in range(len(preds)):
+        if random.uniform(0, args.sample) > 1:
+            preds[i] = 0
+
 top_k_idx = np.argsort(preds)[-1 * top_K:]
 top_k_values = [preds[i] for i in top_k_idx]
 sum_values = 0
@@ -76,9 +84,5 @@ for idx, value in zip(top_k_idx, top_k_values):
 
 print("Sum of top %d values: %f" % (top_K,  sum_values))
 
-measure_array = np.zeros(set_size)
-for i in range(set_size):
-    if i in top_k_idx:
-        measure_array[i] = 1
 out_filename = "lazada_top%d.pk" % top_K
-pickle.dump(measure_array, open(out_filename, "wb"))
+pickle.dump(preds, open(out_filename, "wb"))

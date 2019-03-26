@@ -1,5 +1,6 @@
 import argparse
 import pickle
+import random
 import time
 
 from sklearn.model_selection import train_test_split
@@ -12,6 +13,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-k", "--top_k_cascade", type=int, help="Top-K to return")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 parser.add_argument("-s", "--costly_statements", help="Mark costly (remotely stored) statements?", action="store_true")
+parser.add_argument("-m", "--sample", type=float, help="Sample one in S elements")
 args = parser.parse_args()
 if args.top_k_cascade is None:
     cascades = None
@@ -155,6 +157,12 @@ def create_featureset(folder):
     # add latent features
     y_pred = add_features_and_predict(folder, combi)
 
+    if args.sample is not None:
+        assert args.disable
+        for i in range(len(y_pred)):
+            if random.uniform(0, args.sample) > 1:
+                y_pred[i] = 0
+
     top_k_idx = np.argsort(y_pred)[-1 * top_K:]
     top_k_values = [y_pred[i] for i in top_k_idx]
     sum_values = 0
@@ -164,13 +172,8 @@ def create_featureset(folder):
         sum_values += value
 
     print("Sum of top %d values: %f" % (top_K, sum_values))
-    set_size = len(y_pred)
-    measure_array = np.zeros(set_size)
-    for i in range(set_size):
-        if i in top_k_idx:
-            measure_array[i] = 1
     out_filename = "wsdm_top%d.pk" % top_K
-    pickle.dump(measure_array, open(out_filename, "wb"))
+    pickle.dump(y_pred, open(out_filename, "wb"))
 
 
 if __name__ == '__main__':
