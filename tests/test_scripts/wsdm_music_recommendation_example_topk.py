@@ -164,6 +164,13 @@ def create_featureset(folder):
         sum_values += value
 
     print("Sum of top %d values: %f" % (top_K, sum_values))
+    set_size = len(y_pred)
+    measure_array = np.zeros(set_size)
+    for i in range(set_size):
+        if i in top_k_idx:
+            measure_array[i] = 1
+    out_filename = "wsdm_top%d.pk" % top_K
+    pickle.dump(measure_array, open(out_filename, "wb"))
 
 
 if __name__ == '__main__':

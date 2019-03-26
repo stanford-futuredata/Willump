@@ -75,3 +75,10 @@ for idx, value in zip(top_k_idx, top_k_values):
     sum_values += value
 
 print("Sum of top %d values: %f" % (top_K,  sum_values))
+
+measure_array = np.zeros(set_size)
+for i in range(set_size):
+    if i in top_k_idx:
+        measure_array[i] = 1
+out_filename = "lazada_top%d.pk" % top_K
+pickle.dump(measure_array, open(out_filename, "wb"))
