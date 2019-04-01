@@ -200,21 +200,16 @@ else:
 @willump_execute(disable=args.disable, batch=False, cached_funcs=cached_funcs, costly_statements=costly_statements,
                  eval_cascades=cascades, cascade_threshold=cascade_threshold, max_cache_size=max_cache_size,
                  async_funcs=remote_funcs)
-def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
-             cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
-             sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,
-             as_col, gs_features, gs_col, cs_features, cs_col, ages_features, ages_col, ls_features, ls_col,
-             gender_features, gender_col, comps_features, comps_col, lyrs_features, lyrs_col, snames_features,
-             snames_col, stabs_features, stabs_col, stypes_features, stypes_col, regs_features, regs_col):
+def do_merge(combi):
     cluster_one_entry = combi[join_col_cluster_one]
     cluster_one_row = get_row_to_merge_cluster_one(cluster_one_entry)
     cluster_two_entry = combi[join_col_cluster_two]
     cluster_two_row = get_row_to_merge_cluster_two(cluster_two_entry)
     cluster_three_entry = combi[join_col_cluster_three]
     cluster_three_row = get_row_to_merge_cluster_three(cluster_three_entry)
-    join_entry_one = combi[join_col_one]
+    join_entry_one = combi[join_col_uf]
     features_one_row = get_row_to_merge_features_uf(join_entry_one)
-    join_entry_two = combi[join_col_two]
+    join_entry_two = combi[join_col_sf]
     features_two_row = get_row_to_merge_features_sf(join_entry_two)
     uc_entry = cluster_one_row[uc_join_col]
     uc_row = get_row_to_merge_uc_features(uc_entry)
@@ -238,11 +233,11 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
     ls_row = get_row_to_merge_ls_features(ls_entry)
     gender_entry = combi[gender_col]
     gender_row = get_row_to_merge_gender_features(gender_entry)
-    comps_entry = combi[comps_col]
+    comps_entry = combi[composer_col]
     comps_row = get_row_to_merge_composer_features(comps_entry)
     lyrs_entry = combi[lyrs_col]
     lyrs_row = get_row_to_merge_lyrs_features(lyrs_entry)
-    snames_entry = combi[snames_col]
+    snames_entry = combi[sns_col]
     snames_row = get_row_to_merge_sns_features(snames_entry)
     stabs_entry = combi[stabs_col]
     stabs_row = get_row_to_merge_stabs_features(stabs_entry)
@@ -263,7 +258,10 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
 def add_features_and_predict(folder, combi):
     global features_uf, features_sf, cluster_one, cluster_two, cluster_three, uc_features, sc_features, \
         ac_features, us_features, ss_features, as_features, gs_features, cs_features, ages_features, ls_features, \
-        gender_features, composer_features, lyrs_features, sns_features, stabs_features, stypes_features, regs_features
+        gender_features, composer_features, lyrs_features, sns_features, stabs_features, stypes_features, regs_features, \
+        join_col_uf, join_col_sf, join_col_cluster_one, join_col_cluster_two, join_col_cluster_three, uc_join_col, \
+        sc_join_col, ac_join_col, us_col, ss_col, as_col, gs_col, cs_col, ages_col, ls_col, gender_col,\
+        composer_col, lyrs_col, sns_col, stabs_col, stypes_col, regs_col
     features_uf, join_col_uf = load_als_dataframe(folder, size=UF_SIZE, user=True, artist=False)
     features_uf = features_uf.drop([join_col_uf], axis=1)
     features_sf, join_col_sf = load_als_dataframe(folder, size=SF_SIZE, user=False, artist=False)
@@ -347,24 +345,8 @@ def add_features_and_predict(folder, combi):
             db.set(redis_key, ser_value)
 
     num_rows = len(combi)
-    compile_one = do_merge(combi.iloc[0].copy(), features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
-                           join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
-                           join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
-                           ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
-                           gs_col, cs_features, cs_col,
-                           ages_features, ages_col, ls_features, ls_col, gender_features, gender_col, composer_features,
-                           composer_col,
-                           lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
-                           stypes_col, regs_features, regs_col)
-    compile_two = do_merge(combi.iloc[0].copy(), features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
-                           join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
-                           join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
-                           ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
-                           gs_col, cs_features, cs_col,
-                           ages_features, ages_col, ls_features, ls_col, gender_features, gender_col, composer_features,
-                           composer_col,
-                           lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
-                           stypes_col, regs_features, regs_col)
+    do_merge(combi.iloc[0].copy())
+    do_merge(combi.iloc[0].copy())
 
     entry_list = []
     for i in range(num_rows):
@@ -373,15 +355,7 @@ def add_features_and_predict(folder, combi):
     preds = []
     start = time.time()
     for entry in tqdm(entry_list):
-        pred = do_merge(entry, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
-                        join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
-                        join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
-                        ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,
-                        gs_col, cs_features, cs_col,
-                        ages_features, ages_col, ls_features, ls_col, gender_features, gender_col, composer_features,
-                        composer_col,
-                        lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
-                        stypes_col, regs_features, regs_col)
+        pred = do_merge(entry)
         preds.append(pred)
     elapsed_time = time.time() - start
 
@@ -398,18 +372,16 @@ def create_featureset(folder):
     y = combi["target"].values
     num_queries = 0
 
-    combi_train, combi_valid, y_train, y_valid = train_test_split(combi, y, test_size=0.33, random_state=42)
+    combi_train, _, y_train, _ = train_test_split(combi, y, test_size=0.33, random_state=42)
     # Add features and predict.
     y_pred = np.hstack(add_features_and_predict(folder, combi_train))
     print("Train AUC: %f" % roc_auc_score(y_train, y_pred))
-    print("Valid: Number of \"remote\" queries made: %d  Requests per row:  %f" %
+    print("Train: Number of \"remote\" queries made: %d  Requests per row:  %f" %
           (num_queries, num_queries / len(y_pred)))
     num_queries = 0
 
-    y_pred = np.hstack(add_features_and_predict(folder, combi_valid))
-    print("Valid AUC: %f" % roc_auc_score(y_valid, y_pred))
-    print("Valid: Number of \"remote\" queries made: %d  Requests per row:  %f" %
-          (num_queries, num_queries / len(y_pred)))
+    trained_cache = globals()["__willump_cache"]
+    pickle.dump(trained_cache, open(folder + "trained_cache.pk", "wb"))
 
 
 if __name__ == '__main__':

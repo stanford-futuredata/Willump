@@ -248,6 +248,7 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
                     augmented_globals["csr_marshall"] = csr_marshall
                     augmented_globals["willump_duplicate_keras"] = willump_duplicate_keras
                     augmented_globals[WILLUMP_TRAINING_CASCADE_NAME] = training_cascades
+                    func.__globals__[WILLUMP_CACHE_NAME] = willump_cache_dict
                     if len(async_funcs) > 0:
                         augmented_globals[WILLUMP_THREAD_POOL_EXECUTOR] = \
                             concurrent.futures.ThreadPoolExecutor(max_workers=10)
