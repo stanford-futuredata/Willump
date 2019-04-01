@@ -432,10 +432,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                output_type=output_type,
                                                                keyword_args=keyword_args)
                     return [train_output_var, test_output_var], train_test_split_node
-            elif called_function in self._async_funcs:
-                return self._create_py_node(node, is_costly_node=is_costly_node, is_async_func=True)
-            elif called_function in self._cached_funcs:
-                return self._create_py_node(node, is_costly_node=is_costly_node, is_cached_node=True)
+            elif called_function in self._async_funcs or called_function in self._cached_funcs:
+                is_async_func = called_function in self._async_funcs
+                is_cached_func = called_function in self._cached_funcs
+                return self._create_py_node(node, is_costly_node=is_costly_node, is_async_func=is_async_func,
+                                            is_cached_node=is_cached_func)
         elif isinstance(value, ast.Attribute):
             if value.attr == "T" and isinstance(value.value, ast.Call) and isinstance(value.value.func, ast.Attribute) \
                     and isinstance(value.value.func.value, ast.Name) and value.value.func.attr == "to_frame":

@@ -475,20 +475,20 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
         if start_index is None:
             return None
         for i, statement in enumerate(sorted_nodes):
-            if i > start_index and not isinstance(statement, WillumpPythonNode):
+            if i > start_index and not isinstance(statement, WillumpPythonNode) \
+                    and not isinstance(statement, WillumpInputNode):
                 end_index = i
                 break
         if end_index is None:
             end_index = len(sorted_nodes)
         return start_index, end_index
-
     pyblock_start_end = find_pyblock_after_n(-1)
     while pyblock_start_end is not None:
         pyblock_start, pyblock_end = pyblock_start_end
         pyblock: List[WillumpPythonNode] = sorted_nodes[pyblock_start:pyblock_end]
         async_nodes = []
         for node in pyblock:
-            if node.is_async_node:
+            if isinstance(node, WillumpPythonNode) and node.is_async_node:
                 async_nodes.append(node)
         for async_node in async_nodes:
             assert (len(async_node.get_output_names()) == 1)
@@ -578,7 +578,8 @@ def cache_python_block_pass(sorted_nodes: List[WillumpGraphNode], willump_cache_
                 cache_node = WillumpPythonNode(python_ast=cache_ast.body[0], input_names=entry.get_in_names(),
                                                output_names=entry.get_output_names(),
                                                output_types=entry.get_output_types(),
-                                               in_nodes=entry.get_in_nodes())
+                                               in_nodes=entry.get_in_nodes(),
+                                               is_async_node=entry.is_async_node)
                 sorted_nodes[i] = cache_node
                 node_num += 1
     # Initialize all caches.

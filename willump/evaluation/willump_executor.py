@@ -250,7 +250,7 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
                     augmented_globals[WILLUMP_TRAINING_CASCADE_NAME] = training_cascades
                     if len(async_funcs) > 0:
                         augmented_globals[WILLUMP_THREAD_POOL_EXECUTOR] = \
-                            concurrent.futures.ThreadPoolExecutor(max_workers=5)
+                            concurrent.futures.ThreadPoolExecutor(max_workers=10)
                     local_namespace = {}
                     # Call the transformed function with its original arguments.
                     exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), augmented_globals,

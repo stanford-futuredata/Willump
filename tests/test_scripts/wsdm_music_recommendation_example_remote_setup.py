@@ -198,7 +198,8 @@ else:
 
 
 @willump_execute(disable=args.disable, batch=False, cached_funcs=cached_funcs, costly_statements=costly_statements,
-                 eval_cascades=cascades, cascade_threshold=cascade_threshold, max_cache_size=max_cache_size)
+                 eval_cascades=cascades, cascade_threshold=cascade_threshold, max_cache_size=max_cache_size,
+                 async_funcs=remote_funcs)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,

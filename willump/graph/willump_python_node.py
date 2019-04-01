@@ -51,6 +51,7 @@ class WillumpPythonNode(WillumpGraphNode):
         return self._python_ast
 
     def __repr__(self):
+        import astor
         return "Willump Python node with inputs %s\n outputs %s\n and code %s\n" % \
                (str(list(map(lambda x: x.get_output_names(), self._in_nodes))), self._output_names,
-                ast.dump(self._python_ast))
+               astor.to_source(self.get_python()))

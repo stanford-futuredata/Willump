@@ -113,7 +113,6 @@ def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType]
     # We must first topologically sort the graph so that all of a node's inputs are computed before the node runs.
     sorted_nodes = wg_passes.topological_sort_graph(graph)
     sorted_nodes = wg_passes.push_back_python_nodes_pass(sorted_nodes)
-    sorted_nodes = wg_passes.async_python_functions_parallel_pass(sorted_nodes)
     wg_passes.model_input_identification_pass(sorted_nodes)
     if training_cascades is not None:
         assert (eval_cascades is None)
@@ -123,6 +122,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType]
         sorted_nodes = w_cascades.eval_model_cascade_pass(sorted_nodes, typing_map, aux_data, eval_cascades,
                                                           cascade_threshold, batch, top_k)
     sorted_nodes = wg_passes.cache_python_block_pass(sorted_nodes, willump_cache_dict, max_cache_size)
+    sorted_nodes = wg_passes.async_python_functions_parallel_pass(sorted_nodes)
     weld_python_list: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[str]]]] = []
     weld_block_input_set: Set[str] = set()
     weld_block_aux_input_set: Set[str] = set()
