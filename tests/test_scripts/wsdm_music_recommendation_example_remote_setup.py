@@ -17,6 +17,7 @@ parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
 parser.add_argument("-a", "--caching", type=float, help="Max cache size")
 parser.add_argument("-s", "--costly_statements", help="Mark costly (remotely stored) statements?", action="store_true")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+parser.add_argument("-r", "--redis", help="Redis IP", type=str)
 args = parser.parse_args()
 if args.cascades is None:
     cascades = None
@@ -26,7 +27,12 @@ else:
     cascades = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_training_cascades.pk", "rb"))
     cascade_threshold = args.cascades
 
-db = redis()
+if args.redis is None:
+    redis_ip = "127.0.0.1"
+else:
+    redis_ip = args.redis
+
+db = redis(host=redis_ip)
 
 
 def get_row_to_merge_features_uf(key):
