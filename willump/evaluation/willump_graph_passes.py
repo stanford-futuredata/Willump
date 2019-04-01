@@ -8,6 +8,7 @@ from typing import MutableMapping, List, Set, Tuple, Mapping, Optional
 from willump import *
 from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
+from willump.graph.cascade_point_early_exit_node import CascadePointEarlyExitNode
 from willump.graph.combine_linear_regression_node import CombineLinearRegressionNode
 from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.identity_node import IdentityNode
@@ -469,14 +470,16 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
         start_index = None
         end_index = None
         for i, statement in enumerate(sorted_nodes):
-            if i > n and isinstance(statement, WillumpPythonNode):
+            if i > n and isinstance(statement, WillumpPythonNode) \
+                    and not isinstance(statement, CascadePointEarlyExitNode):
                 start_index = i
                 break
         if start_index is None:
             return None
         for i, statement in enumerate(sorted_nodes):
-            if i > start_index and not isinstance(statement, WillumpPythonNode) \
-                    and not isinstance(statement, WillumpInputNode):
+            if i > start_index and ((not isinstance(statement, WillumpPythonNode)
+                    and not isinstance(statement, WillumpInputNode))\
+                    or isinstance(statement, CascadePointEarlyExitNode)):
                 end_index = i
                 break
         if end_index is None:
@@ -485,6 +488,7 @@ def async_python_functions_parallel_pass(sorted_nodes: List[WillumpGraphNode]) \
     pyblock_start_end = find_pyblock_after_n(-1)
     while pyblock_start_end is not None:
         pyblock_start, pyblock_end = pyblock_start_end
+        assert(pyblock_start < pyblock_end)
         pyblock: List[WillumpPythonNode] = sorted_nodes[pyblock_start:pyblock_end]
         async_nodes = []
         for node in pyblock:
