@@ -281,28 +281,13 @@ if __name__ == "__main__":
     len_train = len(train_df)
     gc.collect()
     tables_filename = base_folder + "aggregate_tables%s%s.pk" % (train_start_point, train_end_point)
-    (X_ip_channel, X_ip_channel_jc, X_ip_day_hour, X_ip_day_hour_jc, X_ip_app, X_ip_app_jc,
-     X_ip_app_os, X_ip_app_os_jc,
-     X_ip_device, X_ip_device_jc, X_app_channel, X_app_channel_jc, X_ip_device_app_os, X_ip_device_app_os_jc,
-     ip_app_os, ip_app_os_jc, ip_day_hour, ip_day_hour_jc, ip_app, ip_app_jc, ip_day_hour_channel,
-     ip_day_hour_channel_jc, ip_app_channel_var_day, ip_app_channel_var_day_jc, ip_app_os_hour,
-     ip_app_os_hour_jc, ip_app_chl_mean_hour, ip_app_chl_mean_hour_jc, nextClick, nextClick_shift, X1, X7) = \
+    (_, X_ip_channel_jc, _, X_ip_day_hour_jc, _, X_ip_app_jc,
+     _, X_ip_app_os_jc,
+     _, X_ip_device_jc, _, X_app_channel_jc, _, X_ip_device_app_os_jc,
+     _, ip_app_os_jc, _, ip_day_hour_jc, _, ip_app_jc, _,
+     ip_day_hour_channel_jc, _, ip_app_channel_var_day_jc, _,
+     ip_app_os_hour_jc, _, ip_app_chl_mean_hour_jc, nextClick, nextClick_shift, X1, X7) = \
         pickle.load(open(tables_filename, "rb"))
-
-    X_ip_channel = X_ip_channel.set_index(X_ip_channel_jc)
-    X_ip_day_hour = X_ip_day_hour.set_index(X_ip_day_hour_jc)
-    X_ip_app = X_ip_app.set_index(X_ip_app_jc)
-    X_ip_app_os = X_ip_app_os.set_index(X_ip_app_os_jc)
-    X_ip_device = X_ip_device.set_index(X_ip_device_jc)
-    X_app_channel = X_app_channel.set_index(X_app_channel_jc)
-    X_ip_device_app_os = X_ip_device_app_os.set_index(X_ip_device_app_os_jc)
-    ip_app_os = ip_app_os.set_index(ip_app_os_jc)
-    ip_day_hour = ip_day_hour.set_index(ip_day_hour_jc)
-    ip_app = ip_app.set_index(ip_app_jc)
-    ip_day_hour_channel = ip_day_hour_channel.set_index(ip_day_hour_channel_jc)
-    ip_app_channel_var_day = ip_app_channel_var_day.set_index(ip_app_channel_var_day_jc)
-    ip_app_os_hour = ip_app_os_hour.set_index(ip_app_os_hour_jc)
-    ip_app_chl_mean_hour = ip_app_chl_mean_hour.set_index(ip_app_chl_mean_hour_jc)
 
     train_df['hour'] = pd.to_datetime(train_df.click_time).dt.hour.astype('uint8')
     train_df['day'] = pd.to_datetime(train_df.click_time).dt.day.astype('uint8')
@@ -311,22 +296,6 @@ if __name__ == "__main__":
     train_df["X1"] = X1
     train_df["X7"] = X7
     train_df = train_df.drop(columns=["click_time"])
-
-    remote_df_list = [X_ip_channel, X_ip_day_hour, X_ip_app, X_ip_app_os, X_ip_device, X_app_channel,
-                      X_ip_device_app_os, ip_app_os, ip_day_hour, ip_app, ip_day_hour_channel,
-                      ip_app_channel_var_day, ip_app_os_hour, ip_app_chl_mean_hour]
-    for i, entry in enumerate(remote_df_list):
-        remote_df = entry
-        for key in remote_df.index:
-            value = remote_df.loc[key]
-            ser_index_value = pickle.dumps(value)
-            if isinstance(key, tuple):
-                redis_key = str(i)
-                for attribute in key:
-                    redis_key += "_" + str(attribute)
-            else:
-                redis_key = str(i) + "_" + str(key)
-            db.set(redis_key, ser_index_value)
 
     target = 'is_attributed'
     predictors = ['nextClick', 'nextClick_shift', 'app', 'device', 'os', 'channel', 'hour', 'day', 'ip_tcount',
@@ -351,9 +320,17 @@ if __name__ == "__main__":
     process_input_and_predict(mini_df)
     process_input_and_predict(mini_df)
 
+    trained_cache = pickle.load(open(base_folder + "trained_cache.pk", "rb"))
+    ref_to_willump_cache = globals()["__willump_cache"]
+    keys = list(ref_to_willump_cache.keys())
+    for key in keys:
+        del ref_to_willump_cache[key]
+    for entry in trained_cache:
+        ref_to_willump_cache[entry] = trained_cache[entry]
+
     entry_list = []
-    for i in range(train_num_rows):
-        entry_list.append(train_df.iloc[i])
+    for i in range(valid_num_rows):
+        entry_list.append(valid_df.iloc[i])
     y_preds = []
     num_queries = 0
     start = time.time()
@@ -362,8 +339,7 @@ if __name__ == "__main__":
         y_preds.append(pred)
     elapsed_time = time.time() - start
     y_preds = np.hstack(y_preds)
-    print('Train prediction in %f seconds rows %d throughput %f Number Requests %d Requests per Row %f: ' % (
-        elapsed_time, train_num_rows, train_num_rows / elapsed_time, num_queries, num_queries / train_num_rows))
+    print('Valid prediction in %f seconds rows %d throughput %f Number Requests %d Requests per Row %f: ' % (
+        elapsed_time, valid_num_rows, valid_num_rows / elapsed_time, num_queries, num_queries / valid_num_rows))
 
-    trained_cache = globals()["__willump_cache"]
-    pickle.dump(trained_cache, open(base_folder + "trained_cache.pk", "wb"))
+    print("Validation ROC-AUC Score: %f" % roc_auc_score(valid_y, y_preds))
