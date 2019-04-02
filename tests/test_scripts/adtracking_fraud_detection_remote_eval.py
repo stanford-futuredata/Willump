@@ -213,7 +213,7 @@ def get_join_list(input_df, join_cols):
     ret_list = []
     for join_col in join_cols:
         ret_list.append(input_df[join_col])
-    return ret_list
+    return tuple(ret_list)
 
 
 @willump_execute(disable=args.disable, batch=False, eval_cascades=cascades, cascade_threshold=cascade_threshold,
