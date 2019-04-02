@@ -209,36 +209,43 @@ else:
     max_cache_size = None
 
 
+def get_join_list(input_df, join_cols):
+    ret_list = []
+    for join_col in join_cols:
+        ret_list.append(input_df[join_col])
+    return ret_list
+
+
 @willump_execute(disable=args.disable, batch=False, eval_cascades=cascades, cascade_threshold=cascade_threshold,
                  cached_funcs=cached_funcs, max_cache_size=max_cache_size, async_funcs=remote_funcs)
 def process_input_and_predict(input_df):
-    X_ip_channel_entry = tuple(input_df[X_ip_channel_jc])
+    X_ip_channel_entry = get_join_list(input_df, X_ip_channel_jc)
     X_ip_channel_row = get_row_to_merge_X_ip_channel(X_ip_channel_entry)
-    X_ip_day_hour_entry = tuple(input_df[X_ip_day_hour_jc])
+    X_ip_day_hour_entry = get_join_list(input_df, X_ip_day_hour_jc)
     X_ip_day_hour_row = get_row_to_merge_X_ip_day_hour(X_ip_day_hour_entry)
-    X_ip_app_entry = tuple(input_df[X_ip_app_jc])
+    X_ip_app_entry = get_join_list(input_df, X_ip_app_jc)
     X_ip_app_row = get_row_to_merge_X_ip_app(X_ip_app_entry)
-    X_ip_app_os_entry = tuple(input_df[X_ip_app_os_jc])
+    X_ip_app_os_entry = get_join_list(input_df, X_ip_app_os_jc)
     X_ip_app_os_row = get_row_to_merge_X_ip_app_os(X_ip_app_os_entry)
-    X_ip_device_entry = tuple(input_df[X_ip_device_jc])
+    X_ip_device_entry = get_join_list(input_df, X_ip_device_jc)
     X_ip_device_row = get_row_to_merge_X_ip_device(X_ip_device_entry)
-    X_app_channel_entry = tuple(input_df[X_app_channel_jc])
+    X_app_channel_entry = get_join_list(input_df, X_app_channel_jc)
     X_app_channel_row = get_row_to_merge_X_app_channel(X_app_channel_entry)
-    X_ip_device_app_os_entry = tuple(input_df[X_ip_device_app_os_jc])
+    X_ip_device_app_os_entry = get_join_list(input_df, X_ip_device_app_os_jc)
     X_ip_device_app_os_row = get_row_to_merge_X_ip_device_app_os(X_ip_device_app_os_entry)
-    ip_app_os_entry = tuple(input_df[ip_app_os_jc])
+    ip_app_os_entry = get_join_list(input_df, ip_app_os_jc)
     ip_app_os_row = get_row_to_merge_ip_app_os(ip_app_os_entry)
-    ip_day_hour_entry = tuple(input_df[ip_day_hour_jc])
+    ip_day_hour_entry = get_join_list(input_df, ip_day_hour_jc)
     ip_day_hour_row = get_row_to_merge_ip_day_hour(ip_day_hour_entry)
-    ip_app_entry = tuple(input_df[ip_app_jc])
+    ip_app_entry = get_join_list(input_df, ip_app_jc)
     ip_app_row = get_row_to_merge_ip_app(ip_app_entry)
-    ip_day_hour_channel_entry = tuple(input_df[ip_day_hour_channel_jc])
+    ip_day_hour_channel_entry = get_join_list(input_df, ip_day_hour_channel_jc)
     ip_day_hour_channel_row = get_row_to_merge_ip_day_hour_channel(ip_day_hour_channel_entry)
-    ip_app_channel_var_day_entry = tuple(input_df[ip_app_channel_var_day_jc])
+    ip_app_channel_var_day_entry = get_join_list(input_df, ip_app_channel_var_day_jc)
     ip_app_channel_var_day_row = get_row_to_merge_ip_app_channel_var_day(ip_app_channel_var_day_entry)
-    ip_app_os_hour_entry = tuple(input_df[ip_app_os_hour_jc])
+    ip_app_os_hour_entry = get_join_list(input_df, ip_app_os_hour_jc)
     ip_app_os_hour_row = get_row_to_merge_ip_app_os_hour(ip_app_os_hour_entry)
-    ip_app_chl_mean_hour_entry = tuple(input_df[ip_app_chl_mean_hour_jc])
+    ip_app_chl_mean_hour_entry = get_join_list(input_df, ip_app_chl_mean_hour_jc)
     ip_app_chl_mean_hour_row = get_row_to_merge_ip_app_chl_mean_hour(ip_app_chl_mean_hour_entry)
     combined_df = pd.concat([input_df, X_ip_channel_row, X_ip_day_hour_row, X_ip_app_row, X_ip_app_os_row,
                              X_ip_device_row, X_app_channel_row, X_ip_device_app_os_row, ip_app_os_row,
