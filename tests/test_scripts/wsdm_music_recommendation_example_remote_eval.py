@@ -190,6 +190,15 @@ remote_funcs = ["get_row_to_merge_features_uf", "get_row_to_merge_features_sf", 
                 "get_row_to_merge_ss_features", "get_row_to_merge_as_features",
                 "get_row_to_merge_composer_features", "get_row_to_merge_lyrs_features"]
 
+all_funcs = ["get_row_to_merge_features_uf", "get_row_to_merge_features_sf", "get_row_to_merge_uc_features",
+                "get_row_to_merge_sc_features", "get_row_to_merge_ac_features", "get_row_to_merge_us_features",
+                "get_row_to_merge_ss_features", "get_row_to_merge_as_features",
+                "get_row_to_merge_composer_features", "get_row_to_merge_lyrs_features",
+             "get_row_to_merge_cluster_one", "get_row_to_merge_cluster_two", "get_row_to_merge_cluster_three",
+             "get_row_to_merge_gs_features", "get_row_to_merge_cs_features", "get_row_to_merge_ages_features",
+             "get_row_to_merge_ls_features", "get_row_to_merge_gender_features", "get_row_to_merge_sns_features",
+             "get_row_to_merge_stabs_features", "get_row_to_merge_stypes_features", "get_row_to_merge_regs_features"]
+
 if args.caching is not None:
     cached_funcs = remote_funcs
     max_cache_size = args.caching
@@ -203,7 +212,7 @@ else:
     costly_statements = ()
 
 
-@willump_execute(disable=args.disable, batch=False, cached_funcs=cached_funcs, costly_statements=costly_statements,
+@willump_execute(disable=args.disable, batch=False, cached_funcs=all_funcs, costly_statements=costly_statements,
                  eval_cascades=cascades, cascade_threshold=cascade_threshold, max_cache_size=max_cache_size,
                  async_funcs=remote_funcs)
 def do_merge(combi):
