@@ -194,7 +194,6 @@ all_funcs = ["get_row_to_merge_features_uf", "get_row_to_merge_features_sf", "ge
                 "get_row_to_merge_sc_features", "get_row_to_merge_ac_features", "get_row_to_merge_us_features",
                 "get_row_to_merge_ss_features", "get_row_to_merge_as_features",
                 "get_row_to_merge_composer_features", "get_row_to_merge_lyrs_features",
-             "get_row_to_merge_cluster_one", "get_row_to_merge_cluster_two", "get_row_to_merge_cluster_three",
              "get_row_to_merge_gs_features", "get_row_to_merge_cs_features", "get_row_to_merge_ages_features",
              "get_row_to_merge_ls_features", "get_row_to_merge_gender_features", "get_row_to_merge_sns_features",
              "get_row_to_merge_stabs_features", "get_row_to_merge_stypes_features", "get_row_to_merge_regs_features"]
