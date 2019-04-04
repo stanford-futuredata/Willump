@@ -15,6 +15,7 @@ from willump.graph.keras_training_node import KerasTrainingNode
 from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.linear_training_node import LinearTrainingNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
+from willump.graph.pandas_dataframe_concatenation_node import PandasDataframeConcatenationNode
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 from willump.graph.pandas_series_to_dataframe_node import PandasSeriesToDataFrameNode
 from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
@@ -165,7 +166,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             else:
                 # TODO:  Type the new node properly.
                 left_names, left_node = self._create_temp_var_from_node(value.left, output_type)
-                assert(len(left_names) == 1)
+                assert (len(left_names) == 1)
                 left_name = left_names[0]
                 self._node_dict[left_name] = left_node
             if isinstance(value.right, ast.Name) and value.right.id in self._node_dict:
@@ -174,7 +175,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             else:
                 # TODO:  Type the new node properly.
                 right_names, right_node = self._create_temp_var_from_node(value.right, output_type)
-                assert(len(right_names) == 1)
+                assert (len(right_names) == 1)
                 right_name = right_names[0]
                 self._node_dict[right_name] = right_node
             if isinstance(value.op, ast.Add):
@@ -316,7 +317,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 left_df_input_node = self._node_dict[left_df_input_var]
                 if isinstance(join_col, str):
                     join_col = [join_col]
-                assert(isinstance(join_col, list))
+                assert (isinstance(join_col, list))
                 willump_hash_join_node = WillumpHashJoinNode(input_node=left_df_input_node,
                                                              input_name=left_df_input_var,
                                                              output_name=output_var_name,
@@ -399,6 +400,17 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                        output_name=output_var_name,
                                                                        output_type=output_type, input_types=input_types)
                     return [output_var_name], series_concat_node
+                elif all(isinstance(self._type_map[arg_name], WeldPandas) for arg_name in arg_names):
+                    input_nodes = [self._node_dict[arg_name] for arg_name in arg_names]
+                    output_type = self._type_map[output_var_name]
+                    assert (isinstance(output_type, WeldPandas))
+                    keyword_args = value.keywords
+                    series_concat_node = PandasDataframeConcatenationNode(input_nodes=input_nodes,
+                                                                          input_names=arg_names,
+                                                                          output_name=output_var_name,
+                                                                          output_type=output_type,
+                                                                          keyword_args=keyword_args)
+                    return [output_var_name], series_concat_node
             elif ".reshape" in called_function:
                 if isinstance(value.func.value, ast.Name):
                     input_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
@@ -418,7 +430,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                      output_types=[output_type])
                     return [input_name], compile_node
             elif "train_test_split" in called_function:
-                assert(isinstance(target, ast.Tuple))
+                assert (isinstance(target, ast.Tuple))
                 if len(target.elts) == 2 and isinstance(value.args[0], ast.Name):
                     train_output_var = self.get_store_name(target.elts[0].id, target.lineno)
                     test_output_var = self.get_store_name(target.elts[1].id, target.lineno)
@@ -466,7 +478,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                           output_type=output_type)
                     return [output_var_name], pandas_to_dense_matrix_node
         return self._create_py_node(node, is_costly_node=is_costly_node)
-
 
     @staticmethod
     def get_store_name(string, lineno):
