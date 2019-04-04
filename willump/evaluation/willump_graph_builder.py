@@ -403,10 +403,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 elif all(isinstance(self._type_map[arg_name], WeldPandas) for arg_name in arg_names):
                     input_nodes = [self._node_dict[arg_name] for arg_name in arg_names]
                     output_type = self._type_map[output_var_name]
+                    input_types: List[WeldPandas] = [self._type_map[arg_name] for arg_name in arg_names]
                     assert (isinstance(output_type, WeldPandas))
                     keyword_args = value.keywords
                     series_concat_node = PandasDataframeConcatenationNode(input_nodes=input_nodes,
                                                                           input_names=arg_names,
+                                                                          input_types=input_types,
                                                                           output_name=output_var_name,
                                                                           output_type=output_type,
                                                                           keyword_args=keyword_args)

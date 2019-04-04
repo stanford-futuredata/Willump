@@ -18,6 +18,7 @@ from willump.graph.identity_node import IdentityNode
 from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
+from willump.graph.pandas_dataframe_concatenation_node import PandasDataframeConcatenationNode
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 from willump.graph.reshape_node import ReshapeNode
 from willump.graph.stack_sparse_node import StackSparseNode
@@ -88,14 +89,19 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                 orig_output_type = node.get_output_type()
                 if isinstance(orig_output_type, WeldPandas):
                     # Hacky code so that the pre-joins dataframe columns don't appear twice in the full output.
-                    base_node = wg_passes.find_dataframe_base_node(node_input_nodes[0], base_discovery_dict)
-                    assert(isinstance(base_node, WillumpHashJoinNode))
-                    if base_node.get_in_nodes()[0] not in selected_input_sources:
-                        base_left_df_col_names = base_node.left_df_type.column_names
-                        new_selected_columns = list(filter(lambda x: x not in base_left_df_col_names, new_selected_columns))
-                    col_map = {col_name: col_type for col_name, col_type in
-                               zip(orig_output_type.column_names, orig_output_type.field_types)}
-                    new_field_types = [col_map[col_name] for col_name in new_selected_columns]
+                    try:
+                        base_node = wg_passes.find_dataframe_base_node(node_input_nodes[0], base_discovery_dict)
+                        assert(isinstance(base_node, WillumpHashJoinNode))
+                        if base_node.get_in_nodes()[0] not in selected_input_sources:
+                            base_left_df_col_names = base_node.left_df_type.column_names
+                            new_selected_columns = list(filter(lambda x: x not in base_left_df_col_names, new_selected_columns))
+                        col_map = {col_name: col_type for col_name, col_type in
+                                   zip(orig_output_type.column_names, orig_output_type.field_types)}
+                        new_field_types = [col_map[col_name] for col_name in new_selected_columns]
+                    except AssertionError:
+                        col_map = {col_name: col_type for col_name, col_type in
+                                   zip(orig_output_type.column_names, orig_output_type.field_types)}
+                        new_field_types = [col_map[col_name] for col_name in new_selected_columns]
                     new_output_type = WeldPandas(field_types=new_field_types, column_names=new_selected_columns)
                 else:
                     assert (isinstance(orig_output_type, WeldSeriesPandas))
@@ -165,6 +171,31 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                                                         input_types=new_input_types,
                                                         output_type=new_output_type,
                                                         output_name=new_output_name)
+            typing_map[new_output_name] = return_node.get_output_type()
+        elif isinstance(node, PandasDataframeConcatenationNode):
+            node_input_nodes = node.get_in_nodes()
+            node_input_names = node.get_in_names()
+            node_output_name = node.get_output_name()
+            new_output_name = ("cascading__%s__" % which) + node_output_name
+            new_input_nodes, new_input_names, new_input_types, new_output_columns, new_field_types\
+                = [], [], [], [], []
+            for node_input_node, node_input_name in zip(node_input_nodes, node_input_names):
+                return_node = graph_from_input_sources_recursive(node_input_node)
+                if return_node is not None:
+                    new_input_nodes.append(return_node)
+                    new_input_names.append(node_input_name)
+                    return_node_output_type = return_node.get_output_types()[0]
+                    assert (isinstance(return_node_output_type, WeldPandas))
+                    new_input_types.append(return_node_output_type)
+                    new_output_columns += return_node_output_type.column_names
+                    new_field_types += return_node_output_type.field_types
+            new_output_type = WeldPandas(field_types=new_field_types, column_names=new_output_columns)
+            return_node = PandasDataframeConcatenationNode(input_nodes=new_input_nodes,
+                                                        input_names=new_input_names,
+                                                        input_types=new_input_types,
+                                                        output_type=new_output_type,
+                                                        output_name=new_output_name,
+                                                           keyword_args=node.keyword_args)
             typing_map[new_output_name] = return_node.get_output_type()
         elif isinstance(node, IdentityNode):
             input_node = node.get_in_nodes()[0]
@@ -245,7 +276,8 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
         elif isinstance(input_node, StackSparseNode) or isinstance(input_node, PandasColumnSelectionNode)\
                 or isinstance(input_node, PandasSeriesConcatenationNode) or isinstance(input_node, IdentityNode)\
                 or isinstance(input_node, ReshapeNode) or isinstance(input_node, PandasToDenseMatrixNode)\
-                or isinstance(input_node, WillumpInputNode) or isinstance(input_node, TrainTestSplitNode):
+                or isinstance(input_node, WillumpInputNode) or isinstance(input_node, TrainTestSplitNode)\
+                or isinstance(input_node, PandasDataframeConcatenationNode):
             output_block.insert(0, input_node)
             current_node_stack += input_node.get_in_nodes()
         elif isinstance(input_node, WillumpHashJoinNode):
@@ -305,8 +337,8 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, batch,
                 current_importance += nodes_to_importances[node]
                 current_cost += node.get_cost()
     for node in ranked_inputs:
-        if batch is True and isinstance(node, WillumpPythonNode) and node not in more_important_inputs:
-            more_important_inputs.append(node)
+        # if batch is True and isinstance(node, WillumpPythonNode) and node not in more_important_inputs:
+        #     more_important_inputs.append(node)
         if node.get_cost() == 0 and node not in more_important_inputs:
             more_important_inputs.append(node)
     less_important_inputs = [entry for entry in ranked_inputs if entry not in more_important_inputs]
