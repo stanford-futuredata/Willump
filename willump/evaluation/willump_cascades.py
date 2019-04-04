@@ -91,10 +91,11 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                     # Hacky code so that the pre-joins dataframe columns don't appear twice in the full output.
                     try:
                         base_node = wg_passes.find_dataframe_base_node(node_input_nodes[0], base_discovery_dict)
-                        assert(isinstance(base_node, WillumpHashJoinNode))
+                        assert (isinstance(base_node, WillumpHashJoinNode))
                         if base_node.get_in_nodes()[0] not in selected_input_sources:
                             base_left_df_col_names = base_node.left_df_type.column_names
-                            new_selected_columns = list(filter(lambda x: x not in base_left_df_col_names, new_selected_columns))
+                            new_selected_columns = list(
+                                filter(lambda x: x not in base_left_df_col_names, new_selected_columns))
                         col_map = {col_name: col_type for col_name, col_type in
                                    zip(orig_output_type.column_names, orig_output_type.field_types)}
                         new_field_types = [col_map[col_name] for col_name in new_selected_columns]
@@ -177,7 +178,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
             node_input_names = node.get_in_names()
             node_output_name = node.get_output_name()
             new_output_name = ("cascading__%s__" % which) + node_output_name
-            new_input_nodes, new_input_names, new_input_types, new_output_columns, new_field_types\
+            new_input_nodes, new_input_names, new_input_types, new_output_columns, new_field_types \
                 = [], [], [], [], []
             for node_input_node, node_input_name in zip(node_input_nodes, node_input_names):
                 return_node = graph_from_input_sources_recursive(node_input_node)
@@ -191,10 +192,10 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                     new_field_types += return_node_output_type.field_types
             new_output_type = WeldPandas(field_types=new_field_types, column_names=new_output_columns)
             return_node = PandasDataframeConcatenationNode(input_nodes=new_input_nodes,
-                                                        input_names=new_input_names,
-                                                        input_types=new_input_types,
-                                                        output_type=new_output_type,
-                                                        output_name=new_output_name,
+                                                           input_names=new_input_names,
+                                                           input_types=new_input_types,
+                                                           output_type=new_output_type,
+                                                           output_name=new_output_name,
                                                            keyword_args=node.keyword_args)
             typing_map[new_output_name] = return_node.get_output_type()
         elif isinstance(node, IdentityNode):
@@ -260,7 +261,8 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
     return graph_from_input_sources_recursive(node)
 
 
-def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_discovery_dict) \
+def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_discovery_dict,
+                                small_model_output_node=None) \
         -> List[WillumpGraphNode]:
     """
     Take in a training node's input.  Return a Weld block that constructs the training node's
@@ -273,10 +275,10 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
         input_node = current_node_stack.pop()
         if isinstance(input_node, ArrayCountVectorizerNode) or isinstance(input_node, ArrayTfIdfNode):
             output_block.insert(0, input_node)
-        elif isinstance(input_node, StackSparseNode) or isinstance(input_node, PandasColumnSelectionNode)\
-                or isinstance(input_node, PandasSeriesConcatenationNode) or isinstance(input_node, IdentityNode)\
-                or isinstance(input_node, ReshapeNode) or isinstance(input_node, PandasToDenseMatrixNode)\
-                or isinstance(input_node, WillumpInputNode) or isinstance(input_node, TrainTestSplitNode)\
+        elif isinstance(input_node, StackSparseNode) or isinstance(input_node, PandasColumnSelectionNode) \
+                or isinstance(input_node, PandasSeriesConcatenationNode) or isinstance(input_node, IdentityNode) \
+                or isinstance(input_node, ReshapeNode) or isinstance(input_node, PandasToDenseMatrixNode) \
+                or isinstance(input_node, WillumpInputNode) or isinstance(input_node, TrainTestSplitNode) \
                 or isinstance(input_node, PandasDataframeConcatenationNode):
             output_block.insert(0, input_node)
             current_node_stack += input_node.get_in_nodes()
@@ -288,6 +290,23 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
                 current_node_stack.append(join_left_input_node)
         elif isinstance(input_node, WillumpPythonNode):
             output_block.insert(0, input_node)
+            node_output_types = input_node.get_output_types()
+            if small_model_output_node is not None and \
+                    len(node_output_types) == 1 and isinstance(node_output_types[0], WeldPandas) \
+                    and len(input_node.get_in_nodes()) == 1:
+                node_input_name = strip_linenos_from_var(input_node.get_in_names()[0])
+                small_model_output_name = strip_linenos_from_var(small_model_output_node.get_output_names()[0])
+                shorten_python_code = "%s = cascade_df_shorten(%s, %s)" % (node_input_name,
+                                                                           node_input_name,
+                                                                           small_model_output_name)
+                shorten_python_ast: ast.Module = \
+                    ast.parse(shorten_python_code, "exec")
+                shorten_python_node = WillumpPythonNode(python_ast=shorten_python_ast.body[0],
+                                                        input_names=[input_node.get_output_names()[0],
+                                                                     small_model_output_node.get_output_names()[0]],
+                                                        output_names=[], output_types=[],
+                                                        in_nodes=[input_node, small_model_output_node])
+                output_block.insert(0, shorten_python_node)
             if input_node.does_not_modify_data:
                 current_node_stack += input_node.get_in_nodes()
         else:
@@ -410,7 +429,7 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         keyword_args = [keyword.arg for keyword in new_python_ast.value.keywords]
         # TODO:  This is too hacky
         if "eval_set" in keyword_args:
-            assert(train_test_split_node is not None)
+            assert (train_test_split_node is not None)
             eval_set_index = keyword_args.index("eval_set")
             new_python_ast.value.keywords[eval_set_index].value.elts[0].elts[0].id = \
                 strip_linenos_from_var(train_test_split_node.get_output_names()[1])
@@ -453,7 +472,8 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                                  li_train_test_split.get_output_names()[1],
                                                  li_train_test_split.get_output_types()[0],
                                                  li_train_test_split.keyword_args)
-    small_training_node = recreate_training_node(more_important_inputs_head, training_node, "small_", mi_train_test_split)
+    small_training_node = recreate_training_node(more_important_inputs_head, training_node, "small_",
+                                                 mi_train_test_split)
     big_training_node = recreate_training_node(combiner_node, training_node, "", li_train_test_split)
     # Store the big model for evaluation.
     big_model_python_name = strip_linenos_from_var(big_training_node.get_output_names()[0])
@@ -494,8 +514,9 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     else:
         train_test_split_nodes = []
     sorted_nodes = sorted_nodes[:training_node_index] + more_important_inputs_block + less_important_inputs_block \
-                   + [combiner_node] + train_test_split_nodes + [big_training_node, duplicate_model_node, small_training_node,
-                      add_big_model_node, add_small_model_node] \
+                   + [combiner_node] + train_test_split_nodes + [big_training_node, duplicate_model_node,
+                                                                 small_training_node,
+                                                                 add_big_model_node, add_small_model_node] \
                    + sorted_nodes[training_node_index + 1:]
     return sorted_nodes
 
@@ -673,7 +694,8 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     less_important_inputs_head = graph_from_input_sources(model_input_node, less_important_inputs, typing_map,
                                                           base_discovery_dict, "less",
                                                           small_model_output_node=threshold_node)
-    less_important_inputs_block = get_model_node_dependencies(less_important_inputs_head, base_discovery_dict)
+    less_important_inputs_block = get_model_node_dependencies(less_important_inputs_head, base_discovery_dict,
+                                                              small_model_output_node=threshold_node)
     # The big model predicts "hard" (for the small model) examples from all inputs.
     combiner_node = get_combiner_node_eval(more_important_inputs_head, less_important_inputs_head, model_input_node,
                                            threshold_node)
