@@ -12,18 +12,17 @@ from wsdm_utilities import *
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
-parser.add_argument("-s", "--costly_statements", help="Mark costly (remotely stored) statements?", action="store_true")
+parser.add_argument("-k", "--top_k_cascade", type=int, help="Top-K to return")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 parser.add_argument("-r", "--redis", help="Redis IP", type=str)
 args = parser.parse_args()
-if args.cascades is None:
+
+if args.top_k_cascade is None:
     cascades = None
-    cascade_threshold = 1.0
+    top_K = None
 else:
-    assert (0.5 <= args.cascades <= 1.0)
     cascades = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_training_cascades.pk", "rb"))
-    cascade_threshold = args.cascades
+    top_K = args.top_k_cascade
 
 if args.redis is None:
     redis_ip = "127.0.0.1"
@@ -259,21 +258,15 @@ remote_funcs = ["get_row_to_merge_features_uf", "get_row_to_merge_features_sf", 
                 "get_row_to_merge_composer_features", "get_row_to_merge_lyrs_features"]
 
 all_funcs = ["get_row_to_merge_features_uf", "get_row_to_merge_features_sf", "get_row_to_merge_uc_features",
-                "get_row_to_merge_sc_features", "get_row_to_merge_ac_features", "get_row_to_merge_us_features",
-                "get_row_to_merge_ss_features", "get_row_to_merge_as_features",
-                "get_row_to_merge_composer_features", "get_row_to_merge_lyrs_features",
+             "get_row_to_merge_sc_features", "get_row_to_merge_ac_features", "get_row_to_merge_us_features",
+             "get_row_to_merge_ss_features", "get_row_to_merge_as_features",
+             "get_row_to_merge_composer_features", "get_row_to_merge_lyrs_features",
              "get_row_to_merge_gs_features", "get_row_to_merge_cs_features", "get_row_to_merge_ages_features",
              "get_row_to_merge_ls_features", "get_row_to_merge_gender_features", "get_row_to_merge_sns_features",
              "get_row_to_merge_stabs_features", "get_row_to_merge_stypes_features", "get_row_to_merge_regs_features"]
 
-if args.costly_statements:
-    costly_statements = remote_funcs
-else:
-    costly_statements = ()
 
-
-@willump_execute(disable=args.disable, batch=True, costly_statements=costly_statements,
-                 eval_cascades=cascades, cascade_threshold=cascade_threshold)
+@willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K)
 def do_merge(combi):
     cluster_one_entry = combi[join_col_cluster_one].values
     cluster_one_row = get_row_to_merge_cluster_one(cluster_one_entry)
@@ -323,7 +316,7 @@ def do_merge(combi):
                        ss_row, as_row, gs_row, cs_row, ages_row, ls_row, gender_row, comps_row,
                        lyrs_row, snames_row, stabs_row, stypes_row, regs_row], axis=1)
     combi = combi[FEATURES]
-    preds = model.predict(combi)
+    preds = model.predict_proba(combi)[:, 1]
     return preds
 
 
@@ -332,7 +325,7 @@ def add_features_and_predict(folder, combi):
         ac_features, us_features, ss_features, as_features, gs_features, cs_features, ages_features, ls_features, \
         gender_features, composer_features, lyrs_features, sns_features, stabs_features, stypes_features, regs_features, \
         join_col_uf, join_col_sf, join_col_cluster_one, join_col_cluster_two, join_col_cluster_three, uc_join_col, \
-        sc_join_col, ac_join_col, us_col, ss_col, as_col, gs_col, cs_col, ages_col, ls_col, gender_col,\
+        sc_join_col, ac_join_col, us_col, ss_col, as_col, gs_col, cs_col, ages_col, ls_col, gender_col, \
         composer_col, lyrs_col, sns_col, stabs_col, stypes_col, regs_col
     features_uf, join_col_uf = load_als_dataframe(folder, size=UF_SIZE, user=True, artist=False)
     features_uf = features_uf.set_index(join_col_uf).astype("float64")
@@ -444,7 +437,18 @@ def create_featureset(folder):
     print("Valid AUC: %f" % roc_auc_score(y_valid, y_pred))
     print("Valid: Number of \"remote\" queries made: %d  Requests per row:  %f" %
           (num_queries, num_queries / len(y_pred)))
-    num_queries = 0
+
+    top_k_idx = np.argsort(y_pred)[-1 * top_K:]
+    top_k_values = [y_pred[i] for i in top_k_idx]
+    sum_values = 0
+
+    for idx, value in zip(top_k_idx, top_k_values):
+        print(idx, value)
+        sum_values += value
+
+    print("Sum of top %d values: %f" % (top_K, sum_values))
+    out_filename = "wsdm_top%d.pk" % top_K
+    pickle.dump(y_pred, open(out_filename, "wb"))
 
 
 if __name__ == '__main__':
