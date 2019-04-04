@@ -273,19 +273,19 @@ def main(debug=False):
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
     with timer("Process bureau and bureau_balance"):
-        bureau = bureau_and_balance(num_rows)
+        bureau = bureau_and_balance(None)
         print("Bureau df shape:", bureau.shape)
     with timer("Process previous_applications"):
-        prev = previous_applications(num_rows)
+        prev = previous_applications(None)
         print("Previous applications df shape:", prev.shape)
     with timer("Process POS-CASH balance"):
-        pos = pos_cash(num_rows)
+        pos = pos_cash(None)
         print("Pos-cash balance df shape:", pos.shape)
     with timer("Process installments payments"):
-        ins = installments_payments(num_rows)
+        ins = installments_payments(None)
         print("Installments payments df shape:", ins.shape)
     with timer("Process credit card balance"):
-        cc = credit_card_balance(num_rows)
+        cc = credit_card_balance(None)
         print("Credit card balance df shape:", cc.shape)
     bureau = bureau.reset_index().astype('float64')
     prev = prev.reset_index().astype('float64')

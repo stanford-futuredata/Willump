@@ -389,26 +389,26 @@ def add_features_and_predict(folder, combi):
     regs_features, regs_col = scol_features_eval(folder, 'registered_via', 'rv_')
     regs_features = regs_features.set_index("registered_via").astype("float64")
 
-    # remote_df_list = [
-    #     features_uf,
-    #     features_sf,
-    #     uc_features,
-    #     sc_features,
-    #     ac_features,
-    #     us_features,
-    #     ss_features,
-    #     as_features,
-    #     composer_features,
-    #     lyrs_features,
-    # ]
-    #
-    # for i, entry in enumerate(remote_df_list):
-    #     df = entry
-    #     for key in df.index:
-    #         value = df.loc[key]
-    #         ser_value = pickle.dumps(value)
-    #         redis_key = str(i) + "_" + str(key)
-    #         db.set(redis_key, ser_value)
+    remote_df_list = [
+        features_uf,
+        features_sf,
+        uc_features,
+        sc_features,
+        ac_features,
+        us_features,
+        ss_features,
+        as_features,
+        composer_features,
+        lyrs_features,
+    ]
+
+    for i, entry in enumerate(remote_df_list):
+        df = entry
+        for key in df.index:
+            value = df.loc[key]
+            ser_value = pickle.dumps(value)
+            redis_key = str(i) + "_" + str(key)
+            db.set(redis_key, ser_value)
 
     num_rows = len(combi)
     do_merge(combi.iloc[0:3].copy())
