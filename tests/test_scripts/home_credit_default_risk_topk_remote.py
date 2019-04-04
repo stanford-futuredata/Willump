@@ -199,7 +199,7 @@ def join_and_lgbm(df):
     return oof_preds_proba
 
 
-def main(debug=True):
+def main(debug=False):
     global bureau, prev, pos, ins, cc, clf, num_queries, bureau_nan, prev_nan, pos_nan, ins_nan, cc_nan, num_nan
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
@@ -229,13 +229,13 @@ def main(debug=True):
         cc,
     ]
 
-    # for i, remote_df in enumerate(remote_df_list):
-    #     remote_df = remote_df.set_index("SK_ID_CURR")
-    #     for key in remote_df.index:
-    #         value = remote_df.loc[key]
-    #         ser_value = pickle.dumps(value)
-    #         redis_key = str(i) + "_" + str(int(key))
-    #         db.set(redis_key, ser_value)
+    for i, remote_df in enumerate(remote_df_list):
+        remote_df = remote_df.set_index("SK_ID_CURR")
+        for key in remote_df.index:
+            value = remote_df.loc[key]
+            ser_value = pickle.dumps(value)
+            redis_key = str(i) + "_" + str(int(key))
+            db.set(redis_key, ser_value)
 
     num_queries = 0
     num_nan = 0

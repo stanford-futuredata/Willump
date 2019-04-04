@@ -18,6 +18,7 @@ from willump.graph.identity_node import IdentityNode
 from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
+from willump.graph.pandas_column_selection_node_python import PandasColumnSelectionNodePython
 from willump.graph.pandas_dataframe_concatenation_node import PandasDataframeConcatenationNode
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 from willump.graph.reshape_node import ReshapeNode
@@ -71,7 +72,7 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                                           output_name=new_output_name,
                                           output_type=node_output_type)
             typing_map[new_output_name] = node_output_type
-        elif isinstance(node, PandasColumnSelectionNode):
+        elif isinstance(node, PandasColumnSelectionNode) or isinstance(node, PandasColumnSelectionNodePython):
             node_input_nodes = node.get_in_nodes()
             new_input_nodes = [graph_from_input_sources_recursive(node_input_node) for
                                node_input_node in node_input_nodes]
@@ -108,12 +109,20 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                     assert (isinstance(orig_output_type, WeldSeriesPandas))
                     new_output_type = WeldSeriesPandas(elemType=orig_output_type.elemType,
                                                        column_names=new_selected_columns)
-                return_node = PandasColumnSelectionNode(input_nodes=new_input_nodes,
-                                                        input_names=new_input_names,
-                                                        output_name=new_output_name,
-                                                        input_types=new_input_types,
-                                                        selected_columns=new_selected_columns,
-                                                        output_type=new_output_type)
+                if isinstance(node, PandasColumnSelectionNode):
+                    return_node = PandasColumnSelectionNode(input_nodes=new_input_nodes,
+                                                            input_names=new_input_names,
+                                                            output_name=new_output_name,
+                                                            input_types=new_input_types,
+                                                            selected_columns=new_selected_columns,
+                                                            output_type=new_output_type)
+                else:
+                    return_node = PandasColumnSelectionNodePython(input_nodes=new_input_nodes,
+                                                            input_names=new_input_names,
+                                                            output_name=new_output_name,
+                                                            input_types=new_input_types,
+                                                            selected_columns=new_selected_columns,
+                                                            output_type=new_output_type)
                 typing_map[new_output_name] = return_node.get_output_type()
         elif isinstance(node, WillumpHashJoinNode):
             base_node = wg_passes.find_dataframe_base_node(node, base_discovery_dict)
@@ -279,7 +288,8 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
                 or isinstance(input_node, PandasSeriesConcatenationNode) or isinstance(input_node, IdentityNode) \
                 or isinstance(input_node, ReshapeNode) or isinstance(input_node, PandasToDenseMatrixNode) \
                 or isinstance(input_node, WillumpInputNode) or isinstance(input_node, TrainTestSplitNode) \
-                or isinstance(input_node, PandasDataframeConcatenationNode):
+                or isinstance(input_node, PandasDataframeConcatenationNode)\
+                or isinstance(input_node, PandasColumnSelectionNodePython):
             output_block.insert(0, input_node)
             current_node_stack += input_node.get_in_nodes()
         elif isinstance(input_node, WillumpHashJoinNode):

@@ -15,6 +15,7 @@ from willump.graph.keras_training_node import KerasTrainingNode
 from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.linear_training_node import LinearTrainingNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
+from willump.graph.pandas_column_selection_node_python import PandasColumnSelectionNodePython
 from willump.graph.pandas_dataframe_concatenation_node import PandasDataframeConcatenationNode
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 from willump.graph.pandas_series_to_dataframe_node import PandasSeriesToDataFrameNode
@@ -203,13 +204,23 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 output_type = self._type_map[output_var_name]
                 if (isinstance(input_var_type, WeldPandas) or isinstance(input_var_type, WeldSeriesPandas)) \
                         and isinstance(column_names, list):
-                    pandas_column_selection_node = \
-                        PandasColumnSelectionNode(input_nodes=[self._node_dict[input_var_name]],
-                                                  input_names=[input_var_name],
-                                                  output_name=output_var_name,
-                                                  input_types=[input_var_type],
-                                                  selected_columns=column_names,
-                                                  output_type=output_type)
+                    input_node = self._node_dict[input_var_name]
+                    if not isinstance(input_node, WillumpPythonNode):
+                        pandas_column_selection_node = \
+                            PandasColumnSelectionNode(input_nodes=[self._node_dict[input_var_name]],
+                                                      input_names=[input_var_name],
+                                                      output_name=output_var_name,
+                                                      input_types=[input_var_type],
+                                                      selected_columns=column_names,
+                                                      output_type=output_type)
+                    else:
+                        pandas_column_selection_node = \
+                            PandasColumnSelectionNodePython(input_nodes=[self._node_dict[input_var_name]],
+                                                      input_names=[input_var_name],
+                                                      output_name=output_var_name,
+                                                      input_types=[input_var_type],
+                                                      selected_columns=column_names,
+                                                      output_type=output_type)
                     return [output_var_name], pandas_column_selection_node
             elif isinstance(value.slice, ast.ExtSlice) and isinstance(value.value, ast.Call) and "predict_proba" \
                     in value.value.func.attr:

@@ -14,6 +14,7 @@ from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.identity_node import IdentityNode
 from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
+from willump.graph.pandas_column_selection_node_python import PandasColumnSelectionNodePython
 from willump.graph.pandas_dataframe_concatenation_node import PandasDataframeConcatenationNode
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
@@ -150,7 +151,8 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
                 current_node_stack.append(
                     (stacked_node, (stack_start_index, stack_start_index + output_width), curr_selection_map))
                 stack_start_index += output_width
-        elif isinstance(input_node, PandasColumnSelectionNode):
+        elif isinstance(input_node, PandasColumnSelectionNode) \
+                or isinstance(input_node, PandasColumnSelectionNodePython):
             selected_columns: List[str] = input_node.selected_columns
             assert (len(selected_columns) == index_end - index_start)
             selection_map: Mapping[str, int] = {col: index_start + i for i, col in enumerate(selected_columns)}
