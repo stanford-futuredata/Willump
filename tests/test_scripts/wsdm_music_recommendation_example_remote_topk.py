@@ -45,7 +45,8 @@ def get_row_to_merge_features_uf(keys):
     for ser_entry in serialized_result:
         pre_result.append(pickle.loads(ser_entry))
     result = pd.concat(pre_result, axis=1).T
-    return result.reset_index()
+    result = result.reset_index().drop("index", axis=1)
+    return result
 
 
 def get_row_to_merge_features_sf(keys):
@@ -60,7 +61,8 @@ def get_row_to_merge_features_sf(keys):
     for ser_entry in serialized_result:
         pre_result.append(pickle.loads(ser_entry))
     result = pd.concat(pre_result, axis=1).T
-    return result.reset_index()
+    result = result.reset_index().drop("index", axis=1)
+    return result
 
 
 def get_row_to_merge_cluster_one(keys):
@@ -90,7 +92,8 @@ def get_row_to_merge_us_features(keys):
     for ser_entry in serialized_result:
         pre_result.append(pickle.loads(ser_entry))
     result = pd.concat(pre_result, axis=1).T
-    return result.reset_index()
+    result = result.reset_index().drop("index", axis=1)
+    return result
 
 
 def get_row_to_merge_uc_features(keys):
@@ -105,7 +108,8 @@ def get_row_to_merge_uc_features(keys):
     for ser_entry in serialized_result:
         pre_result.append(pickle.loads(ser_entry))
     result = pd.concat(pre_result, axis=1).T
-    return result.reset_index()
+    result = result.reset_index().drop("index", axis=1)
+    return result
 
 
 def get_row_to_merge_ac_features(keys):
@@ -120,7 +124,8 @@ def get_row_to_merge_ac_features(keys):
     for ser_entry in serialized_result:
         pre_result.append(pickle.loads(ser_entry))
     result = pd.concat(pre_result, axis=1).T
-    return result.reset_index()
+    result = result.reset_index().drop("index", axis=1)
+    return result
 
 
 def get_row_to_merge_sc_features(keys):
@@ -135,7 +140,8 @@ def get_row_to_merge_sc_features(keys):
     for ser_entry in serialized_result:
         pre_result.append(pickle.loads(ser_entry))
     result = pd.concat(pre_result, axis=1).T
-    return result.reset_index()
+    result = result.reset_index().drop("index", axis=1)
+    return result
 
 
 def get_row_to_merge_ss_features(keys):
@@ -150,7 +156,8 @@ def get_row_to_merge_ss_features(keys):
     for ser_entry in serialized_result:
         pre_result.append(pickle.loads(ser_entry))
     result = pd.concat(pre_result, axis=1).T
-    return result.reset_index()
+    result = result.reset_index().drop("index", axis=1)
+    return result
 
 
 def get_row_to_merge_as_features(keys):
@@ -165,7 +172,8 @@ def get_row_to_merge_as_features(keys):
     for ser_entry in serialized_result:
         pre_result.append(pickle.loads(ser_entry))
     result = pd.concat(pre_result, axis=1).T
-    return result.reset_index()
+    result = result.reset_index().drop("index", axis=1)
+    return result
 
 
 def get_row_to_merge_gs_features(keys):
@@ -205,7 +213,8 @@ def get_row_to_merge_composer_features(keys):
     for ser_entry in serialized_result:
         pre_result.append(pickle.loads(ser_entry))
     result = pd.concat(pre_result, axis=1).T
-    return result.reset_index()
+    result = result.reset_index().drop("index", axis=1)
+    return result
 
 
 def get_row_to_merge_lyrs_features(keys):
@@ -220,7 +229,8 @@ def get_row_to_merge_lyrs_features(keys):
     for ser_entry in serialized_result:
         pre_result.append(pickle.loads(ser_entry))
     result = pd.concat(pre_result, axis=1).T
-    return result.reset_index()
+    result = result.reset_index().drop("index", axis=1)
+    return result
 
 
 def get_row_to_merge_sns_features(keys):
@@ -325,8 +335,9 @@ def add_features_and_predict(folder, combi):
         sc_join_col, ac_join_col, us_col, ss_col, as_col, gs_col, cs_col, ages_col, ls_col, gender_col,\
         composer_col, lyrs_col, sns_col, stabs_col, stypes_col, regs_col
     features_uf, join_col_uf = load_als_dataframe(folder, size=UF_SIZE, user=True, artist=False)
-    features_uf = features_uf.drop([join_col_uf], axis=1)
+    features_uf = features_uf.set_index(join_col_uf).astype("float64")
     features_sf, join_col_sf = load_als_dataframe(folder, size=SF_SIZE, user=False, artist=False)
+    features_sf = features_sf.set_index(join_col_sf).astype("float64")
     cluster_one, join_col_cluster_one = add_cluster(folder, col='msno', size=UC_SIZE, overlap=True, positive=True,
                                                     content=False)
     cluster_two, join_col_cluster_two = add_cluster(folder, col='song_id', size=SC_SIZE, overlap=True, positive=True,
@@ -335,55 +346,55 @@ def add_features_and_predict(folder, combi):
                                                         positive=True, content=False)
     # USER CLUSTER FEATURES
     uc_features, uc_join_col = scol_features_eval(folder, 'cluster_msno_' + str(UC_SIZE), 'uc_')
-    uc_features = uc_features.set_index("cluster_msno_25")
+    uc_features = uc_features.set_index("cluster_msno_25").astype("float64")
     # SONG CLUSTER FEATURES
     sc_features, sc_join_col = scol_features_eval(folder, 'cluster_song_id_' + str(SC_SIZE), 'sc_')
-    sc_features = sc_features.set_index("cluster_song_id_25")
+    sc_features = sc_features.set_index("cluster_song_id_25").astype("float64")
     # ARTIST CLUSTER FEATURES
     ac_features, ac_join_col = scol_features_eval(folder, 'cluster_artist_name_' + str(UC_SIZE), 'ac_')
-    ac_features = ac_features.set_index("cluster_artist_name_25")
+    ac_features = ac_features.set_index("cluster_artist_name_25").astype("float64")
     # USER FEATURES
     us_features, us_col = scol_features_eval(folder, 'msno', 'u_')
-    us_features = us_features.set_index("msno")
+    us_features = us_features.set_index("msno").astype("float64")
     # SONG FEATURES
     ss_features, ss_col = scol_features_eval(folder, 'song_id', 's_')
-    ss_features = ss_features.set_index("song_id")
+    ss_features = ss_features.set_index("song_id").astype("float64")
     # ARTIST FEATURES
     as_features, as_col = scol_features_eval(folder, 'artist_name', 'a_')
-    as_features = as_features.set_index("artist_name")
+    as_features = as_features.set_index("artist_name").astype("float64")
     # GENRE FEATURES
     gs_features, gs_col = scol_features_eval(folder, 'genre_max', 'gmax_')
-    gs_features = gs_features.set_index("genre_max")
+    gs_features = gs_features.set_index("genre_max").astype("float64")
     # CITY FEATURES
     cs_features, cs_col = scol_features_eval(folder, 'city', 'c_')
-    cs_features = cs_features.set_index("city")
+    cs_features = cs_features.set_index("city").astype("float64")
     # AGE FEATURES
     ages_features, ages_col = scol_features_eval(folder, 'bd', 'age_')
-    ages_features = ages_features.set_index("bd")
+    ages_features = ages_features.set_index("bd").astype("float64")
     # LANGUAGE FEATURES
     ls_features, ls_col = scol_features_eval(folder, 'language', 'lang_')
-    ls_features = ls_features.set_index("language")
+    ls_features = ls_features.set_index("language").astype("float64")
     # GENDER FEATURES
     gender_features, gender_col = scol_features_eval(folder, 'gender', 'gen_')
-    gender_features = gender_features.set_index("gender")
+    gender_features = gender_features.set_index("gender").astype("float64")
     # COMPOSER FEATURES
     composer_features, composer_col = scol_features_eval(folder, 'composer', 'comp_')
-    composer_features = composer_features.set_index("composer")
+    composer_features = composer_features.set_index("composer").astype("float64")
     # LYRICIST FEATURES
     lyrs_features, lyrs_col = scol_features_eval(folder, 'lyricist', 'ly_')
-    lyrs_features = lyrs_features.set_index("lyricist")
+    lyrs_features = lyrs_features.set_index("lyricist").astype("float64")
     # SOURCE NAME FEATURES
     sns_features, sns_col = scol_features_eval(folder, 'source_screen_name', 'sn_')
-    sns_features = sns_features.set_index("source_screen_name")
+    sns_features = sns_features.set_index("source_screen_name").astype("float64")
     # SOURCE TAB FEATURES
     stabs_features, stabs_col = scol_features_eval(folder, 'source_system_tab', 'sst_')
-    stabs_features = stabs_features.set_index("source_system_tab")
+    stabs_features = stabs_features.set_index("source_system_tab").astype("float64")
     # SOURCE TYPE FEATURES
     stypes_features, stypes_col = scol_features_eval(folder, 'source_type', 'st_')
-    stypes_features = stypes_features.set_index("source_type")
+    stypes_features = stypes_features.set_index("source_type").astype("float64")
     # SOURCE TYPE FEATURES
     regs_features, regs_col = scol_features_eval(folder, 'registered_via', 'rv_')
-    regs_features = regs_features.set_index("registered_via")
+    regs_features = regs_features.set_index("registered_via").astype("float64")
 
     # remote_df_list = [
     #     features_uf,
@@ -423,7 +434,7 @@ def add_features_and_predict(folder, combi):
 def create_featureset(folder):
     global num_queries
     combi = load_combi_prep(folder=folder, split=None)
-    combi = combi.dropna(subset=["target"])
+    combi = combi.dropna(subset=["target"]).astype("float64")
     y = combi["target"].values
     num_queries = 0
 
