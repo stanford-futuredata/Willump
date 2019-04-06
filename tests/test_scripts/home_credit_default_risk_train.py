@@ -248,7 +248,7 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, train_y):
     df = df.merge(cc, how='left', on='SK_ID_CURR')
     # LightGBM parameters found by Bayesian optimization
     clf = LGBMClassifier(
-        nthread=1,
+        n_jobs=1,
         n_estimators=10000,
         learning_rate=0.02,
         num_leaves=34,

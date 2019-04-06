@@ -70,6 +70,7 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
     train_data = train_data.fillna(0)
     if trees:
         model = LGBMClassifier(
+            n_jobs=1,
             learning_rate=0.1,
             num_leaves=(2 ** 8),
             max_depth=15,

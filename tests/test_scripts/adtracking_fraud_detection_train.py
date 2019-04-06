@@ -36,6 +36,7 @@ def process_input_and_train(input_df, train_y):
     input_df = input_df[predictors]
     # train_df, valid_df = train_test_split(input_df, test_size=0.1, shuffle=False)
     clf = LGBMClassifier(
+        n_jobs=1,
         boosting_type="gbdt",
         objective="binary",
         num_leaves=7,
