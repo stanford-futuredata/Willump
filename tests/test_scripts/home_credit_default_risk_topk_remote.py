@@ -179,7 +179,14 @@ def get_row_to_merge_features_cc(keys):
     return result
 
 
-@willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K)
+remote_funcs = ["get_row_to_merge_features_bureau",
+                "get_row_to_merge_features_prev",
+                "get_row_to_merge_features_pos",
+                "get_row_to_merge_features_ins",
+                "get_row_to_merge_features_cc"]
+
+
+@willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K, async_funcs=remote_funcs)
 def join_and_lgbm(df):
     join_entry_bureau = df['SK_ID_CURR'].values
     bureau_df = get_row_to_merge_features_bureau(join_entry_bureau)

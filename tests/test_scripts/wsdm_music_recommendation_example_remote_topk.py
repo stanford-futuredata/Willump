@@ -266,7 +266,7 @@ all_funcs = ["get_row_to_merge_features_uf", "get_row_to_merge_features_sf", "ge
              "get_row_to_merge_stabs_features", "get_row_to_merge_stypes_features", "get_row_to_merge_regs_features"]
 
 
-@willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K)
+@willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K, async_funcs=remote_funcs)
 def do_merge(combi):
     cluster_one_entry = combi[join_col_cluster_one].values
     cluster_one_row = get_row_to_merge_cluster_one(cluster_one_entry)

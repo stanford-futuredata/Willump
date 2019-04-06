@@ -312,11 +312,13 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
                 shorten_python_ast: ast.Module = \
                     ast.parse(shorten_python_code, "exec")
                 shorten_python_node = WillumpPythonNode(python_ast=shorten_python_ast.body[0],
-                                                        input_names=[input_node.get_output_names()[0],
+                                                        input_names=[input_node.get_in_names()[0],
                                                                      small_model_output_node.get_output_names()[0]],
-                                                        output_names=[], output_types=[],
+                                                        output_names=[input_node.get_in_names()[0]],
+                                                        output_types=input_node.get_in_nodes()[0].get_output_types(),
                                                         in_nodes=[input_node, small_model_output_node])
                 output_block.insert(0, shorten_python_node)
+                input_node._in_nodes = [shorten_python_node]
             if input_node.does_not_modify_data:
                 current_node_stack += input_node.get_in_nodes()
         else:
