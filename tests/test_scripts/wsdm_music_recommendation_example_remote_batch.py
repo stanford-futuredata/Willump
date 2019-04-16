@@ -319,7 +319,7 @@ def do_merge(combi):
                        ss_row, as_row, gs_row, cs_row, ages_row, ls_row, gender_row, comps_row,
                        lyrs_row, snames_row, stabs_row, stypes_row, regs_row], axis=1)
     combi = combi[FEATURES]
-    preds = model.predict_proba(combi)[:, 1]
+    preds = model.predict(combi)
     return preds
 
 
