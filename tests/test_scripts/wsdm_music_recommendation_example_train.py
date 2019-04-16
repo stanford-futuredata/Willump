@@ -44,9 +44,6 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
              as_col, gs_features, gs_col, cs_features, cs_col, ages_features, ages_col, ls_features, ls_col,
              gender_features, gender_col, comps_features, comps_col, lyrs_features, lyrs_col, snames_features,
              snames_col, stabs_features, stabs_col, stypes_features, stypes_col, regs_features, regs_col, y_train):
-    combi = combi.merge(cluster_one, how='left', on=join_col_cluster_one)
-    combi = combi.merge(cluster_two, how='left', on=join_col_cluster_two)
-    combi = combi.merge(cluster_three, how='left', on=join_col_cluster_three)
     combi = combi.merge(features_one, how='left', on=join_col_one)
     combi = combi.merge(features_two, how='left', on=join_col_two)
     combi = combi.merge(uc_features, how='left', on=uc_join_col)
@@ -167,6 +164,10 @@ def add_features_and_train_model(folder, combi):
     combi, _, y, _ = train_test_split(combi, y, test_size=0.33, random_state=42)
 
     num_rows = len(combi)
+
+    combi = combi.merge(cluster_one, how='left', on=join_col_cluster_one)
+    combi = combi.merge(cluster_two, how='left', on=join_col_cluster_two)
+    combi = combi.merge(cluster_three, how='left', on=join_col_cluster_three)
 
     start = time.time()
     model = do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,

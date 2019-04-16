@@ -348,31 +348,26 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, batch,
         node_cost: float = node.get_cost()
         if node.get_costly_node():
             node_cost *= 5
-        nodes_to_efficiencies[node] = sum_importance / node_cost
+        if node_cost > 0:
+            nodes_to_efficiencies[node] = sum_importance / node_cost
+        else:
+            nodes_to_efficiencies[node] = 10000000000
         total_cost += node_cost
     ranked_inputs = sorted(nodes_to_efficiencies.keys(), key=lambda x: nodes_to_efficiencies[x], reverse=True)
     current_cost = 0
-    current_importance = 0
     more_important_inputs = []
     for node in ranked_inputs:
-        if current_cost == 0:
-            average_efficiency = 0
-        else:
-            average_efficiency = current_importance / current_cost
-        node_efficiency = nodes_to_importances[node] / node.get_cost()
-        if node_efficiency < average_efficiency / 5:
-            break
         if current_cost + node.get_cost() <= more_important_cost_frac * total_cost:
             more_important_inputs.append(node)
-            if node.get_cost() > 0:
-                current_importance += nodes_to_importances[node]
-                current_cost += node.get_cost()
+            current_cost += node.get_cost()
     for node in ranked_inputs:
         # if batch is True and isinstance(node, WillumpPythonNode) and node not in more_important_inputs:
         #     more_important_inputs.append(node)
         if node.get_cost() == 0 and node not in more_important_inputs:
             more_important_inputs.append(node)
     less_important_inputs = [entry for entry in ranked_inputs if entry not in more_important_inputs]
+    print(more_important_inputs)
+    print(less_important_inputs)
     return more_important_inputs, less_important_inputs
 
 
