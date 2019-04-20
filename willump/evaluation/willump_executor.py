@@ -269,6 +269,121 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
 
     return willump_execute_inner
 
+disable=False
+batch=True
+num_workers=0
+async_funcs=()
+training_cascades=None
+eval_cascades=None
+cascade_threshold=1.0
+cached_funcs=()
+max_cache_size=None
+top_k=None
+costly_statements=()
+def willump_execute_inner(func: Callable) -> Callable:
+    from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
+    from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
+    from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
+    llvm_runner_func: str = "llvm_runner_func{0}".format(func.__name__)
+    if llvm_runner_func not in globals():
+        globals()[llvm_runner_func] = None
+
+    def wrapper(*args):
+        if globals()[llvm_runner_func] is None:
+            if llvm_runner_func not in willump_typing_map_set:
+                # On the first run of the function, instrument it to construct a map from variables
+                # in the function to their types at runtime.
+                willump_typing_map_set[llvm_runner_func] = {}
+                willump_static_vars_set[llvm_runner_func] = {}
+                python_source = inspect.getsource(func)
+                python_ast: ast.AST = ast.parse(python_source)
+                function_name: str = python_ast.body[0].name
+                type_discover: WillumpRuntimeTypeDiscovery = WillumpRuntimeTypeDiscovery()
+                # Create an instrumented AST that will fill willump_typing_map with the Weld types
+                # of all variables in the function.
+                new_ast: ast.AST = type_discover.visit(python_ast)
+                new_ast = ast.fix_missing_locations(new_ast)
+                local_namespace = {}
+                # Create namespaces the instrumented function can run in containing both its
+                # original globals and the ones the instrumentation needs.
+                augmented_globals = copy.copy(func.__globals__)
+                augmented_globals["willump_typing_map"] = willump_typing_map_set[llvm_runner_func]
+                augmented_globals["willump_static_vars"] = willump_static_vars_set[llvm_runner_func]
+                augmented_globals["py_var_to_weld_type"] = py_var_to_weld_type
+                # Run the instrumented function.
+                exec(compile(new_ast, filename="<ast>", mode="exec"), augmented_globals,
+                     local_namespace)
+                return local_namespace[function_name](*args)
+            else:
+                # With the types of variables all known, we can compile the function.  First,
+                # infer the Willump graph from the function's AST.
+                willump_typing_map: MutableMapping[str, WeldType] = \
+                    willump_typing_map_set[llvm_runner_func]
+                willump_static_vars: Mapping[str, object] = \
+                    willump_static_vars_set[llvm_runner_func]
+                python_source = inspect.getsource(func)
+                python_ast: ast.Module = ast.parse(python_source)
+                function_name: str = python_ast.body[0].name
+                graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars, async_funcs,
+                                                    cached_funcs, costly_statements)
+                graph_builder.visit(python_ast)
+                python_graph: WillumpGraph = graph_builder.get_willump_graph()
+                aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()
+                willump_cache_dict = {}
+                # Transform the Willump graph into blocks of Weld and Python code.  Compile the Weld blocks.
+                python_weld_program: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]] = \
+                    willump.evaluation.willump_weld_generator.graph_to_weld(graph=python_graph,
+                                                                            typing_map=willump_typing_map,
+                                                                            training_cascades=training_cascades,
+                                                                            eval_cascades=eval_cascades,
+                                                                            cascade_threshold=cascade_threshold,
+                                                                            aux_data=aux_data,
+                                                                            willump_cache_dict=willump_cache_dict,
+                                                                            max_cache_size=max_cache_size,
+                                                                            batch=batch, num_workers=num_workers,
+                                                                            top_k=top_k)
+                python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
+                                                                                         aux_data,
+                                                                                         willump_typing_map,
+                                                                                         num_workers=num_workers)
+                compiled_functiondef = py_weld_statements_to_ast(python_statement_list, python_ast)
+                import astor
+                print(astor.to_source(compiled_functiondef))
+                augmented_globals = copy.copy(func.__globals__)
+                # Import all of the compiled Weld blocks called from the transformed function.
+                for module in modules_to_import:
+                    augmented_globals[module] = importlib.import_module(module)
+                if eval_cascades is not None:
+                    augmented_globals[SMALL_MODEL_NAME] = eval_cascades["small_model"]
+                    augmented_globals[BIG_MODEL_NAME] = eval_cascades["big_model"]
+                augmented_globals["scipy"] = importlib.import_module("scipy")
+                augmented_globals["re"] = importlib.import_module("re")
+                augmented_globals["copy"] = importlib.import_module("copy")
+                augmented_globals[WILLUMP_CACHE_NAME] = willump_cache_dict
+                augmented_globals["willump_cache"] = willump_cache
+                augmented_globals["cascade_dense_stacker"] = cascade_dense_stacker
+                augmented_globals["csr_marshall"] = csr_marshall
+                augmented_globals["willump_duplicate_keras"] = willump_duplicate_keras
+                augmented_globals["cascade_df_shorten"] = cascade_df_shorten
+                augmented_globals[WILLUMP_TRAINING_CASCADE_NAME] = training_cascades
+                func.__globals__[WILLUMP_CACHE_NAME] = willump_cache_dict
+                if len(async_funcs) > 0:
+                    augmented_globals[WILLUMP_THREAD_POOL_EXECUTOR] = \
+                        concurrent.futures.ThreadPoolExecutor(max_workers=10)
+                local_namespace = {}
+                # Call the transformed function with its original arguments.
+                exec(compile(compiled_functiondef, filename="<ast>", mode="exec"), augmented_globals,
+                     local_namespace)
+                globals()[llvm_runner_func] = local_namespace[function_name]
+                return globals()[llvm_runner_func](*args)
+        else:
+            # Run the compiled function.
+            return globals()[llvm_runner_func](*args)
+    if disable is False:
+        return wrapper
+    else:
+        return func
+
 
 def execute_from_basics(graph: WillumpGraph, type_map, inputs: tuple, input_names, output_names, aux_data):
     """

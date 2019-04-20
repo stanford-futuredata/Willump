@@ -1,5 +1,7 @@
-#FROM clipper/python36-closure-container:0.3
-FROM python:3.6-slim-stretch
+FROM clipper/python36-closure-container:0.3
+#FROM python:3.6-slim-stretch
+
+WORKDIR "/"
 
 RUN mkdir -p /python-deps/Willump
 
@@ -37,5 +39,7 @@ ADD $WILLUMP_HOME/tests /python-deps/Willump/tests
 ADD $WILLUMP_HOME/willump /python-deps/Willump/willump
 ADD $WILLUMP_HOME/cppextensions /python-deps/Willump/cppextensions
 
-ENV PYTHONPATH=$PYTHONPATH:/python-deps/Willump
+ENV PYTHONPATH=$PYTHONPATH:/python-deps/Willump:/python-deps/Willump/build
 ENV WILLUMP_HOME=/python-deps/Willump
+
+WORKDIR /container

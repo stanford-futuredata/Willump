@@ -5,16 +5,18 @@ import json
 import pickle
 import signal
 import sys
+import cloudpickle
 import time
 from datetime import datetime
 
-import numpy as np
 import pandas as pd
 import requests
 import scipy.sparse
 from clipper_admin import ClipperConnection, DockerContainerManager
 from clipper_admin.deployers import python as python_deployer
 from sklearn.model_selection import train_test_split
+
+from willump.evaluation.willump_executor import willump_execute_inner
 
 base_path = "tests/test_resources/toxic_comment_classification/"
 parser = argparse.ArgumentParser()
@@ -56,7 +58,8 @@ def predict(addr, x, batch=False):
 
 
 def vectorizer_transform_caller(input_text):
-    preds = vectorizer_transform(input_text)
+    v2 = willump_execute_inner(vectorizer_transform)
+    preds = v2(input_text)
     return [str(pred) for pred in preds]
 
 
@@ -80,13 +83,23 @@ classifier = pickle.load(open(base_path + "model.pk", "rb"))
 word_vectorizer, char_vectorizer = pickle.load(open(base_path + "vectorizer.pk", "rb"))
 
 if __name__ == '__main__':
+
+    # bob = cloudpickle.dumps(vectorizer_transform_caller)
+    #
+    # newfunc = cloudpickle.loads(bob)
+    #
+    # print(newfunc(["you are a horrible, horrible person", "you are wonderful"]))
+    # print(newfunc(["you are a horrible, horrible person", "you are wonderful"]))
+    # print(newfunc(["you are a horrible, horrible person", "you are wonderful"]))
+
+
     signal.signal(signal.SIGINT, signal_handler)
     clipper_conn = ClipperConnection(DockerContainerManager())
     clipper_conn.start_clipper()
     clipper_conn.register_application("vectorizer-test", "strings", "default_pred", 1000000)
     python_deployer.deploy_python_closure(clipper_conn, name="vectorizer-model", version=1,
                                           input_type="strings", func=vectorizer_transform_caller,
-                                          pkgs_to_install=["sklearn", "scipy"])
+                                          base_image='custom-model-image')
     clipper_conn.link_model_to_app("vectorizer-test", "vectorizer-model")
     time.sleep(2)
 
@@ -97,10 +110,6 @@ if __name__ == '__main__':
     train_target = train[class_name]
     _, valid_text, _, valid_target = train_test_split(train_text, train_target, test_size=0.33, random_state=42)
     set_size = len(valid_text)
-
-    mini_text = valid_text[:2]
-    vectorizer_transform(mini_text)
-    vectorizer_transform(mini_text)
 
     i = 0
     try:
