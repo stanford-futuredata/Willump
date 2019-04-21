@@ -262,6 +262,7 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
             else:
                 # Run the compiled function.
                 return globals()[llvm_runner_func](*args)
+
         if disable is False:
             return wrapper
         else:
@@ -269,18 +270,19 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
 
     return willump_execute_inner
 
-disable=False
-batch=True
-num_workers=0
-async_funcs=()
-training_cascades=None
-eval_cascades=None
-cascade_threshold=1.0
-cached_funcs=()
-max_cache_size=None
-top_k=None
-costly_statements=()
-def willump_execute_inner(func: Callable, funcsource: str) -> Callable:
+
+disable = False
+batch = True
+num_workers = 0
+async_funcs = ()
+training_cascades = None
+cached_funcs = ()
+max_cache_size = None
+top_k = None
+costly_statements = ()
+
+
+def willump_execute_inner(func: Callable, funcsource: str, eval_cascades=None, cascade_threshold=1.0) -> Callable:
     from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
     from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
     from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
@@ -379,6 +381,7 @@ def willump_execute_inner(func: Callable, funcsource: str) -> Callable:
         else:
             # Run the compiled function.
             return globals()[llvm_runner_func](*args)
+
     if disable is False:
         return wrapper
     else:
