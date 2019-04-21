@@ -59,6 +59,7 @@ def predict(addr, x, batch=False):
 
 
 def vectorizer_transform_caller(input_text):
+    input_text = [str(x) for x in input_text]
     v2 = willump_execute_inner(vectorizer_transform, vt_source)
     preds = v2(input_text)
     return [str(pred) for pred in preds]
