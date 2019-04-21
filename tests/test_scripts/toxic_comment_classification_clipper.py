@@ -30,7 +30,7 @@ if args.cascades is None:
     cascade_threshold = 1.0
 else:
     assert (0.5 <= args.cascades <= 1.0)
-    assert(not args.disable)
+    assert (not args.disable)
     cascades = pickle.load(open(base_path + "training_cascades.pk", "rb"))
     cascade_threshold = args.cascades
 
@@ -44,10 +44,10 @@ def predict(addr, x, batch=False):
     url = "http://%s/vectorizer-test/predict" % addr
 
     if batch:
-        print(x)
+        # print(x)
         req_json = json.dumps({'input_batch': x})
     else:
-        print(x)
+        # print(x)
         req_json = json.dumps({'input': x})
 
     headers = {'Content-type': 'application/json'}
@@ -58,10 +58,16 @@ def predict(addr, x, batch=False):
     print("'%s', %f ms" % (r.text, latency))
 
 
-def vectorizer_transform_caller(input_text):
+def willump_vectorizer_transform_caller(input_text):
     input_text = [str(x) for x in input_text]
     v2 = willump_execute_inner(vectorizer_transform, vt_source)
     preds = v2(input_text)
+    return [str(pred) for pred in preds]
+
+
+def python_vectorizer_transform_caller(input_text):
+    input_text = [str(x) for x in input_text]
+    preds = vectorizer_transform(input_text)
     return [str(pred) for pred in preds]
 
 
@@ -72,7 +78,9 @@ def vectorizer_transform(input_text):
     preds = classifier.predict(combined_features)
     return preds
 
+
 vt_source = inspect.getsource(vectorizer_transform)
+
 
 # Stop Clipper on Ctrl-C
 def signal_handler(signal, frame):
@@ -81,25 +89,23 @@ def signal_handler(signal, frame):
     clipper_conn.stop_all()
     sys.exit(0)
 
-def negative_string_length(xs):
-    return [-1 * len(x) for x in xs]
-
 
 classifier = pickle.load(open(base_path + "model.pk", "rb"))
 word_vectorizer, char_vectorizer = pickle.load(open(base_path + "vectorizer.pk", "rb"))
 
 if __name__ == '__main__':
 
-    cloudpickle.dump(vectorizer_transform_caller, open("pickled_vectorizer.pk", "wb"))
-
-    thing_to_use = cloudpickle.load(open("pickled_vectorizer.pk", "rb"))
+    if args.disable:
+        func_to_use = python_vectorizer_transform_caller
+    else:
+        func_to_use = willump_vectorizer_transform_caller
 
     signal.signal(signal.SIGINT, signal_handler)
     clipper_conn = ClipperConnection(DockerContainerManager())
     clipper_conn.start_clipper()
     clipper_conn.register_application("vectorizer-test", "strings", "default_pred", 15000000)
     python_deployer.deploy_python_closure(clipper_conn, name="vectorizer-model", version=1,
-                                          input_type="strings", func=thing_to_use,
+                                          input_type="strings", func=func_to_use,
                                           base_image='custom-model-image')
     clipper_conn.link_model_to_app("vectorizer-test", "vectorizer-model")
     time.sleep(2)
@@ -118,7 +124,7 @@ if __name__ == '__main__':
             if batch_size > 1:
                 predict(
                     clipper_conn.get_query_addr(),
-                    valid_text[i:i+batch_size],
+                    valid_text[i:i + batch_size],
                     batch=True)
             else:
                 predict(clipper_conn.get_query_addr(), valid_text[i])
