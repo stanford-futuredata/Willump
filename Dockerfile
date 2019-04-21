@@ -38,8 +38,9 @@ RUN cp weld-willump/target/release/libweld.so /usr/lib/libweld.so
 ADD $WILLUMP_HOME/tests /python-deps/Willump/tests
 ADD $WILLUMP_HOME/willump /python-deps/Willump/willump
 ADD $WILLUMP_HOME/cppextensions /python-deps/Willump/cppextensions
+ADD $WILLUMP_HOME/pickled_vectorizer.pk /pickled_vectorizer.pk
 
-ENV PYTHONPATH=$PYTHONPATH:/python-deps/Willump:/python-deps/Willump/build
+ENV PYTHONPATH=$PYTHONPATH:/python-deps/Willump
 ENV WILLUMP_HOME=/python-deps/Willump
 
 WORKDIR /container

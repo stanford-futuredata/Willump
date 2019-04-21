@@ -84,19 +84,12 @@ word_vectorizer, char_vectorizer = pickle.load(open(base_path + "vectorizer.pk",
 
 if __name__ == '__main__':
 
-    # bob = cloudpickle.dumps(vectorizer_transform_caller)
-    #
-    # newfunc = cloudpickle.loads(bob)
-    #
-    # print(newfunc(["you are a horrible, horrible person", "you are wonderful"]))
-    # print(newfunc(["you are a horrible, horrible person", "you are wonderful"]))
-    # print(newfunc(["you are a horrible, horrible person", "you are wonderful"]))
-
+    cloudpickle.dump(vectorizer_transform_caller, open("pickled_vectorizer.pk", "wb"))
 
     signal.signal(signal.SIGINT, signal_handler)
     clipper_conn = ClipperConnection(DockerContainerManager())
     clipper_conn.start_clipper()
-    clipper_conn.register_application("vectorizer-test", "strings", "default_pred", 1000000)
+    clipper_conn.register_application("vectorizer-test", "strings", "default_pred", 15000000)
     python_deployer.deploy_python_closure(clipper_conn, name="vectorizer-model", version=1,
                                           input_type="strings", func=vectorizer_transform_caller,
                                           base_image='custom-model-image')
