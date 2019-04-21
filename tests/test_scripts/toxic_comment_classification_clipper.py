@@ -7,6 +7,7 @@ import signal
 import sys
 import cloudpickle
 import time
+import inspect
 from datetime import datetime
 
 import pandas as pd
@@ -58,7 +59,7 @@ def predict(addr, x, batch=False):
 
 
 def vectorizer_transform_caller(input_text):
-    v2 = willump_execute_inner(vectorizer_transform)
+    v2 = willump_execute_inner(vectorizer_transform, vt_source)
     preds = v2(input_text)
     return [str(pred) for pred in preds]
 
@@ -70,6 +71,7 @@ def vectorizer_transform(input_text):
     preds = classifier.predict(combined_features)
     return preds
 
+vt_source = inspect.getsource(vectorizer_transform)
 
 # Stop Clipper on Ctrl-C
 def signal_handler(signal, frame):
@@ -77,6 +79,9 @@ def signal_handler(signal, frame):
     clipper_conn = ClipperConnection(DockerContainerManager())
     clipper_conn.stop_all()
     sys.exit(0)
+
+def negative_string_length(xs):
+    return [-1 * len(x) for x in xs]
 
 
 classifier = pickle.load(open(base_path + "model.pk", "rb"))
@@ -86,12 +91,14 @@ if __name__ == '__main__':
 
     cloudpickle.dump(vectorizer_transform_caller, open("pickled_vectorizer.pk", "wb"))
 
+    thing_to_use = cloudpickle.load(open("pickled_vectorizer.pk", "rb"))
+
     signal.signal(signal.SIGINT, signal_handler)
     clipper_conn = ClipperConnection(DockerContainerManager())
     clipper_conn.start_clipper()
     clipper_conn.register_application("vectorizer-test", "strings", "default_pred", 15000000)
     python_deployer.deploy_python_closure(clipper_conn, name="vectorizer-model", version=1,
-                                          input_type="strings", func=vectorizer_transform_caller,
+                                          input_type="strings", func=thing_to_use,
                                           base_image='custom-model-image')
     clipper_conn.link_model_to_app("vectorizer-test", "vectorizer-model")
     time.sleep(2)

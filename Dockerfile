@@ -44,3 +44,4 @@ ENV PYTHONPATH=$PYTHONPATH:/python-deps/Willump
 ENV WILLUMP_HOME=/python-deps/Willump
 
 WORKDIR /container
+#ADD python_closure_container.py .

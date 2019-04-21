@@ -280,7 +280,7 @@ cached_funcs=()
 max_cache_size=None
 top_k=None
 costly_statements=()
-def willump_execute_inner(func: Callable) -> Callable:
+def willump_execute_inner(func: Callable, funcsource: str) -> Callable:
     from willump.evaluation.willump_graph_builder import WillumpGraphBuilder
     from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
     from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
@@ -295,7 +295,7 @@ def willump_execute_inner(func: Callable) -> Callable:
                 # in the function to their types at runtime.
                 willump_typing_map_set[llvm_runner_func] = {}
                 willump_static_vars_set[llvm_runner_func] = {}
-                python_source = inspect.getsource(func)
+                python_source = funcsource
                 python_ast: ast.AST = ast.parse(python_source)
                 function_name: str = python_ast.body[0].name
                 type_discover: WillumpRuntimeTypeDiscovery = WillumpRuntimeTypeDiscovery()
@@ -321,7 +321,7 @@ def willump_execute_inner(func: Callable) -> Callable:
                     willump_typing_map_set[llvm_runner_func]
                 willump_static_vars: Mapping[str, object] = \
                     willump_static_vars_set[llvm_runner_func]
-                python_source = inspect.getsource(func)
+                python_source = funcsource
                 python_ast: ast.Module = ast.parse(python_source)
                 function_name: str = python_ast.body[0].name
                 graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars, async_funcs,
