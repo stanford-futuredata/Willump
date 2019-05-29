@@ -1,15 +1,15 @@
 # Willump
 
-**Willump is under active development!  Please report any bugs or unusual behavior to [willump-group@cs.stanford.edu](mailto:willump-group@cs.stanford.edu).**
+**Willump is unstable and under active development!  Please report any bugs or unusual behavior to [willump-group@cs.stanford.edu](mailto:willump-group@cs.stanford.edu).**
 
-Willump is a compiler for model serving.  It speeds up model serving pipelines written
+Willump is an optimizer for machine learning inference.  It speeds up ML inference pipelines written
 in Python using Numpy and Pandas.  To speed up a function using Willump, simply
 wrap it in the Willump decorator: 
 
-    import willump.evaluation.willump_executor
+    from willump.evaluation.willump_executor import willump_execute
     
     
-    @willump.evaluation.willump_executor.willump_execute()
+    @willump_execute()
     def make_me_faster(...):
     
 To install Willump, first install the llvm-st branch of our Weld fork, weld-willump.
