@@ -26,7 +26,7 @@ class ArrayTfIdfNode(WillumpGraphNode):
 
     def __init__(self, input_node: WillumpGraphNode, input_name: str, output_name: str,
                  input_vocab_dict: Mapping[str, int], input_idf_vector, aux_data: List[Tuple[int, WeldType]],
-                 ngram_range: Tuple[int, int], analyzer: str = "char") -> None:
+                 ngram_range: Tuple[int, int], analyzer: str = "char", cost: float = 0) -> None:
         """
         Initialize the node, appending a new entry to aux_data in the process.
         """
@@ -44,14 +44,12 @@ class ArrayTfIdfNode(WillumpGraphNode):
         self._input_names = [input_name, self._vocab_dict_name, self._idf_vector_name]
         self._min_gram, self._max_gram = ngram_range
         self._analyzer = analyzer
+        self._cost = cost
         for entry in self._process_aux_data(vocabulary_list, input_idf_vector):
             aux_data.append(entry)
 
     def get_cost(self) -> float:
-        if self._analyzer == "char":
-            return 3 * (self._max_gram - self._min_gram + 1)
-        else:
-            return self._max_gram - self._min_gram + 1
+        return self._cost
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._input_nodes

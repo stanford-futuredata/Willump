@@ -215,8 +215,8 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
                     python_source = inspect.getsource(func)
                     python_ast: ast.Module = ast.parse(python_source)
                     function_name: str = python_ast.body[0].name
-                    graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars, async_funcs,
-                                                        cached_funcs, costly_statements)
+                    graph_builder = WillumpGraphBuilder(willump_typing_map, willump_static_vars, willump_timing_map,
+                                                        async_funcs, cached_funcs, costly_statements)
                     graph_builder.visit(python_ast)
                     python_graph: WillumpGraph = graph_builder.get_willump_graph()
                     aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()

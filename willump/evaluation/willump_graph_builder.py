@@ -57,11 +57,14 @@ class WillumpGraphBuilder(ast.NodeVisitor):
     _async_funcs: List[str]
 
     def __init__(self, type_map: MutableMapping[str, WeldType],
-                 static_vars: Mapping[str, object], async_funcs: List[str], cached_funcs: List[str],
+                 static_vars: Mapping[str, object],
+                 timing_map: Mapping[str, float],
+                 async_funcs: List[str], cached_funcs: List[str],
                  costly_statements: List[str]) -> None:
         self._node_dict = {}
         self._type_map = type_map
         self._static_vars = static_vars
+        self._timing_map = timing_map
         self.arg_list = []
         self.aux_data = []
         self._temp_var_counter = 0
@@ -304,7 +307,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         input_idf_vector=idf_vector,
                         input_vocab_dict=vocab_dict, aux_data=self.aux_data,
                         analyzer=analyzer,
-                        ngram_range=vectorizer_ngram_range
+                        ngram_range=vectorizer_ngram_range,
+                        cost=self._timing_map[node.lineno]
                     )
                     tfidf_node.set_costly_node(is_costly_node)
                     return [output_var_name], tfidf_node
@@ -315,7 +319,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                         input_name=preprocessed_input_name,
                         output_name=output_var_name,
                         input_vocab_dict=vocab_dict, aux_data=self.aux_data,
-                        ngram_range=vectorizer_ngram_range
+                        ngram_range=vectorizer_ngram_range,
+                        cost=self._timing_map[node.lineno]
                     )
                     array_cv_node.set_costly_node(is_costly_node)
                     return [output_var_name], array_cv_node
