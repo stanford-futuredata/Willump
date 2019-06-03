@@ -82,10 +82,6 @@ def compile_weld_program(weld_programs: typing.Union[str, List[str]], type_map: 
     return "{0}{1}".format(base_filename, version_number - 1)
 
 
-willump_typing_map_set: MutableMapping[str, MutableMapping[str, WeldType]] = {}
-willump_static_vars_set: MutableMapping[str, object] = {}
-
-
 def py_weld_program_to_statements(
         python_weld_program: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]],
         aux_data: List[Tuple[int, WeldType]], type_map: MutableMapping[str, WeldType],
@@ -156,6 +152,11 @@ def py_weld_statements_to_ast(py_weld_statements: List[ast.AST],
     return new_functiondef
 
 
+willump_typing_map_set: MutableMapping[str, MutableMapping[str, WeldType]] = {}
+willump_static_vars_set: MutableMapping[str, object] = {}
+willump_timing_map_set: MutableMapping[str, MutableMapping[str, float]] = {}
+
+
 def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), training_cascades=None,
                     eval_cascades=None, cascade_threshold=1.0, cached_funcs=(), max_cache_size=None, top_k=None,
                     costly_statements=()) \
@@ -178,6 +179,7 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
                     # in the function to their types at runtime.
                     willump_typing_map_set[llvm_runner_func] = {}
                     willump_static_vars_set[llvm_runner_func] = {}
+                    willump_timing_map_set[llvm_runner_func] = {}
                     python_source = inspect.getsource(func)
                     python_ast: ast.AST = ast.parse(python_source)
                     function_name: str = python_ast.body[0].name
@@ -186,13 +188,17 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
                     # of all variables in the function.
                     new_ast: ast.AST = type_discover.visit(python_ast)
                     new_ast = ast.fix_missing_locations(new_ast)
+                    # import astor
+                    # print(astor.to_source(new_ast))
                     local_namespace = {}
                     # Create namespaces the instrumented function can run in containing both its
                     # original globals and the ones the instrumentation needs.
                     augmented_globals = copy.copy(func.__globals__)
                     augmented_globals["willump_typing_map"] = willump_typing_map_set[llvm_runner_func]
                     augmented_globals["willump_static_vars"] = willump_static_vars_set[llvm_runner_func]
+                    augmented_globals["willump_timing_map"] = willump_timing_map_set[llvm_runner_func]
                     augmented_globals["py_var_to_weld_type"] = py_var_to_weld_type
+                    augmented_globals["time"] = importlib.import_module("time")
                     # Run the instrumented function.
                     exec(compile(new_ast, filename="<ast>", mode="exec"), augmented_globals,
                          local_namespace)
@@ -204,6 +210,8 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
                         willump_typing_map_set[llvm_runner_func]
                     willump_static_vars: Mapping[str, object] = \
                         willump_static_vars_set[llvm_runner_func]
+                    willump_timing_map: Mapping[str, float] = \
+                        willump_timing_map_set[llvm_runner_func]
                     python_source = inspect.getsource(func)
                     python_ast: ast.Module = ast.parse(python_source)
                     function_name: str = python_ast.body[0].name
@@ -262,6 +270,7 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
             else:
                 # Run the compiled function.
                 return globals()[llvm_runner_func](*args)
+
         if disable is False:
             return wrapper
         else:

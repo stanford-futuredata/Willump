@@ -1,6 +1,7 @@
 import unittest
 import numpy
 import ast
+import time
 
 from willump.evaluation.willump_runtime_type_discovery import WillumpRuntimeTypeDiscovery
 from willump.evaluation.willump_runtime_type_discovery import py_var_to_weld_type
@@ -37,13 +38,16 @@ basic_string_splitting("a b c")
 """
 
 willump_typing_map: Mapping[str, WeldType]
+willump_timing_map: Mapping[str, float]
 
 
 class RuntimeTypeDiscoveryTests(unittest.TestCase):
 
     def setUp(self):
         global willump_typing_map
+        global willump_timing_map
         willump_typing_map = {}
+        willump_timing_map = {}
 
     def test_basic_type_discovery(self):
         print("\ntest_basic_type_discovery")

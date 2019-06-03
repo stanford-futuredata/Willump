@@ -28,8 +28,21 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
         new_body: List[ast.stmt] = []
         for body_entry in body:
             if isinstance(body_entry, ast.Assign):
+                # Timing start code
+                timing_start_code: str = \
+                    """t0 = time.time()\n"""
+                timing_start_ast: ast.Module = ast.parse(timing_start_code, "exec")
+                timing_start_statement: List[ast.stmt] = timing_start_ast.body
+                new_body = new_body + timing_start_statement
                 # Type all variables as they are assigned.
                 new_body.append(body_entry)
+                # Timing end code
+                timing_end_code: str = \
+                    """willump_timing_map[%d] = time.time() - t0\n""" % body_entry.lineno
+                timing_end_ast: ast.Module = ast.parse(timing_end_code, "exec")
+                timing_end_statement: List[ast.stmt] = timing_end_ast.body
+                new_body = new_body + timing_end_statement
+                # Typing code
                 assert (len(body_entry.targets) == 1)  # Assume assignment to only one variable.
                 target: ast.expr = body_entry.targets[0]
                 target_type_statement: List[ast.stmt] = self._analyze_target_type(target)
@@ -44,8 +57,9 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
         new_node = copy.deepcopy(node)
+        self.generic_visit(new_node)
         new_body: List[ast.stmt] = []
-        for i, arg in enumerate(node.args.args):
+        for i, arg in enumerate(new_node.args.args):
             # First, type the arguments.
             argument_name: str = arg.arg
             argument_instrumentation_code: str = \
@@ -54,38 +68,37 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             instrumentation_ast: ast.Module = ast.parse(argument_instrumentation_code, "exec")
             instrumentation_statements: List[ast.stmt] = instrumentation_ast.body
             new_body = new_body + instrumentation_statements
-        new_body += self.process_body(node.body)
+        new_body += self.process_body(new_node.body)
         new_node.body = new_body
         # No recursion allowed!
         new_node.decorator_list = []
-        self.generic_visit(new_node)
         return ast.copy_location(new_node, node)
 
     def visit_For(self, node: ast.For):
         new_node = copy.deepcopy(node)
-        new_node.body = self.process_body(node.body)
-        new_node.orelse = self.process_body(node.orelse)
         self.generic_visit(new_node)
+        new_node.body = self.process_body(new_node.body)
+        new_node.orelse = self.process_body(new_node.orelse)
         return ast.copy_location(new_node, node)
 
     def visit_If(self, node: ast.If):
         new_node = copy.deepcopy(node)
-        new_node.body = self.process_body(node.body)
-        new_node.orelse = self.process_body(node.orelse)
         self.generic_visit(new_node)
+        new_node.body = self.process_body(new_node.body)
+        new_node.orelse = self.process_body(new_node.orelse)
         return ast.copy_location(new_node, node)
 
     def visit_While(self, node: ast.While):
         new_node = copy.deepcopy(node)
-        new_node.body = self.process_body(node.body)
-        new_node.orelse = self.process_body(node.orelse)
         self.generic_visit(new_node)
+        new_node.body = self.process_body(new_node.body)
+        new_node.orelse = self.process_body(new_node.orelse)
         return ast.copy_location(new_node, node)
 
     def visit_With(self, node: ast.With):
         new_node = copy.deepcopy(node)
-        new_node.body = self.process_body(node.body)
         self.generic_visit(new_node)
+        new_node.body = self.process_body(new_node.body)
         return ast.copy_location(new_node, node)
 
     @staticmethod
