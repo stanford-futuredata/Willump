@@ -1,12 +1,14 @@
-import pandas as pd
-import pickle
-
-import time
-from sklearn.metrics import roc_auc_score
-import scipy.sparse
-from sklearn.model_selection import train_test_split
-from willump.evaluation.willump_executor import willump_execute
 import argparse
+import pickle
+import time
+
+import pandas as pd
+import scipy.sparse
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import train_test_split
+
+from toxic_comment_classification_utils import willump_predict_function, willump_predict_proba_function
+from willump.evaluation.willump_executor import willump_execute
 
 class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 base_path = "tests/test_resources/toxic_comment_classification/"
@@ -29,7 +31,7 @@ def vectorizer_transform(input_text, word_vect, char_vect):
     word_features = word_vect.transform(input_text)
     char_features = char_vect.transform(input_text)
     combined_features = scipy.sparse.hstack([word_features, char_features], format="csr")
-    preds = classifier.predict(combined_features)
+    preds = willump_predict_function(classifier, combined_features)
     return preds
 
 

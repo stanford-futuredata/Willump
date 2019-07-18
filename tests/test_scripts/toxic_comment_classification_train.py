@@ -1,15 +1,16 @@
 # Original Source:  https://www.kaggle.com/tunguz/logistic-regression-with-words-and-char-n-grams
 
+import argparse
 import gc
-import pandas as pd
 import pickle
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
+import pandas as pd
 import scipy.sparse
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
+
+from toxic_comment_classification_utils import willump_train_function
 from willump.evaluation.willump_executor import willump_execute
-import argparse
 
 class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 base_path = "tests/test_resources/toxic_comment_classification/"
@@ -31,8 +32,7 @@ def vectorizer_transform(input_text, word_vect, char_vect, train_target):
     word_features = word_vect.transform(input_text)
     char_features = char_vect.transform(input_text)
     combined_features = scipy.sparse.hstack([word_features, char_features], format="csr")
-    clf = LogisticRegression(C=0.1, solver='sag')
-    clf = clf.fit(combined_features, train_target)
+    clf = willump_train_function(combined_features, train_target)
     return clf
 
 
