@@ -12,7 +12,6 @@ from willump.graph.cascade_point_early_exit_node import CascadePointEarlyExitNod
 from willump.graph.combine_linear_regression_node import CombineLinearRegressionNode
 from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.identity_node import IdentityNode
-from willump.graph.linear_regression_node import LinearRegressionNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.pandas_column_selection_node_python import PandasColumnSelectionNodePython
 from willump.graph.pandas_dataframe_concatenation_node import PandasDataframeConcatenationNode
@@ -20,7 +19,6 @@ from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatena
 from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.reshape_node import ReshapeNode
 from willump.graph.stack_sparse_node import StackSparseNode
-from willump.graph.train_test_split_node import TrainTestSplitNode
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
@@ -187,7 +185,7 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
             else:
                 model_inputs[join_left_input] = next_map
         elif isinstance(input_node, IdentityNode) or isinstance(input_node, ReshapeNode) \
-                or isinstance(input_node, PandasToDenseMatrixNode) or isinstance(input_node, TrainTestSplitNode):
+                or isinstance(input_node, PandasToDenseMatrixNode):
             node_input_node = input_node.get_in_nodes()[0]
             current_node_stack.append((node_input_node, (index_start, index_end), curr_selection_map))
         elif isinstance(input_node, WillumpInputNode) or isinstance(input_node, WillumpPythonNode):
@@ -199,90 +197,6 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
             panic("Unrecognized node found when processing model inputs %s" % input_node.__repr__())
     model_node.set_model_inputs(model_inputs)
     return
-
-
-def pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map) -> List[WillumpGraphNode]:
-    """
-    Optimization pass that pushes a linear model into its input nodes in a block when possible.  Assumes block contains
-    at most one model node, which must be the last node in the block.
-
-    # TODO:  Support more classes of models.
-    """
-
-    def node_is_transformable(node):
-        """
-        This node can be freely transformed.
-        """
-        return node in weld_block_node_list and not \
-            any(output_name in weld_block_output_set for output_name in node.get_output_names())
-
-    nodes_to_base_map = {}
-    model_node = weld_block_node_list[-1]
-    if (not isinstance(model_node, LinearRegressionNode)) or model_node.predict_proba or \
-            any(isinstance(w_node, WillumpHashJoinNode) for w_node in weld_block_node_list):
-        return weld_block_node_list
-    model_inputs: Mapping[WillumpGraphNode, Union[Tuple[int, int], Mapping[str, int]]] = model_node.get_model_inputs()
-    # A stack containing the next nodes we want to push the model through.
-    current_node_stack: List[WillumpGraphNode] = model_node.get_in_nodes()
-    # Nodes through which the model has been pushed which are providing output.
-    nodes_to_sum: List[WillumpGraphNode] = []
-    while len(current_node_stack) > 0:
-        input_node = current_node_stack.pop()
-        if node_is_transformable(input_node):
-            if isinstance(input_node, ArrayCountVectorizerNode) or isinstance(input_node, ArrayTfIdfNode):
-                index_start, _ = model_inputs[input_node]
-                input_node.push_model("linear", (model_node.weights_data_name,), index_start)
-                # Set that node's output's new type.
-                typing_map[input_node.get_output_name()] = WeldVec(WeldDouble())
-                nodes_to_sum.append(input_node)
-            elif isinstance(input_node, StackSparseNode):
-                if all(node_is_transformable(stacked_node) for stacked_node in input_node.get_in_nodes()):
-                    for stacked_node in input_node.get_in_nodes():
-                        current_node_stack.append(stacked_node)
-                    weld_block_node_list.remove(input_node)
-                else:
-                    index_start = 0  # TODO:  Update
-                    input_node.push_model("linear", (model_node.weights_data_name,), index_start)
-                    # Set that node's output's new type.
-                    typing_map[input_node.get_output_name()] = WeldVec(WeldDouble())
-                    nodes_to_sum.append(input_node)
-            # elif isinstance(input_node, PandasColumnSelectionNode):
-            #     selection_input = input_node.get_in_nodes()[0]
-            #     if node_is_transformable(selection_input):
-            #         current_node_stack.append(selection_input)
-            #         weld_block_node_list.remove(input_node)
-            #     else:
-            #         selection_map: Mapping[str, int] = model_inputs[input_node]
-            #         assert (isinstance(selection_map, Mapping))
-            #         input_node.push_model("linear", (model_node.weights_data_name,), selection_map)
-            #         typing_map[input_node.get_output_name()] = WeldVec(WeldDouble())
-            #         nodes_to_sum.append(input_node)
-            # elif isinstance(input_node, WillumpHashJoinNode):
-            #     join_left_input_node = input_node.get_in_nodes()[0]
-            #     if join_left_input_node in model_inputs:
-            #         current_node_stack.append(join_left_input_node)
-            #     pushed_map: Mapping[str, int] = model_inputs[input_node]
-            #     if len(pushed_map) > 0:
-            #         assert (isinstance(pushed_map, Mapping))
-            #         base_node = find_dataframe_base_node(input_node, nodes_to_base_map)
-            #         input_node.left_input_name = base_node.left_input_name
-            #         input_node.push_model("linear", (model_node.weights_data_name,), pushed_map)
-            #         # Set that node's output's new type.
-            #         typing_map[input_node.get_output_name()] = WeldVec(WeldDouble())
-            #         nodes_to_sum.append(input_node)
-            #     else:
-            #         weld_block_node_list.remove(input_node)
-            elif isinstance(input_node, IdentityNode):
-                current_node_stack.append(input_node.get_in_nodes()[0])
-                weld_block_node_list.remove(input_node)
-    if len(nodes_to_sum) > 0:
-        weld_block_node_list.remove(model_node)
-        weld_block_node_list.append(CombineLinearRegressionNode(input_nodes=nodes_to_sum,
-                                                                output_name=model_node.get_output_name(),
-                                                                intercept_data_name=model_node.intercept_data_name,
-                                                                output_type=typing_map[model_node.get_output_name()],
-                                                                regression=model_node._regression))
-    return weld_block_node_list
 
 
 def weld_pandas_marshalling_pass(weld_block_input_set: Set[str], weld_block_output_set: Set[str],

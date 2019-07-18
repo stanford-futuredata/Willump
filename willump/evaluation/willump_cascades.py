@@ -15,26 +15,21 @@ from willump.graph.cascade_threshold_proba_node import CascadeThresholdProbaNode
 from willump.graph.cascade_topk_selection_node import CascadeTopKSelectionNode
 from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.identity_node import IdentityNode
-from willump.graph.linear_regression_node import LinearRegressionNode
-from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.pandas_column_selection_node_python import PandasColumnSelectionNodePython
 from willump.graph.pandas_dataframe_concatenation_node import PandasDataframeConcatenationNode
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
+from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.reshape_node import ReshapeNode
 from willump.graph.stack_sparse_node import StackSparseNode
-from willump.graph.train_test_split_node import TrainTestSplitNode
-from willump.graph.trees_model_node import TreesModelNode
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_model_node import WillumpModelNode
+from willump.graph.willump_predict_node import WillumpPredictNode
+from willump.graph.willump_predict_proba_node import WillumpPredictProbaNode
 from willump.graph.willump_python_node import WillumpPythonNode
 from willump.graph.willump_training_node import WillumpTrainingNode
 from willump.willump_utilities import *
-from willump.graph.keras_training_node import KerasTrainingNode
-from willump.graph.keras_model_node import KerasModelNode
-from willump.graph.willump_predict_node import WillumpPredictNode
-from willump.graph.willump_predict_proba_node import WillumpPredictProbaNode
 
 
 def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: List[WillumpGraphNode],
@@ -244,19 +239,6 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                                                       input_type=new_input_node.get_output_type(),
                                                       output_name=new_output_name, output_type=output_type)
                 typing_map[new_output_name] = output_type
-        elif isinstance(node, TrainTestSplitNode):
-            input_node = node.get_in_nodes()[0]
-            new_input_node = graph_from_input_sources_recursive(input_node)
-            if new_input_node is not None:
-                train_output_name, test_output_name = node.get_output_names()
-                new_train_output_name = ("cascading__%s__" % which) + train_output_name
-                new_test_output_name = ("cascading__%s__" % which) + test_output_name
-                output_type = node.get_output_types()[0]
-                new_input_name = new_input_node.get_output_names()[0]
-                return_node = TrainTestSplitNode(input_node=new_input_node, input_name=new_input_name,
-                                                 train_name=new_train_output_name, test_name=new_test_output_name,
-                                                 output_type=output_type, keyword_args=node.keyword_args)
-                typing_map[new_train_output_name] = typing_map[new_test_output_name] = output_type
         elif isinstance(node, WillumpPythonNode):
             if node in selected_input_sources:
                 if small_model_output_node is not None:
@@ -289,7 +271,7 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
         elif isinstance(input_node, StackSparseNode) or isinstance(input_node, PandasColumnSelectionNode) \
                 or isinstance(input_node, PandasSeriesConcatenationNode) or isinstance(input_node, IdentityNode) \
                 or isinstance(input_node, ReshapeNode) or isinstance(input_node, PandasToDenseMatrixNode) \
-                or isinstance(input_node, WillumpInputNode) or isinstance(input_node, TrainTestSplitNode) \
+                or isinstance(input_node, WillumpInputNode) \
                 or isinstance(input_node, PandasDataframeConcatenationNode) \
                 or isinstance(input_node, PandasColumnSelectionNodePython):
             output_block.insert(0, input_node)
@@ -443,7 +425,7 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         Create a node based on orig_node that uses new_input_node as its input and prefixes its output's name
         with output_prefix.
         """
-        assert(isinstance(orig_node, WillumpTrainingNode))
+        assert (isinstance(orig_node, WillumpTrainingNode))
         orig_x_name, orig_y_name = orig_node.x_name, orig_node.y_name
         orig_y_node = orig_node.y_node
         x_name = new_x_node.get_output_names()[0]
@@ -494,18 +476,6 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     add_small_model_node = WillumpPythonNode(python_ast=add_small_model_ast.body[0],
                                              input_names=[small_model_python_name],
                                              output_names=[], output_types=[], in_nodes=[small_training_node])
-    # Copy the original model so the small and big models aren't the same.
-    if not isinstance(training_node, KerasTrainingNode):
-        duplicate_model_python = "%s = copy.copy(%s)" % (small_model_python_name, big_model_python_name)
-    else:
-        duplicate_model_python = "%s = willump_duplicate_keras(%s, %s.shape[1])" % \
-                                 (small_model_python_name, big_model_python_name,
-                                  strip_linenos_from_var(more_important_inputs_head.get_output_names()[0]))
-    duplicate_model_ast: ast.Module = \
-        ast.parse(duplicate_model_python, "exec")
-    duplicate_model_node = WillumpPythonNode(python_ast=duplicate_model_ast.body[0],
-                                             input_names=[big_model_python_name],
-                                             output_names=[], output_types=[], in_nodes=[big_training_node])
     base_discovery_dict = {}
     # Remove the original code for creating model inputs to replace with the new code.
     training_dependencies = get_model_node_dependencies(training_input_node, base_discovery_dict)
@@ -514,9 +484,8 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     # Add all the new code for creating model inputs and training from them.
     training_node_index = sorted_nodes.index(training_node)
     sorted_nodes = sorted_nodes[:training_node_index] + more_important_inputs_block + less_important_inputs_block \
-                   + [combiner_node] + [big_training_node, duplicate_model_node,
-                                                                 small_training_node,
-                                                                 add_big_model_node, add_small_model_node] \
+                   + [combiner_node] + [big_training_node, small_training_node,
+                                        add_big_model_node, add_small_model_node] \
                    + sorted_nodes[training_node_index + 1:]
     return sorted_nodes
 
@@ -537,7 +506,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
 
     def get_small_model_nodes(orig_model_node: WillumpModelNode, new_input_node: WillumpGraphNode) \
             -> Tuple[WillumpModelNode, WillumpGraphNode]:
-        assert(isinstance(orig_model_node, WillumpPredictNode))
+        assert (isinstance(orig_model_node, WillumpPredictNode))
         assert (len(new_input_node.get_output_names()) == 1)
         proba_output_name = "small__proba_" + orig_model_node.get_output_name()
         output_type = WeldVec(WeldDouble())
@@ -563,7 +532,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     def get_big_model_nodes(orig_model_node: WillumpModelNode, new_input_node: WillumpGraphNode, new_model, aux_data,
                             small_model_output_node: CascadeThresholdProbaNode, small_model_output_name: str) \
             -> Tuple[WillumpModelNode, CascadeCombinePredictionsNode]:
-        assert(isinstance(orig_model_node, WillumpPredictNode))
+        assert (isinstance(orig_model_node, WillumpPredictNode))
         assert (len(new_input_node.get_output_names()) == 1)
         output_name = orig_model_node.get_output_name()
         output_type = orig_model_node.get_output_type()

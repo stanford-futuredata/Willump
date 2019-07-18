@@ -2,7 +2,6 @@ import ast
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 
 import astor
-from weld.types import *
 
 from willump import *
 from willump.graph.array_binop_node import ArrayBinopNode
@@ -10,10 +9,6 @@ from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
 from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.identity_node import IdentityNode
-from willump.graph.keras_model_node import KerasModelNode
-from willump.graph.keras_training_node import KerasTrainingNode
-from willump.graph.linear_regression_node import LinearRegressionNode
-from willump.graph.linear_training_node import LinearTrainingNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.pandas_column_selection_node_python import PandasColumnSelectionNodePython
 from willump.graph.pandas_dataframe_concatenation_node import PandasDataframeConcatenationNode
@@ -23,16 +18,13 @@ from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.reshape_node import ReshapeNode
 from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.string_lower_node import StringLowerNode
-from willump.graph.train_test_split_node import TrainTestSplitNode
-from willump.graph.trees_model_node import TreesModelNode
-from willump.graph.trees_training_node import TreesTrainingNode
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
-from willump.graph.willump_training_node import WillumpTrainingNode
 from willump.graph.willump_predict_node import WillumpPredictNode
 from willump.graph.willump_python_node import WillumpPythonNode
+from willump.graph.willump_training_node import WillumpTrainingNode
 from willump.willump_utilities import *
 
 
@@ -377,21 +369,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                      in_nodes=[input_node], output_names=[input_name],
                                                      output_types=[output_type])
                     return [input_name], compile_node
-            elif "train_test_split" in called_function:
-                assert (isinstance(target, ast.Tuple))
-                if len(target.elts) == 2 and isinstance(value.args[0], ast.Name):
-                    train_output_var = self.get_store_name(target.elts[0].id, target.lineno)
-                    test_output_var = self.get_store_name(target.elts[1].id, target.lineno)
-                    input_var = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
-                    input_node = self._node_dict[input_var]
-                    output_type = self._type_map[train_output_var]
-                    keyword_args = value.keywords
-                    train_test_split_node = TrainTestSplitNode(input_node=input_node, input_name=input_var,
-                                                               train_name=train_output_var,
-                                                               test_name=test_output_var,
-                                                               output_type=output_type,
-                                                               keyword_args=keyword_args)
-                    return [train_output_var, test_output_var], train_test_split_node
             elif called_function in self._async_funcs or called_function in self._cached_funcs:
                 is_async_func = called_function in self._async_funcs
                 is_cached_func = called_function in self._cached_funcs
