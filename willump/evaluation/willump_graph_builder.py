@@ -310,9 +310,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 y_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
                 x_node, y_node = self._node_dict[x_name], self._node_dict[y_name]
                 import numpy as np
-                training_node = WillumpTrainingNode(python_ast=node, input_names=[x_name, y_name],
-                                                    in_nodes=[x_node, y_node],
-                                                    output_names=[output_var_name],
+                training_node = WillumpTrainingNode(x_name=x_name, x_node=x_node,
+                                                    y_name=y_name, y_node=y_node,
+                                                    output_name=output_var_name,
                                                     feature_importances=np.ones(30902))
                 return [output_var_name], training_node
             elif "willump_predict_function" in called_function:

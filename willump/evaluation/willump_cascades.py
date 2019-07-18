@@ -437,26 +437,22 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         else:
             panic("Unrecognized combiner output type %s" % orig_output_type)
 
-    def recreate_training_node(new_input_node: WillumpGraphNode, orig_node: WillumpTrainingNode,
+    def recreate_training_node(new_x_node: WillumpGraphNode, orig_node: WillumpTrainingNode,
                                output_prefix) -> WillumpTrainingNode:
         """
         Create a node based on orig_node that uses new_input_node as its input and prefixes its output's name
         with output_prefix.
         """
-        new_input_nodes = copy.copy(orig_node.get_in_nodes())
-        new_input_names = copy.copy(orig_node.get_in_names())
-        new_input_nodes[0] = new_input_node
-        new_input_names[0] = new_input_node.get_output_names()[0]
-        orig_output_name = orig_node.get_output_names()[0]
+        assert(isinstance(orig_node, WillumpTrainingNode))
+        orig_x_name, orig_y_name = orig_node.x_name, orig_node.y_name
+        orig_y_node = orig_node.y_node
+        x_name = new_x_node.get_output_names()[0]
+        orig_output_name = orig_node.get_output_name()
         new_output_name = output_prefix + orig_output_name
         orig_feature_importances = orig_node.get_feature_importances()
-        training_statement = "%s = willump_train_function(%s, %s)" % (strip_linenos_from_var(new_output_name),
-                                                                      strip_linenos_from_var(new_input_names[0]),
-                                                                      strip_linenos_from_var(new_input_names[1]))
-        training_ast: ast.Module = ast.parse(training_statement, "exec")
-        return WillumpTrainingNode(python_ast=training_ast.body[0], input_names=new_input_names,
-                                   in_nodes=new_input_nodes,
-                                   output_names=[new_output_name], feature_importances=orig_feature_importances)
+        return WillumpTrainingNode(x_name=x_name, x_node=new_x_node,
+                                   y_name=orig_y_name, y_node=orig_y_node,
+                                   output_name=new_output_name, feature_importances=orig_feature_importances)
 
     for node in sorted_nodes:
         if isinstance(node, WillumpTrainingNode):
