@@ -301,13 +301,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 x_name = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
                 y_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
                 x_node, y_node = self._node_dict[x_name], self._node_dict[y_name]
-                input_width = self._static_vars[WILLUMP_INPUT_WIDTH]
-                import numpy as np
-                assert(isinstance(input_width, int))
+                train_x_y = self._static_vars[WILLUMP_TRAIN_X_Y]
+                assert(isinstance(train_x_y, tuple) and len(train_x_y) == 2)
                 training_node = WillumpTrainingNode(x_name=x_name, x_node=x_node,
                                                     y_name=y_name, y_node=y_node,
                                                     output_name=output_var_name,
-                                                    feature_importances=np.ones(input_width))
+                                                    train_x_y=train_x_y)
                 return [output_var_name], training_node
             elif "willump_predict_function" in called_function:
                 model_name = value.args[0].id

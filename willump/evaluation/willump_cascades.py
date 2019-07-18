@@ -381,7 +381,8 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, indice
 def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                 typing_map: MutableMapping[str, WeldType],
                                 training_cascades: dict,
-                                batch=True) -> List[WillumpGraphNode]:
+                                willump_train_function,
+                                willump_predict_function) -> List[WillumpGraphNode]:
     """
     Take in a program training a model.  Rank features in the model by importance.  Partition
     features into "more important" and "less important."  Train a small model on only more important features
@@ -431,10 +432,10 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         x_name = new_x_node.get_output_names()[0]
         orig_output_name = orig_node.get_output_name()
         new_output_name = output_prefix + orig_output_name
-        orig_feature_importances = orig_node.get_feature_importances()
+        orig_train_x_y = orig_node.get_train_x_y()
         return WillumpTrainingNode(x_name=x_name, x_node=new_x_node,
                                    y_name=orig_y_name, y_node=orig_y_node,
-                                   output_name=new_output_name, feature_importances=orig_feature_importances)
+                                   output_name=new_output_name, train_x_y=orig_train_x_y)
 
     for node in sorted_nodes:
         if isinstance(node, WillumpTrainingNode):
@@ -442,7 +443,9 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
             break
     else:
         return sorted_nodes
-    feature_importances = training_node.get_feature_importances()
+    import numpy as np
+    feature_importances = np.ones(training_node.input_width)
+    train_x, train_y = training_node.get_train_x_y()
     training_cascades["feature_importances"] = feature_importances
     indices_to_costs_map = create_indices_to_costs_map(training_node)
     training_cascades["indices_to_costs_map"] = indices_to_costs_map
@@ -492,7 +495,6 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
 
 def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                             typing_map: MutableMapping[str, WeldType],
-                            aux_data: List[Tuple[int, WeldType]],
                             eval_cascades: dict,
                             cascade_threshold: float,
                             batch: bool,
@@ -529,7 +531,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         typing_map[threshold_output_name] = WeldVec(WeldChar())
         return predict_proba_node, threshold_node
 
-    def get_big_model_nodes(orig_model_node: WillumpModelNode, new_input_node: WillumpGraphNode, new_model, aux_data,
+    def get_big_model_nodes(orig_model_node: WillumpModelNode, new_input_node: WillumpGraphNode,
                             small_model_output_node: CascadeThresholdProbaNode, small_model_output_name: str) \
             -> Tuple[WillumpModelNode, CascadeCombinePredictionsNode]:
         assert (isinstance(orig_model_node, WillumpPredictNode))
@@ -609,8 +611,6 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     else:
         return sorted_nodes
     feature_importances = eval_cascades["feature_importances"]
-    big_model = eval_cascades["big_model"]
-    small_model = eval_cascades["small_model"]
     indices_to_costs_map = eval_cascades["indices_to_costs_map"]
     more_important_inputs, less_important_inputs = split_model_inputs(model_node, feature_importances,
                                                                       indices_to_costs_map)
@@ -634,7 +634,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     # The big model predicts "hard" (for the small model) examples from all inputs.
     combiner_node = get_combiner_node_eval(more_important_inputs_head, less_important_inputs_head, model_input_node,
                                            threshold_node)
-    new_big_model_node, preds_combiner_node = get_big_model_nodes(model_node, combiner_node, big_model, aux_data,
+    new_big_model_node, preds_combiner_node = get_big_model_nodes(model_node, combiner_node,
                                                                   threshold_node,
                                                                   small_model_preds_name)
     base_discovery_dict = {}

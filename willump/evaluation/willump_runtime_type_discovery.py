@@ -119,14 +119,18 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
             called_function_name: str = WillumpGraphBuilder._get_function_name(value)
             if called_function_name is None:
                 pass
-            elif "willump_train_function" in called_function_name or "willump_predict_function" \
+            elif "willump_train_function" in called_function_name:
+                x_name = value.args[0].id
+                y_name = value.args[1].id
+                model_x_y_variable_extraction_code = "willump_static_vars['%s'] = (%s, %s)" % \
+                                                     (WILLUMP_TRAIN_X_Y, x_name, y_name)
+                model_x_y_variable_extraction_ast: ast.Module = ast.parse(model_x_y_variable_extraction_code, "exec")
+                model_x_y_variable_extraction_statements: List[ast.stmt] = model_x_y_variable_extraction_ast.body
+                return_statements += model_x_y_variable_extraction_statements
+            elif "willump_predict_function" \
                     in called_function_name or "willump_predict_proba_function" in called_function_name:
-                if "willump_train_function" in called_function_name:
-                    input_array_arg_index = 0
-                else:
-                    input_array_arg_index = 1
-                input_name = value.args[input_array_arg_index].id
-                train_variable_extraction_code = "willump_static_vars['%s'] = %s.shape[1]" % (WILLUMP_INPUT_WIDTH, input_name)
+                x_name = value.args[1].id
+                train_variable_extraction_code = "willump_static_vars['%s'] = %s.shape[1]" % (WILLUMP_INPUT_WIDTH, x_name)
                 train_variable_extraction_ast: ast.Module = ast.parse(train_variable_extraction_code, "exec")
                 train_variable_extraction_statements: List[ast.stmt] = train_variable_extraction_ast.body
                 return_statements += train_variable_extraction_statements

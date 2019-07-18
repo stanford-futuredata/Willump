@@ -12,12 +12,15 @@ class WillumpTrainingNode(WillumpPythonNode, WillumpModelNode):
     """
 
     def __init__(self, x_name: str, y_name: str, x_node: WillumpGraphNode, y_node: WillumpGraphNode,
-                 output_name: str, feature_importances) -> None:
+                 output_name: str, train_x_y: tuple) -> None:
         self.x_name = x_name
         self.y_name = y_name
         self.x_node = x_node
         self.y_node = y_node
         self._output_name = output_name
+        self._train_x_y = train_x_y
+        x, _ = train_x_y
+        self.input_width = x.shape[1]
         train_statement = "%s = willump_train_function(%s, %s)" % (strip_linenos_from_var(output_name),
                                                                    strip_linenos_from_var(x_name),
                                                                    strip_linenos_from_var(y_name))
@@ -25,11 +28,9 @@ class WillumpTrainingNode(WillumpPythonNode, WillumpModelNode):
         super(WillumpTrainingNode, self).__init__(python_ast=train_ast, input_names=[x_name, y_name],
                                                   output_names=[output_name], in_nodes=[x_node, y_node],
                                                   output_types=[])
-        self._feature_importances = feature_importances
-        self.input_width = len(feature_importances)
 
-    def get_feature_importances(self):
-        return self._feature_importances
+    def get_train_x_y(self):
+        return self._train_x_y
 
     def get_output_name(self):
         return self._output_name

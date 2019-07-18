@@ -159,7 +159,7 @@ willump_timing_map_set: MutableMapping[str, MutableMapping[str, float]] = {}
 
 def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), training_cascades=None,
                     eval_cascades=None, cascade_threshold=1.0, cached_funcs=(), max_cache_size=None, top_k=None,
-                    costly_statements=()) \
+                    costly_statements=(), willump_train_function=None, willump_predict_function=None) \
         -> Callable:
     """
     Decorator for a Python function that executes the function using Willump.
@@ -228,11 +228,12 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
                                                                                 training_cascades=training_cascades,
                                                                                 eval_cascades=eval_cascades,
                                                                                 cascade_threshold=cascade_threshold,
-                                                                                aux_data=aux_data,
                                                                                 willump_cache_dict=willump_cache_dict,
                                                                                 max_cache_size=max_cache_size,
                                                                                 batch=batch, num_workers=num_workers,
-                                                                                top_k=top_k)
+                                                                                top_k=top_k,
+                                                                                willump_train_function=willump_train_function,
+                                                                                willump_predict_function=willump_predict_function)
                     python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
                                                                                              aux_data,
                                                                                              willump_typing_map,
