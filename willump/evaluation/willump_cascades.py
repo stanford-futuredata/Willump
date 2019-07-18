@@ -541,7 +541,8 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                               x_name=new_input_name,
                                               x_node=new_input_node,
                                               output_name=output_name,
-                                              output_type=output_type)
+                                              output_type=output_type,
+                                              input_width=orig_model_node.input_width)
         combining_node = CascadeCombinePredictionsNode(big_model_predictions_node=big_model_output,
                                                        big_model_predictions_name=output_name,
                                                        small_model_predictions_node=small_model_output_node,

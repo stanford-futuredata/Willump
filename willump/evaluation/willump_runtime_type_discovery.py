@@ -103,48 +103,6 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
 
     @staticmethod
     def _maybe_extract_static_variables(value: ast.expr) -> List[ast.stmt]:
-        def extract_predict_variables(predict_value) -> List[ast.stmt]:
-            if isinstance(predict_value.func, ast.Attribute) and isinstance(predict_value.func.value, ast.Name):
-                model_name = predict_value.func.value.id
-                static_variable_extraction_code = \
-                    """if "sklearn.linear_model" in type({0}).__module__:\n""" \
-                        .format(model_name) + \
-                    """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
-                        .format(WILLUMP_LINEAR_REGRESSION_WEIGHTS, model_name, "coef_") + \
-                    """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
-                        .format(WILLUMP_LINEAR_REGRESSION_INTERCEPT, model_name, "intercept_") + \
-                    """\tif "Regressor" in type({0}).__name__:\n""" \
-                        .format(model_name) + \
-                    """\t\twillump_static_vars["{0}"] = True\n""" \
-                        .format(WILLUMP_LINEAR_MODEL_IS_REGRESSION) + \
-                    """\telse:\n""" \
-                        .format(model_name) + \
-                    """\t\twillump_static_vars["{0}"] = False\n""" \
-                        .format(WILLUMP_LINEAR_MODEL_IS_REGRESSION)
-                logit_instrumentation_ast: ast.Module = \
-                    ast.parse(static_variable_extraction_code, "exec")
-                logit_instrumentation_statements: List[ast.stmt] = logit_instrumentation_ast.body
-                static_variable_extraction_code = \
-                    """if "sklearn.ensemble" in type({0}).__module__ or "lightgbm.sklearn" in type({0}).__module__:\n""" \
-                        .format(model_name) + \
-                    """\twillump_static_vars["{0}"] = {1}.{2}\n""" \
-                        .format(WILLUMP_TREES_FEATURE_IMPORTANCES, model_name, "feature_importances_")
-                trees_instrumentation_ast: ast.Module = \
-                    ast.parse(static_variable_extraction_code, "exec")
-                trees_instrumentation_statements: List[ast.stmt] = trees_instrumentation_ast.body
-                static_variable_extraction_code = \
-                    """if "keras.engine.training" in type({0}).__module__:\n""" \
-                        .format(model_name) + \
-                    """\twillump_static_vars["{0}"] = {1}.get_config()\n""" \
-                        .format(WILLUMP_KERAS_MODEL_CONFIG, model_name) + \
-                    """\twillump_static_vars["{0}"] = {1}.get_weights()\n""" \
-                        .format(WILLUMP_KERAS_MODEL_WEIGHTS, model_name)
-                keras_instrumentation_ast: ast.Module = \
-                    ast.parse(static_variable_extraction_code, "exec")
-                keras_instrumentation_statements: List[ast.stmt] = keras_instrumentation_ast.body
-                return logit_instrumentation_statements + trees_instrumentation_statements + \
-                    keras_instrumentation_statements
-
         return_statements: List[ast.stmt] = []
         if isinstance(value, ast.Subscript):
             if isinstance(value.slice, ast.Index) and isinstance(value.slice.value, ast.Name):
@@ -157,17 +115,21 @@ class WillumpRuntimeTypeDiscovery(ast.NodeTransformer):
                 index_name_instrumentation_statements: List[ast.stmt] = \
                     index_name_instrumentation_ast.body
                 return_statements += index_name_instrumentation_statements
-            elif isinstance(value.slice, ast.ExtSlice) and isinstance(value.value, ast.Call) and "predict_proba" \
-                    in value.value.func.attr:
-                predict_statements = extract_predict_variables(value.value)
-                return_statements += predict_statements
         elif isinstance(value, ast.Call):
             called_function_name: str = WillumpGraphBuilder._get_function_name(value)
             if called_function_name is None:
                 pass
-            elif ".predict" in called_function_name or "fit" in called_function_name:
-                predict_statements = extract_predict_variables(value)
-                return_statements += predict_statements
+            elif "willump_train_function" in called_function_name or "willump_predict_function" \
+                    in called_function_name or "willump_predict_proba_function" in called_function_name:
+                if "willump_train_function" in called_function_name:
+                    input_array_arg_index = 0
+                else:
+                    input_array_arg_index = 1
+                input_name = value.args[input_array_arg_index].id
+                train_variable_extraction_code = "willump_static_vars['%s'] = %s.shape[1]" % (WILLUMP_INPUT_WIDTH, input_name)
+                train_variable_extraction_ast: ast.Module = ast.parse(train_variable_extraction_code, "exec")
+                train_variable_extraction_statements: List[ast.stmt] = train_variable_extraction_ast.body
+                return_statements += train_variable_extraction_statements
             elif ".transform" in called_function_name:
                 if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name):
                     lineno = str(value.lineno)

@@ -13,11 +13,11 @@ class WillumpPredictNode(WillumpPythonNode, WillumpModelNode):
     """
 
     def __init__(self, model_name: str, x_name: str,
-                 x_node: WillumpGraphNode, output_name: str, output_type) -> None:
+                 x_node: WillumpGraphNode, output_name: str, output_type, input_width: int) -> None:
         self.X_name = x_name
         self.model_name = model_name
         self.X_node = x_node
-        self.input_width = 30902
+        self.input_width = input_width
         self._output_name = output_name
         self._output_type = output_type
         predict_statement = "%s = willump_predict_function(%s, %s)" % (strip_linenos_from_var(output_name),

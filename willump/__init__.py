@@ -3,8 +3,6 @@ import re
 import os
 
 # Static variable names
-WILLUMP_LINEAR_REGRESSION_WEIGHTS = "willump_linear_regression_weights"
-WILLUMP_LINEAR_REGRESSION_INTERCEPT = "willump_linear_regression_intercept"
 WILLUMP_FREQUENCY_COUNT_VOCAB = "willump_frequency_count_vocab"
 WILLUMP_COUNT_VECTORIZER_VOCAB = "willump_cv_vocab"
 WILLUMP_COUNT_VECTORIZER_ANALYZER = "willump_cv_analyzer"
@@ -17,9 +15,7 @@ WILLUMP_JOIN_HOW = "willump_join_how"
 WILLUMP_JOIN_COL = "willump_join_col"
 WILLUMP_SUBSCRIPT_INDEX_NAME = "willump_subscript_index"
 WILLUMP_TREES_FEATURE_IMPORTANCES = "willump_trees_feature_importances"
-WILLUMP_LINEAR_MODEL_IS_REGRESSION = "willump_linear_model_is_regression"
-WILLUMP_KERAS_MODEL_CONFIG = "willump_keras_model_config"
-WILLUMP_KERAS_MODEL_WEIGHTS = "willump_keras_model_weights"
+WILLUMP_INPUT_WIDTH = "willump_input_width"
 
 # Names
 WILLUMP_THREAD_POOL_EXECUTOR = "__willump_threadpool_executor"

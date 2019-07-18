@@ -301,19 +301,23 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 x_name = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
                 y_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
                 x_node, y_node = self._node_dict[x_name], self._node_dict[y_name]
+                input_width = self._static_vars[WILLUMP_INPUT_WIDTH]
                 import numpy as np
+                assert(isinstance(input_width, int))
                 training_node = WillumpTrainingNode(x_name=x_name, x_node=x_node,
                                                     y_name=y_name, y_node=y_node,
                                                     output_name=output_var_name,
-                                                    feature_importances=np.ones(30902))
+                                                    feature_importances=np.ones(input_width))
                 return [output_var_name], training_node
             elif "willump_predict_function" in called_function:
                 model_name = value.args[0].id
                 x_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
                 x_node = self._node_dict[x_name]
                 output_type = self._type_map[output_var_name]
+                input_width = self._static_vars[WILLUMP_INPUT_WIDTH]
                 predict_node = WillumpPredictNode(model_name=model_name, x_name=x_name,
-                                                  x_node=x_node, output_name=output_var_name, output_type=output_type)
+                                                  x_node=x_node, output_name=output_var_name, output_type=output_type,
+                                                  input_width=input_width)
                 return [output_var_name], predict_node
             elif ".fillna" in called_function and isinstance(value.func, ast.Attribute) and \
                     isinstance(value.func.value, ast.Name):
