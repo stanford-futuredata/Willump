@@ -10,6 +10,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 
 from willump.evaluation.willump_executor import willump_execute
+from lazada_product_challenge_utils import willump_predict_function, willump_predict_proba_function
 
 
 def rmse_score(y, pred):
@@ -37,7 +38,7 @@ def vectorizer_transform(title_vect, input_df, color_vect, brand_vect):
     color_result = color_vect.transform(np_input)
     brand_result = brand_vect.transform(np_input)
     combined_result = scipy.sparse.hstack([transformed_result, color_result, brand_result], format="csr")
-    predictions = model.predict(combined_result)
+    predictions = willump_predict_function(model, combined_result)
     return predictions
 
 

@@ -1,18 +1,19 @@
 # Original Source: http://ls3.rnet.ryerson.ca/wp-content/uploads/2017/10/CIKM_AnalytiCup_2017_Solution.zip
 
-from sklearn.feature_extraction.text import CountVectorizer
-import time
-import pandas as pd
-import numpy
+import argparse
 import pickle
+import time
+
+import numpy
+import pandas as pd
 import scipy.sparse
 import scipy.sparse.csr
-from sklearn.linear_model import LogisticRegression
+from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
-import willump.evaluation.willump_executor
-from sklearn.ensemble import GradientBoostingClassifier
-import argparse
 from sklearn.model_selection import train_test_split
+
+import willump.evaluation.willump_executor
+from lazada_product_challenge_utils import willump_train_function
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", help="Use cascades?", action="store_true")
@@ -22,12 +23,6 @@ if args.cascades:
     training_cascades = {}
 else:
     training_cascades = None
-
-
-def willump_train_function(X, y):
-    model = LogisticRegression()
-    model = model.fit(X, y)
-    return model
 
 
 @willump.evaluation.willump_executor.willump_execute(num_workers=0, training_cascades=training_cascades)
