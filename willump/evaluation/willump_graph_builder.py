@@ -30,6 +30,7 @@ from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
+from willump.graph.willump_training_node import WillumpTrainingNode
 from willump.graph.willump_python_node import WillumpPythonNode
 from willump.willump_utilities import *
 
@@ -219,11 +220,11 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     else:
                         pandas_column_selection_node = \
                             PandasColumnSelectionNodePython(input_nodes=[self._node_dict[input_var_name]],
-                                                      input_names=[input_var_name],
-                                                      output_name=output_var_name,
-                                                      input_types=[input_var_type],
-                                                      selected_columns=column_names,
-                                                      output_type=output_type)
+                                                            input_names=[input_var_name],
+                                                            output_name=output_var_name,
+                                                            input_types=[input_var_type],
+                                                            selected_columns=column_names,
+                                                            output_type=output_type)
                     return [output_var_name], pandas_column_selection_node
             elif isinstance(value.slice, ast.ExtSlice) and isinstance(value.value, ast.Call) and "predict_proba" \
                     in value.value.func.attr:
@@ -356,43 +357,16 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                     output_type=output_type)
                 stack_sparse_node.set_costly_node(is_costly_node)
                 return [output_var_name], stack_sparse_node
-            elif ".fit" in called_function:
-                if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name) and \
-                        len(value.args) >= 2 and isinstance(value.args[0], ast.Name) and isinstance(value.args[1],
-                                                                                                    ast.Name):
-                    x_name = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
-                    model_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
-                    y_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
-                    x_node, model_node, y_node = self._node_dict[x_name], self._node_dict[model_name], self._node_dict[
-                        y_name]
-                    if WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:
-                        input_weights = self._static_vars[WILLUMP_LINEAR_REGRESSION_WEIGHTS]
-                        input_intercept = self._static_vars[WILLUMP_LINEAR_REGRESSION_INTERCEPT]
-                        training_node = LinearTrainingNode(python_ast=node,
-                                                           in_nodes=[x_node, model_node, y_node],
-                                                           input_names=[x_name, model_name, y_name],
-                                                           output_names=[output_var_name],
-                                                           input_weights=input_weights,
-                                                           input_intercept=input_intercept)
-                        return [output_var_name], training_node
-                    elif WILLUMP_TREES_FEATURE_IMPORTANCES in self._static_vars:
-                        feature_importances = self._static_vars[WILLUMP_TREES_FEATURE_IMPORTANCES]
-                        training_node = TreesTrainingNode(python_ast=node,
-                                                          in_nodes=[x_node, model_node, y_node],
-                                                          input_names=[x_name, model_name, y_name],
-                                                          output_names=[output_var_name],
-                                                          feature_importances=feature_importances)
-                        return [output_var_name], training_node
-                    elif WILLUMP_KERAS_MODEL_WEIGHTS in self._static_vars:
-                        model_weights = self._static_vars[WILLUMP_KERAS_MODEL_WEIGHTS]
-                        model_config = self._static_vars[WILLUMP_KERAS_MODEL_CONFIG]
-                        training_node = KerasTrainingNode(python_ast=node,
-                                                          in_nodes=[x_node, model_node, y_node],
-                                                          input_names=[x_name, model_name, y_name],
-                                                          output_names=[model_name],
-                                                          model_config=model_config,
-                                                          model_weights=model_weights)
-                        return [model_name], training_node
+            elif "willump_train_function" in called_function:
+                x_name = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
+                y_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
+                x_node, y_node = self._node_dict[x_name], self._node_dict[y_name]
+                import numpy as np
+                training_node = WillumpTrainingNode(python_ast=node, input_names=[x_name, y_name],
+                                                    in_nodes=[x_node, y_node],
+                                                    output_names=[output_var_name],
+                                                    feature_importances=np.ones(30902))
+                return [output_var_name], training_node
             elif ".fillna" in called_function and isinstance(value.func, ast.Attribute) and \
                     isinstance(value.func.value, ast.Name):
                 input_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)

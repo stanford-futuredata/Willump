@@ -118,11 +118,11 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                                                             output_type=new_output_type)
                 else:
                     return_node = PandasColumnSelectionNodePython(input_nodes=new_input_nodes,
-                                                            input_names=new_input_names,
-                                                            output_name=new_output_name,
-                                                            input_types=new_input_types,
-                                                            selected_columns=new_selected_columns,
-                                                            output_type=new_output_type)
+                                                                  input_names=new_input_names,
+                                                                  output_name=new_output_name,
+                                                                  input_types=new_input_types,
+                                                                  selected_columns=new_selected_columns,
+                                                                  output_type=new_output_type)
                 typing_map[new_output_name] = return_node.get_output_type()
         elif isinstance(node, WillumpHashJoinNode):
             base_node = wg_passes.find_dataframe_base_node(node, base_discovery_dict)
@@ -288,7 +288,7 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
                 or isinstance(input_node, PandasSeriesConcatenationNode) or isinstance(input_node, IdentityNode) \
                 or isinstance(input_node, ReshapeNode) or isinstance(input_node, PandasToDenseMatrixNode) \
                 or isinstance(input_node, WillumpInputNode) or isinstance(input_node, TrainTestSplitNode) \
-                or isinstance(input_node, PandasDataframeConcatenationNode)\
+                or isinstance(input_node, PandasDataframeConcatenationNode) \
                 or isinstance(input_node, PandasColumnSelectionNodePython):
             output_block.insert(0, input_node)
             current_node_stack += input_node.get_in_nodes()
@@ -436,35 +436,25 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
             panic("Unrecognized combiner output type %s" % orig_output_type)
 
     def recreate_training_node(new_input_node: WillumpGraphNode, orig_node: WillumpTrainingNode,
-                               output_prefix, train_test_split_node: TrainTestSplitNode) -> WillumpTrainingNode:
+                               output_prefix) -> WillumpTrainingNode:
         """
         Create a node based on orig_node that uses new_input_node as its input and prefixes its output's name
         with output_prefix.
         """
         new_input_nodes = copy.copy(orig_node.get_in_nodes())
         new_input_names = copy.copy(orig_node.get_in_names())
-        if train_test_split_node is None:
-            new_input_nodes[0] = new_input_node
-            new_input_names[0] = new_input_node.get_output_names()[0]
-        else:
-            new_input_nodes[0] = train_test_split_node
-            new_input_names[0] = train_test_split_node.get_output_names()[0]
-        node_output_name = orig_node.get_output_names()[0]
-        new_output_name = output_prefix + node_output_name
-        node_feature_importances = orig_node.get_feature_importances()
-        new_python_ast = copy.deepcopy(orig_node.get_python())
-        new_python_ast.value.args[0].id = strip_linenos_from_var(new_input_names[0])
-        new_python_ast.value.func.value.id = strip_linenos_from_var(new_output_name)
-        new_python_ast.targets[0].id = "__does_nothing__willump_"
-        keyword_args = [keyword.arg for keyword in new_python_ast.value.keywords]
-        # TODO:  This is too hacky
-        if "eval_set" in keyword_args:
-            assert (train_test_split_node is not None)
-            eval_set_index = keyword_args.index("eval_set")
-            new_python_ast.value.keywords[eval_set_index].value.elts[0].elts[0].id = \
-                strip_linenos_from_var(train_test_split_node.get_output_names()[1])
-        return WillumpTrainingNode(python_ast=new_python_ast, input_names=new_input_names, in_nodes=new_input_nodes,
-                                   output_names=[new_output_name], feature_importances=node_feature_importances)
+        new_input_nodes[0] = new_input_node
+        new_input_names[0] = new_input_node.get_output_names()[0]
+        orig_output_name = orig_node.get_output_names()[0]
+        new_output_name = output_prefix + orig_output_name
+        orig_feature_importances = orig_node.get_feature_importances()
+        training_statement = "%s = willump_train_function(%s, %s)" % (strip_linenos_from_var(new_output_name),
+                                                                      strip_linenos_from_var(new_input_names[0]),
+                                                                      strip_linenos_from_var(new_input_names[1]))
+        training_ast: ast.Module = ast.parse(training_statement, "exec")
+        return WillumpTrainingNode(python_ast=training_ast.body[0], input_names=new_input_names,
+                                   in_nodes=new_input_nodes,
+                                   output_names=[new_output_name], feature_importances=orig_feature_importances)
 
     for node in sorted_nodes:
         if isinstance(node, WillumpTrainingNode):
@@ -483,31 +473,14 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     base_discovery_dict = {}
     less_important_inputs_head = graph_from_input_sources(training_input_node, less_important_inputs, typing_map,
                                                           base_discovery_dict, "less")
-    if isinstance(less_important_inputs_head, TrainTestSplitNode):
-        li_train_test_split = less_important_inputs_head
-        less_important_inputs_head = less_important_inputs_head.get_in_nodes()[0]
-    else:
-        li_train_test_split = None
     less_important_inputs_block = get_model_node_dependencies(less_important_inputs_head, base_discovery_dict)
     base_discovery_dict = {}
     more_important_inputs_head = graph_from_input_sources(training_input_node, more_important_inputs, typing_map,
                                                           base_discovery_dict, "more")
-    if isinstance(more_important_inputs_head, TrainTestSplitNode):
-        mi_train_test_split = more_important_inputs_head
-        more_important_inputs_head = more_important_inputs_head.get_in_nodes()[0]
-    else:
-        mi_train_test_split = None
     more_important_inputs_block = get_model_node_dependencies(more_important_inputs_head, base_discovery_dict)
     combiner_node = get_combiner_node(more_important_inputs_head, less_important_inputs_head, training_input_node)
-    if li_train_test_split is not None:
-        li_train_test_split = TrainTestSplitNode(combiner_node, combiner_node.get_output_names()[0],
-                                                 li_train_test_split.get_output_names()[0],
-                                                 li_train_test_split.get_output_names()[1],
-                                                 li_train_test_split.get_output_types()[0],
-                                                 li_train_test_split.keyword_args)
-    small_training_node = recreate_training_node(more_important_inputs_head, training_node, "small_",
-                                                 mi_train_test_split)
-    big_training_node = recreate_training_node(combiner_node, training_node, "", li_train_test_split)
+    small_training_node = recreate_training_node(more_important_inputs_head, training_node, "small_")
+    big_training_node = recreate_training_node(combiner_node, training_node, "")
     # Store the big model for evaluation.
     big_model_python_name = strip_linenos_from_var(big_training_node.get_output_names()[0])
     add_big_model_python = "%s[\"big_model\"] = %s" % (WILLUMP_TRAINING_CASCADE_NAME, big_model_python_name)
@@ -542,12 +515,8 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         sorted_nodes.remove(node)
     # Add all the new code for creating model inputs and training from them.
     training_node_index = sorted_nodes.index(training_node)
-    if mi_train_test_split is not None:
-        train_test_split_nodes = [li_train_test_split, mi_train_test_split]
-    else:
-        train_test_split_nodes = []
     sorted_nodes = sorted_nodes[:training_node_index] + more_important_inputs_block + less_important_inputs_block \
-                   + [combiner_node] + train_test_split_nodes + [big_training_node, duplicate_model_node,
+                   + [combiner_node] + [big_training_node, duplicate_model_node,
                                                                  small_training_node,
                                                                  add_big_model_node, add_small_model_node] \
                    + sorted_nodes[training_node_index + 1:]

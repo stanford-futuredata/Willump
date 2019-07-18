@@ -16,14 +16,18 @@ from sklearn.model_selection import train_test_split
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", help="Use cascades?", action="store_true")
-parser.add_argument("-t", "--trees", help="Train trees?", action="store_true")
 args = parser.parse_args()
-trees: bool = args.trees
 
 if args.cascades:
     training_cascades = {}
 else:
     training_cascades = None
+
+
+def willump_train_function(X, y):
+    model = LogisticRegression()
+    model = model.fit(X, y)
+    return model
 
 
 @willump.evaluation.willump_executor.willump_execute(num_workers=0, training_cascades=training_cascades)
@@ -33,11 +37,7 @@ def vectorizer_transform(title_vect, input_df, color_vect, brand_vect, y_df):
     color_result = color_vect.transform(np_input)
     brand_result = brand_vect.transform(np_input)
     combined_result = scipy.sparse.hstack([transformed_result, color_result, brand_result], format="csr")
-    if trees:
-        model = GradientBoostingClassifier()
-    else:
-        model = LogisticRegression()
-    model = model.fit(combined_result, y_df)
+    model = willump_train_function(combined_result, y_df)
     return model
 
 
@@ -63,7 +63,8 @@ color_vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1, 1), decode_e
 color_vectorizer.fit(colors)
 print("Color Vocabulary has length %d" % len(color_vectorizer.vocabulary_))
 
-brands = [x.strip() for x in open("tests/test_resources/lazada_challenge_features/brands_from_lazada_portal.txt", encoding="windows-1252").readlines()]
+brands = [x.strip() for x in open("tests/test_resources/lazada_challenge_features/brands_from_lazada_portal.txt",
+                                  encoding="windows-1252").readlines()]
 brand_vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1, 1), decode_error='replace', lowercase=False)
 brand_vectorizer.fit(brands)
 print("Brand Vocabulary has length %d" % len(brand_vectorizer.vocabulary_))
@@ -81,6 +82,7 @@ print(trained_model)
 print("Second (Willump Cascade) Training Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
 
-pickle.dump((title_vectorizer, color_vectorizer, brand_vectorizer), open("tests/test_resources/lazada_challenge_features/lazada_vectorizers.pk", "wb"))
+pickle.dump((title_vectorizer, color_vectorizer, brand_vectorizer),
+            open("tests/test_resources/lazada_challenge_features/lazada_vectorizers.pk", "wb"))
 pickle.dump(trained_model, open("tests/test_resources/lazada_challenge_features/lazada_model.pk", "wb"))
 pickle.dump(training_cascades, open("tests/test_resources/lazada_challenge_features/lazada_training_cascades.pk", "wb"))
