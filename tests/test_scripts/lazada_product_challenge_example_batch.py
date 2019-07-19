@@ -2,15 +2,13 @@ import argparse
 import pickle
 import time
 
-import numpy
 import pandas as pd
 import scipy.sparse
 import scipy.sparse.csr
 from sklearn.model_selection import train_test_split
 
+from lazada_product_challenge_utils import *
 from willump.evaluation.willump_executor import willump_execute
-from lazada_product_challenge_utils import willump_predict_function, willump_predict_proba_function, willump_score_function
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")

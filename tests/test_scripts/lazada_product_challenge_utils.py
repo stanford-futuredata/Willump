@@ -10,7 +10,10 @@ def willump_train_function(X, y):
 
 
 def willump_predict_function(model, X):
-    return model.predict(X)
+    if X.shape[0] == 0:
+        return numpy.zeros(0, dtype=numpy.int64)
+    else:
+        return model.predict(X)
 
 
 def willump_predict_proba_function(model, X):

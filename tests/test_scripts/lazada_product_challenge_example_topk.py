@@ -3,19 +3,14 @@ import pickle
 import random
 import time
 
-import numpy
 import numpy as np
 import pandas as pd
 import scipy.sparse
 import scipy.sparse.csr
-from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 
+from lazada_product_challenge_utils import *
 from willump.evaluation.willump_executor import willump_execute
-
-
-def rmse_score(y, pred):
-    return numpy.sqrt(mean_squared_error(y, pred))
 
 
 parser = argparse.ArgumentParser()
@@ -38,7 +33,7 @@ def vectorizer_transform(title_vect, input_df, color_vect, brand_vect):
     color_result = color_vect.transform(np_input)
     brand_result = brand_vect.transform(np_input)
     combined_result = scipy.sparse.hstack([transformed_result, color_result, brand_result], format="csr")
-    predictions = model.predict_proba(combined_result)[:, 1]
+    predictions = willump_predict_proba_function(model, combined_result)
     return predictions
 
 
