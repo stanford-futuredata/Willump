@@ -3,6 +3,7 @@ import copy
 from typing import MutableMapping, List, Tuple, Mapping, Optional
 from sklearn.model_selection import train_test_split
 import numpy as np
+import pandas as pd
 import scipy.sparse
 
 import willump.evaluation.willump_graph_passes as wg_passes
@@ -392,14 +393,20 @@ def calculate_feature_importance(x, y, train_predict_score_functions: tuple, mod
     base_preds = willump_predict_function(model, valid_x)
     base_score = willump_score_function(valid_y, base_preds)
     return_map = {}
-    for _, indices in model_inputs.items():
-        assert(isinstance(indices, tuple))
+    for node, indices in model_inputs.items():
         valid_x_copy = valid_x.copy()
         if scipy.sparse.issparse(valid_x_copy):
             valid_x_copy = valid_x_copy.toarray()
-        start, end = indices
-        for i in range(start, end):
-            np.random.shuffle(valid_x_copy[:, i])
+        if isinstance(valid_x_copy, pd.DataFrame):
+            valid_x_copy = valid_x_copy.values
+        if isinstance(indices, tuple):
+            start, end = indices
+            for i in range(start, end):
+                np.random.shuffle(valid_x_copy[:, i])
+        else:
+            indices = tuple(indices.values())
+            for i in indices:
+                np.random.shuffle(valid_x_copy[:, i])
         shuffled_preds = willump_predict_function(model, valid_x_copy)
         shuffled_score = willump_score_function(valid_y, shuffled_preds)
         return_map[indices] = base_score - shuffled_score

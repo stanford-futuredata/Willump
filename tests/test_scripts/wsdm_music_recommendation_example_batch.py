@@ -7,12 +7,8 @@ from sklearn.model_selection import train_test_split
 
 from willump.evaluation.willump_executor import willump_execute
 from wsdm_utilities import *
+from lightgbm import LGBMClassifier
 
-
-def auc_score(y_valid, y_pred):
-    fpr, tpr, thresholds = metrics.roc_curve(y_valid, y_pred, pos_label=1)
-    auc = metrics.auc(fpr, tpr)
-    return auc
 
 
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
@@ -62,7 +58,7 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
     combi = combi.merge(regs_features, how='left', on=regs_col)
     combi = combi[FEATURES]
     combi = combi.fillna(0)
-    preds = model.predict(combi)
+    preds = willump_predict_function(model, combi)
     return preds
 
 
@@ -157,7 +153,7 @@ def create_featureset(folder):
     # add latent features
     y_pred = add_features_and_predict(folder, combi)
 
-    print("Validation AUC: %f" % auc_score(y, y_pred))
+    print("Validation AUC: %f" % willump_score_function(y, y_pred))
 
 
 if __name__ == '__main__':

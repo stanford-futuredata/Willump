@@ -4,28 +4,16 @@ import argparse
 import pickle
 import time
 
-from lightgbm import LGBMClassifier
-from sklearn import metrics
-from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
 import willump.evaluation.willump_executor
 from wsdm_utilities import *
 
-
-def auc_score(y_valid, y_pred):
-    fpr, tpr, thresholds = metrics.roc_curve(y_valid, y_pred, pos_label=1)
-    auc = metrics.auc(fpr, tpr)
-    return auc
-
-
 training_cascades = {}
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-t", "--trees", help="Train trees?", action="store_true")
 parser.add_argument("-s", "--costly_statements", help="Mark costly (remotely stored) statements?", action="store_true")
 args = parser.parse_args()
-trees: bool = args.trees
 
 if args.costly_statements:
     costly_statements = ("features_one", "features_two", "uc_features",
@@ -37,7 +25,10 @@ else:
 
 
 @willump.evaluation.willump_executor.willump_execute(batch=True, training_cascades=training_cascades,
-                                                     costly_statements=costly_statements)
+                                                     costly_statements=costly_statements,
+                                                     willump_train_function=willump_train_function,
+                                                     willump_predict_function=willump_predict_function,
+                                                     willump_score_function=willump_score_function)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,
@@ -68,16 +59,7 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
     combi = combi.merge(regs_features, how='left', on=regs_col)
     train_data = combi[FEATURES]
     train_data = train_data.fillna(0)
-    if trees:
-        model = LGBMClassifier(
-            n_jobs=1,
-            learning_rate=0.1,
-            num_leaves=(2 ** 8),
-            max_depth=15,
-            metric="auc")
-    else:
-        model = LogisticRegression()
-    model = model.fit(train_data, y_train)
+    model = willump_train_function(train_data, y_train)
     return model
 
 
