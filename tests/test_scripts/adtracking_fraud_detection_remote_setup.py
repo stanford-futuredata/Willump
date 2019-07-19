@@ -5,9 +5,8 @@ import argparse
 import pickle
 import time
 
-from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import train_test_split
 from redis import StrictRedis as redis
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 from adtracking_fraud_detection_util import *
@@ -247,7 +246,7 @@ def process_input_and_predict(input_df):
     combined_df = combined_df[predictors]
     combined_df = combined_df.values
     combined_df = combined_df.reshape(1, -1)
-    preds = clf.predict(combined_df)
+    preds = willump_predict_function(clf, combined_df)
     return preds
 
 
