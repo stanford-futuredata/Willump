@@ -4,10 +4,9 @@ import time
 
 import pandas as pd
 import scipy.sparse
-from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 
-from toxic_comment_classification_utils import willump_predict_function, willump_predict_proba_function
+from toxic_comment_classification_utils import willump_predict_function, willump_predict_proba_function, willump_score_function
 from willump.evaluation.willump_executor import willump_execute
 
 class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
@@ -55,4 +54,4 @@ time_elapsed = time.time() - t0
 print("Classification Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
 
-print("Validation ROC-AUC Score: %f" % roc_auc_score(valid_target, y_preds))
+print("Validation ROC-AUC Score: %f" % willump_score_function(valid_target, y_preds))

@@ -13,7 +13,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 
 import willump.evaluation.willump_executor
-from lazada_product_challenge_utils import willump_train_function, willump_predict_function
+from lazada_product_challenge_utils import willump_train_function, willump_predict_function, willump_score_function
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", help="Use cascades?", action="store_true")
@@ -27,7 +27,8 @@ else:
 
 @willump.evaluation.willump_executor.willump_execute(num_workers=0, training_cascades=training_cascades,
                                                      willump_train_function=willump_train_function,
-                                                     willump_predict_function=willump_predict_function)
+                                                     willump_predict_function=willump_predict_function,
+                                                     willump_score_function=willump_score_function)
 def vectorizer_transform(title_vect, input_df, color_vect, brand_vect, y_df):
     np_input = list(input_df.values)
     transformed_result = title_vect.transform(np_input)

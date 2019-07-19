@@ -1,5 +1,6 @@
 from sklearn.linear_model import LogisticRegression
 import numpy as np
+from sklearn.metrics import roc_auc_score
 
 
 def willump_train_function(X, y):
@@ -17,3 +18,7 @@ def willump_predict_function(model, X):
 
 def willump_predict_proba_function(model, X):
     return model.predict_proba(X)[:, 1]
+
+
+def willump_score_function(true_y, pred_y):
+    return roc_auc_score(true_y, pred_y)

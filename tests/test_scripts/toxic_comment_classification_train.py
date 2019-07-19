@@ -9,7 +9,7 @@ import scipy.sparse
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 
-from toxic_comment_classification_utils import willump_train_function, willump_predict_function
+from toxic_comment_classification_utils import willump_train_function, willump_predict_function, willump_score_function
 from willump.evaluation.willump_executor import willump_execute
 
 class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
@@ -28,7 +28,7 @@ else:
 
 
 @willump_execute(training_cascades=training_cascades, willump_train_function=willump_train_function,
-                 willump_predict_function=willump_predict_function)
+                 willump_predict_function=willump_predict_function, willump_score_function=willump_score_function)
 def vectorizer_transform(input_text, word_vect, char_vect, train_target):
     word_features = word_vect.transform(input_text)
     char_features = char_vect.transform(input_text)

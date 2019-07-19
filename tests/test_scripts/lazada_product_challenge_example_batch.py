@@ -6,15 +6,10 @@ import numpy
 import pandas as pd
 import scipy.sparse
 import scipy.sparse.csr
-from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 
 from willump.evaluation.willump_executor import willump_execute
-from lazada_product_challenge_utils import willump_predict_function, willump_predict_proba_function
-
-
-def rmse_score(y, pred):
-    return numpy.sqrt(mean_squared_error(y, pred))
+from lazada_product_challenge_utils import willump_predict_function, willump_predict_proba_function, willump_score_function
 
 
 parser = argparse.ArgumentParser()
@@ -68,4 +63,4 @@ time_elapsed = time.time() - t0
 print("Title Processing Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
 
-print("RMSE Score: %f" % rmse_score(preds, y))
+print("1 - RMSE Score: %f" % willump_score_function(preds, y))
