@@ -287,8 +287,10 @@ def execute_from_basics(graph: WillumpGraph, type_map, inputs: tuple, input_name
     """
     Only for unit tests.  Used to test graph execution separately from inference.
     """
-    w_statements = willump.evaluation.willump_weld_generator.graph_to_weld(graph, type_map, None, None, aux_data,
-                                                                           1.0, {}, None)
+    w_statements = willump.evaluation.willump_weld_generator.graph_to_weld(graph=graph, typing_map=type_map,
+                                                                           training_cascades=None, eval_cascades=None,
+                                                                           cascade_threshold=1.0, willump_cache_dict={},
+                                                                           max_cache_size=None)
     for entry in w_statements:
         if isinstance(entry, tuple):
             weld_program, _, _ = entry
