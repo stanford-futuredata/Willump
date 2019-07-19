@@ -3,7 +3,6 @@ import pickle
 import time
 
 from redis import StrictRedis as redis
-from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
@@ -265,7 +264,7 @@ def do_merge(combi):
     combi = combi[FEATURES]
     combi = combi.values
     combi = combi.reshape(1, -1)
-    preds = model.predict(combi)
+    preds = willump_predict_function(model, combi)
     return preds
 
 
@@ -375,7 +374,7 @@ def create_featureset(folder):
     num_rows = len(y_pred)
     print('Latent feature join in %f seconds rows %d throughput %f: ' % (
         elapsed_time, num_rows, num_rows / elapsed_time))
-    print("Valid AUC: %f" % roc_auc_score(y_valid, y_pred))
+    print("Valid AUC: %f" % willump_score_function(y_valid, y_pred))
     print("Valid: Number of \"remote\" queries made: %d  Requests per row:  %f" %
           (num_queries, num_queries / len(y_pred)))
 

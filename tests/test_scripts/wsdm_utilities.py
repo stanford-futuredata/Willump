@@ -1,5 +1,40 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+from lightgbm import LGBMClassifier
+from sklearn import metrics
+
+
+def auc_score(y_valid, y_pred):
+    fpr, tpr, thresholds = metrics.roc_curve(y_valid, y_pred, pos_label=1)
+    auc = metrics.auc(fpr, tpr)
+    return auc
+
+
+def willump_train_function(X, y):
+    model = LGBMClassifier(
+        n_jobs=1,
+        learning_rate=0.1,
+        num_leaves=(2 ** 8),
+        max_depth=15,
+        metric="auc")
+    model = model.fit(X, y)
+    return model
+
+
+def willump_predict_function(model, X):
+    if X.shape[0] == 0:
+        return np.zeros(0, dtype=np.float32)
+    else:
+        return model.predict(X)
+
+
+def willump_predict_proba_function(model, X):
+    return model.predict_proba(X)[:, 1]
+
+
+def willump_score_function(true_y, pred_y):
+    return auc_score(true_y, pred_y)
+
 
 # LATENT VECTOR SIZES
 UF_SIZE = 32

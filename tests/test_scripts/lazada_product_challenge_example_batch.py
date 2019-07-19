@@ -2,19 +2,13 @@ import argparse
 import pickle
 import time
 
-import numpy
 import pandas as pd
 import scipy.sparse
 import scipy.sparse.csr
-from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 
+from lazada_product_challenge_utils import *
 from willump.evaluation.willump_executor import willump_execute
-
-
-def rmse_score(y, pred):
-    return numpy.sqrt(mean_squared_error(y, pred))
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
@@ -37,7 +31,7 @@ def vectorizer_transform(title_vect, input_df, color_vect, brand_vect):
     color_result = color_vect.transform(np_input)
     brand_result = brand_vect.transform(np_input)
     combined_result = scipy.sparse.hstack([transformed_result, color_result, brand_result], format="csr")
-    predictions = model.predict(combined_result)
+    predictions = willump_predict_function(model, combined_result)
     return predictions
 
 
@@ -67,4 +61,4 @@ time_elapsed = time.time() - t0
 print("Title Processing Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
 
-print("RMSE Score: %f" % rmse_score(preds, y))
+print("1 - RMSE Score: %f" % willump_score_function(preds, y))

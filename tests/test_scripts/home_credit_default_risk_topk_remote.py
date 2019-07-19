@@ -12,6 +12,7 @@ import pandas as pd
 import redis
 from sklearn.model_selection import train_test_split
 
+from home_credit_default_risk_utils import *
 from willump.evaluation.willump_executor import willump_execute
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -202,7 +203,7 @@ def join_and_lgbm(df):
     feats = [f for f in df.columns if
              f not in ['TARGET', 'SK_ID_CURR', 'SK_ID_BUREAU', 'SK_ID_PREV', 'index']]
     valid_x = df[feats]
-    oof_preds_proba = clf.predict_proba(valid_x, num_iteration=clf.best_iteration_)[:, 1]
+    oof_preds_proba = willump_predict_proba_function(clf, valid_x)
     return oof_preds_proba
 
 

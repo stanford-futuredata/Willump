@@ -223,11 +223,11 @@ class PandasGraphInferenceTests(unittest.TestCase):
         print("\ntest_logistic_regression_cv")
         model.coef_ = numpy.array([[0.1, 0.2, 0.3, 0.4, -0.5, 0.6]], dtype=numpy.float64)
         string_array = ["dogdogdogdog house", "bobthe builder", "dog the the the", "dog the the the the"]
-        sample_logistic_regression_cv(string_array, vectorizer)
+        correct_output = sample_logistic_regression_cv(string_array, vectorizer)
         sample_logistic_regression_cv(string_array, vectorizer)
         weld_output = sample_logistic_regression_cv(string_array, vectorizer)
         numpy.testing.assert_equal(
-            weld_output, numpy.array([0, 1, 0, 1], dtype=numpy.int64))
+            weld_output, numpy.array(correct_output, dtype=numpy.int64))
 
     def test_predict_proba_cv(self):
         print("\ntest_predict_proba_cv")

@@ -64,7 +64,7 @@ def do_merge(combi, features_one, join_col_one, features_two, join_col_two, clus
     combi = combi.merge(regs_features, how='left', on=regs_col)
     combi = combi[FEATURES]
     combi = combi.values
-    preds = model.predict(combi)
+    preds = willump_predict_function(model, combi)
     return preds
 
 
@@ -166,7 +166,7 @@ def create_featureset(folder):
 
     # add latent features
     y_pred = np.hstack(add_features_and_predict(folder, combi))
-    print("Train AUC: %f" % auc_score(y, y_pred))
+    print("Train AUC: %f" % willump_score_function(y, y_pred))
 
 
 if __name__ == '__main__':

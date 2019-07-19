@@ -33,8 +33,6 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
         if not appears_later:
             weld_block_output_set.remove(entry)
     # Do optimization passes over the block.
-    if eval_cascades is None and num_workers > 0:
-        weld_block_node_list = wg_passes.pushing_model_pass(weld_block_node_list, weld_block_output_set, typing_map)
     csr_preprocess_nodes, csr_postprocess_nodes = \
         wg_passes.weld_csr_marshalling_pass(weld_block_input_set, weld_block_output_set, typing_map)
     pandas_preprocess_nodes, pandas_postprocess_nodes = wg_passes.weld_pandas_marshalling_pass(weld_block_input_set,
@@ -98,9 +96,9 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
 
 
 def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType], training_cascades: Optional[dict],
-                  eval_cascades: Optional[dict], aux_data: List[Tuple[int, WeldType]], cascade_threshold: float,
+                  eval_cascades: Optional[dict], cascade_threshold: float,
                   willump_cache_dict: dict, max_cache_size, top_k: Optional[int]=None,
-                  batch: bool = True, num_workers=0) -> \
+                  batch: bool = True, num_workers=0, train_predict_score_functions=None) -> \
         List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]]:
     """
     Convert a Willump graph into a sequence of Willump statements.
@@ -116,10 +114,11 @@ def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType]
     wg_passes.model_input_identification_pass(sorted_nodes)
     if training_cascades is not None:
         assert (eval_cascades is None)
-        sorted_nodes = w_cascades.training_model_cascade_pass(sorted_nodes, typing_map, training_cascades)
+        sorted_nodes = w_cascades.training_model_cascade_pass(sorted_nodes, typing_map, training_cascades,
+                                                              train_predict_score_functions)
     if eval_cascades is not None:
         assert (training_cascades is None)
-        sorted_nodes = w_cascades.eval_model_cascade_pass(sorted_nodes, typing_map, aux_data, eval_cascades,
+        sorted_nodes = w_cascades.eval_model_cascade_pass(sorted_nodes, typing_map, eval_cascades,
                                                           cascade_threshold, batch, top_k)
     sorted_nodes = wg_passes.cache_python_block_pass(sorted_nodes, willump_cache_dict, max_cache_size)
     sorted_nodes = wg_passes.async_python_functions_parallel_pass(sorted_nodes)

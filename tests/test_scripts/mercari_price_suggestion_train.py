@@ -10,7 +10,6 @@ from operator import itemgetter
 from typing import List, Dict, Union
 
 import keras as ks
-import numpy as np
 import pandas as pd
 import scipy.sparse
 import tensorflow as tf
@@ -19,6 +18,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer as Tfidf
 from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
+
+import mercari_price_suggestion_utils
+from mercari_price_suggestion_utils import *
 from willump.evaluation.willump_executor import willump_execute
 
 base_folder = "tests/test_resources/mercari_price_suggestion/"
@@ -65,7 +67,9 @@ def create_vectorizers(train):
 training_cascades = {}
 
 
-@willump_execute(training_cascades=training_cascades)
+@willump_execute(training_cascades=training_cascades, willump_train_function=willump_train_function,
+                 willump_predict_function=willump_predict_function,
+                 willump_score_function=willump_score_function)
 def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_vectorizer, y_train):
     model_input = preprocess(model_input)
     name_input = model_input["name"].values
@@ -75,14 +79,7 @@ def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_
     valid_records = to_records(model_input[["shipping", "item_condition_id"]])
     dict_vec = dict_vectorizer.transform(valid_records)
     combined_vec = scipy.sparse.hstack([text_vec, name_vec, dict_vec], format="csr")
-    model_in = ks.Input(shape=(100000 + 100000 + 2,), dtype='float32', sparse=True)
-    out = ks.layers.Dense(192, activation='relu')(model_in)
-    out = ks.layers.Dense(64, activation='relu')(out)
-    out = ks.layers.Dense(64, activation='relu')(out)
-    out = ks.layers.Dense(1)(out)
-    model = ks.Model(model_in, out)
-    nothing = model.compile(loss='mean_squared_error', optimizer=ks.optimizers.Adam(lr=3e-3))
-    history = model.fit(combined_vec, y_train, batch_size=2 ** (11 + 1), epochs=1, verbose=0)
+    model = willump_train_function(combined_vec, y_train)
     return model
 
 
@@ -99,6 +96,7 @@ def main():
     train = train.iloc[train_ids]
     print("Training set rows %d" % len(train))
     y_train = y_scaler.fit_transform(np.log1p(train['price'].values.reshape(-1, 1)))
+    mercari_price_suggestion_utils.y_scaler = y_scaler
     try:
         vectorizers = pickle.load(open(base_folder + "mercari_vect_lr.pk", "rb"))
     except FileNotFoundError:

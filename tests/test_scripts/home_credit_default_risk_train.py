@@ -9,7 +9,7 @@ from contextlib import contextmanager
 
 import numpy as np
 import pandas as pd
-from lightgbm import LGBMClassifier
+from home_credit_default_risk_utils import *
 from sklearn.model_selection import train_test_split
 from willump.evaluation.willump_executor import willump_execute
 
@@ -239,33 +239,18 @@ def credit_card_balance(num_rows=None, nan_as_category=True):
 training_cascades = {}
 
 
-@willump_execute(training_cascades=training_cascades)
+@willump_execute(training_cascades=training_cascades, willump_train_function=willump_train_function,
+                 willump_predict_function=willump_predict_function, willump_score_function=willump_score_function)
 def join_and_lgbm(df, bureau, prev, pos, ins, cc, train_y):
     df = df.merge(bureau, how='left', on='SK_ID_CURR')
     df = df.merge(prev, how='left', on='SK_ID_CURR')
     df = df.merge(pos, how='left', on='SK_ID_CURR')
     df = df.merge(ins, how='left', on='SK_ID_CURR')
     df = df.merge(cc, how='left', on='SK_ID_CURR')
-    # LightGBM parameters found by Bayesian optimization
-    clf = LGBMClassifier(
-        n_jobs=1,
-        n_estimators=10000,
-        learning_rate=0.02,
-        num_leaves=34,
-        colsample_bytree=0.9497036,
-        subsample=0.8715623,
-        max_depth=8,
-        reg_alpha=0.041545473,
-        reg_lambda=0.0735294,
-        min_split_gain=0.0222415,
-        min_child_weight=39.3259775,
-        silent=-1,
-        verbose=-1,
-        random_state=42)
     feats = [f for f in df.columns if
              f not in ['TARGET', 'SK_ID_CURR', 'SK_ID_BUREAU', 'SK_ID_PREV', 'index']]
     train_x = df[feats]
-    clf = clf.fit(train_x, train_y, eval_metric='auc', verbose=200)
+    clf = willump_train_function(train_x, train_y)
     return clf
 
 

@@ -2,7 +2,6 @@ import ast
 from typing import MutableMapping, List, Tuple, Optional, Mapping
 
 import astor
-from weld.types import *
 
 from willump import *
 from willump.graph.array_binop_node import ArrayBinopNode
@@ -10,10 +9,6 @@ from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
 from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.identity_node import IdentityNode
-from willump.graph.keras_model_node import KerasModelNode
-from willump.graph.keras_training_node import KerasTrainingNode
-from willump.graph.linear_regression_node import LinearRegressionNode
-from willump.graph.linear_training_node import LinearTrainingNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
 from willump.graph.pandas_column_selection_node_python import PandasColumnSelectionNodePython
 from willump.graph.pandas_dataframe_concatenation_node import PandasDataframeConcatenationNode
@@ -23,14 +18,13 @@ from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.reshape_node import ReshapeNode
 from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.string_lower_node import StringLowerNode
-from willump.graph.train_test_split_node import TrainTestSplitNode
-from willump.graph.trees_model_node import TreesModelNode
-from willump.graph.trees_training_node import TreesTrainingNode
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
 from willump.graph.willump_output_node import WillumpOutputNode
+from willump.graph.willump_predict_node import WillumpPredictNode
 from willump.graph.willump_python_node import WillumpPythonNode
+from willump.graph.willump_training_node import WillumpTrainingNode
 from willump.willump_utilities import *
 
 
@@ -100,54 +94,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         Process an assignment AST node into either a Willump Weld node or Willump Python node that
         defines the variable being assigned.
         """
-
-        def analyze_predict(predict_node_value: ast.AST, predict_proba: bool) -> Tuple[List[str], WillumpGraphNode]:
-            if WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:
-                logit_input_var: str = self.get_load_name(predict_node_value.args[0].id,
-                                                          predict_node_value.lineno, self._type_map)
-                logit_weights = self._static_vars[WILLUMP_LINEAR_REGRESSION_WEIGHTS]
-                logit_intercept = self._static_vars[WILLUMP_LINEAR_REGRESSION_INTERCEPT]
-                is_regression = self._static_vars[WILLUMP_LINEAR_MODEL_IS_REGRESSION]
-                logit_input_node: WillumpGraphNode = self._node_dict[logit_input_var]
-                logit_node: LinearRegressionNode = LinearRegressionNode(
-                    input_node=logit_input_node,
-                    input_name=logit_input_var,
-                    input_type=self._type_map[logit_input_var],
-                    output_name=output_var_name,
-                    output_type=self._type_map[output_var_name],
-                    logit_weights=logit_weights,
-                    logit_intercept=logit_intercept, aux_data=self.aux_data,
-                    regression=is_regression,
-                    predict_proba=predict_proba
-                )
-                return [output_var_name], logit_node
-            elif WILLUMP_TREES_FEATURE_IMPORTANCES in self._static_vars:
-                trees_input_var: str = self.get_load_name(predict_node_value.args[0].id,
-                                                          predict_node_value.lineno, self._type_map)
-                trees_input_node: WillumpGraphNode = self._node_dict[trees_input_var]
-                model_name = predict_node_value.func.value.id
-                feature_importances = self._static_vars[WILLUMP_TREES_FEATURE_IMPORTANCES]
-                trees_node = TreesModelNode(input_node=trees_input_node, input_name=trees_input_var,
-                                            output_name=output_var_name, model_name=model_name,
-                                            input_width=len(feature_importances),
-                                            output_type=self._type_map[output_var_name],
-                                            predict_proba=predict_proba)
-                return [output_var_name], trees_node
-            elif WILLUMP_KERAS_MODEL_CONFIG in self._static_vars:
-                trees_input_var: str = self.get_load_name(predict_node_value.args[0].id,
-                                                          predict_node_value.lineno, self._type_map)
-                trees_input_node: WillumpGraphNode = self._node_dict[trees_input_var]
-                model_name = predict_node_value.func.value.id
-                model_config = self._static_vars[WILLUMP_KERAS_MODEL_CONFIG]
-                input_width = model_config["layers"][0]["config"]["batch_input_shape"][1]
-                trees_node = KerasModelNode(input_node=trees_input_node, input_name=trees_input_var,
-                                            output_name=output_var_name, model_name=model_name,
-                                            input_width=input_width,
-                                            output_type=self._type_map[output_var_name])
-                return [output_var_name], trees_node
-            else:
-                return self._create_py_node(node)
-
         assert (len(node.targets) == 1)  # Assume assignment to only one variable.
         if any(costly_statement in astor.to_source(node) for costly_statement in self._costly_statements):
             is_costly_node = True
@@ -219,15 +165,12 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     else:
                         pandas_column_selection_node = \
                             PandasColumnSelectionNodePython(input_nodes=[self._node_dict[input_var_name]],
-                                                      input_names=[input_var_name],
-                                                      output_name=output_var_name,
-                                                      input_types=[input_var_type],
-                                                      selected_columns=column_names,
-                                                      output_type=output_type)
+                                                            input_names=[input_var_name],
+                                                            output_name=output_var_name,
+                                                            input_types=[input_var_type],
+                                                            selected_columns=column_names,
+                                                            output_type=output_type)
                     return [output_var_name], pandas_column_selection_node
-            elif isinstance(value.slice, ast.ExtSlice) and isinstance(value.value, ast.Call) and "predict_proba" \
-                    in value.value.func.attr:
-                return analyze_predict(value.value, True)
         elif isinstance(value, ast.Call):
             called_function: Optional[str] = self._get_function_name(value)
             if called_function is None:
@@ -253,8 +196,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                                  output_var_name],
                                                                              output_col=output_col)
                         return [output_var_name], string_lower_node
-            elif ".predict" in called_function:
-                return analyze_predict(value, False)
             elif ".transform" in called_function:
                 lineno = str(node.lineno)
                 if WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno not in self._static_vars or \
@@ -356,43 +297,27 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                     output_type=output_type)
                 stack_sparse_node.set_costly_node(is_costly_node)
                 return [output_var_name], stack_sparse_node
-            elif ".fit" in called_function:
-                if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Name) and \
-                        len(value.args) >= 2 and isinstance(value.args[0], ast.Name) and isinstance(value.args[1],
-                                                                                                    ast.Name):
-                    x_name = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
-                    model_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
-                    y_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
-                    x_node, model_node, y_node = self._node_dict[x_name], self._node_dict[model_name], self._node_dict[
-                        y_name]
-                    if WILLUMP_LINEAR_REGRESSION_WEIGHTS in self._static_vars:
-                        input_weights = self._static_vars[WILLUMP_LINEAR_REGRESSION_WEIGHTS]
-                        input_intercept = self._static_vars[WILLUMP_LINEAR_REGRESSION_INTERCEPT]
-                        training_node = LinearTrainingNode(python_ast=node,
-                                                           in_nodes=[x_node, model_node, y_node],
-                                                           input_names=[x_name, model_name, y_name],
-                                                           output_names=[output_var_name],
-                                                           input_weights=input_weights,
-                                                           input_intercept=input_intercept)
-                        return [output_var_name], training_node
-                    elif WILLUMP_TREES_FEATURE_IMPORTANCES in self._static_vars:
-                        feature_importances = self._static_vars[WILLUMP_TREES_FEATURE_IMPORTANCES]
-                        training_node = TreesTrainingNode(python_ast=node,
-                                                          in_nodes=[x_node, model_node, y_node],
-                                                          input_names=[x_name, model_name, y_name],
-                                                          output_names=[output_var_name],
-                                                          feature_importances=feature_importances)
-                        return [output_var_name], training_node
-                    elif WILLUMP_KERAS_MODEL_WEIGHTS in self._static_vars:
-                        model_weights = self._static_vars[WILLUMP_KERAS_MODEL_WEIGHTS]
-                        model_config = self._static_vars[WILLUMP_KERAS_MODEL_CONFIG]
-                        training_node = KerasTrainingNode(python_ast=node,
-                                                          in_nodes=[x_node, model_node, y_node],
-                                                          input_names=[x_name, model_name, y_name],
-                                                          output_names=[model_name],
-                                                          model_config=model_config,
-                                                          model_weights=model_weights)
-                        return [model_name], training_node
+            elif "willump_train_function" in called_function:
+                x_name = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
+                y_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
+                x_node, y_node = self._node_dict[x_name], self._node_dict[y_name]
+                train_x_y = self._static_vars[WILLUMP_TRAIN_X_Y]
+                assert(isinstance(train_x_y, tuple) and len(train_x_y) == 2)
+                training_node = WillumpTrainingNode(x_name=x_name, x_node=x_node,
+                                                    y_name=y_name, y_node=y_node,
+                                                    output_name=output_var_name,
+                                                    train_x_y=train_x_y)
+                return [output_var_name], training_node
+            elif "willump_predict_function" in called_function:
+                model_name = value.args[0].id
+                x_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
+                x_node = self._node_dict[x_name]
+                output_type = self._type_map[output_var_name]
+                input_width = self._static_vars[WILLUMP_INPUT_WIDTH]
+                predict_node = WillumpPredictNode(model_name=model_name, x_name=x_name,
+                                                  x_node=x_node, output_name=output_var_name, output_type=output_type,
+                                                  input_width=input_width)
+                return [output_var_name], predict_node
             elif ".fillna" in called_function and isinstance(value.func, ast.Attribute) and \
                     isinstance(value.func.value, ast.Name):
                 input_name = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
@@ -447,21 +372,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                      in_nodes=[input_node], output_names=[input_name],
                                                      output_types=[output_type])
                     return [input_name], compile_node
-            elif "train_test_split" in called_function:
-                assert (isinstance(target, ast.Tuple))
-                if len(target.elts) == 2 and isinstance(value.args[0], ast.Name):
-                    train_output_var = self.get_store_name(target.elts[0].id, target.lineno)
-                    test_output_var = self.get_store_name(target.elts[1].id, target.lineno)
-                    input_var = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
-                    input_node = self._node_dict[input_var]
-                    output_type = self._type_map[train_output_var]
-                    keyword_args = value.keywords
-                    train_test_split_node = TrainTestSplitNode(input_node=input_node, input_name=input_var,
-                                                               train_name=train_output_var,
-                                                               test_name=test_output_var,
-                                                               output_type=output_type,
-                                                               keyword_args=keyword_args)
-                    return [train_output_var, test_output_var], train_test_split_node
             elif called_function in self._async_funcs or called_function in self._cached_funcs:
                 is_async_func = called_function in self._async_funcs
                 is_cached_func = called_function in self._cached_funcs

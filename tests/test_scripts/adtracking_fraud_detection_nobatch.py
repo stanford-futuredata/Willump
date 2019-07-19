@@ -5,7 +5,6 @@ import argparse
 import pickle
 import time
 
-from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
@@ -49,7 +48,7 @@ def process_input_and_predict(input_df):
     input_df = input_df.merge(ip_app_chl_mean_hour, how='left', on=ip_app_chl_mean_hour_jc)
     input_df = input_df[predictors]
     input_df = input_df.values
-    preds = clf.predict(input_df)
+    preds = willump_predict_function(clf, input_df)
     return preds
 
 
@@ -132,4 +131,4 @@ if __name__ == "__main__":
     print('Prediction in %f seconds rows %d throughput %f: ' % (
         elapsed_time, num_rows, num_rows / elapsed_time))
 
-    print("Validation ROC-AUC Score: %f" % roc_auc_score(valid_y, y_preds))
+    print("Validation ROC-AUC Score: %f" % willump_score_function(valid_y, y_preds))
