@@ -9,9 +9,9 @@ from contextlib import contextmanager
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 
+from home_credit_default_risk_utils import *
 from willump.evaluation.willump_executor import willump_execute
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -75,11 +75,11 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, clf):
     feats = [f for f in df.columns if
              f not in ['TARGET', 'SK_ID_CURR', 'SK_ID_BUREAU', 'SK_ID_PREV', 'index']]
     valid_x = df[feats]
-    oof_preds_proba = clf.predict_proba(valid_x, num_iteration=clf.best_iteration_)[:, 1]
+    oof_preds_proba = willump_predict_proba_function(clf, valid_x)
     return oof_preds_proba
 
 
-def main(debug=False):
+def main(debug=True):
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
     bureau, prev, pos, ins, cc = pickle.load(open(base_folder + "tables.csv", "rb"))
@@ -93,7 +93,7 @@ def main(debug=False):
     with timer("Joins and Prediction"):
         oof_preds = join_and_lgbm(valid_df, bureau, prev, pos, ins, cc, clf)
 
-    print('Full AUC score %.6f' % roc_auc_score(valid_df['TARGET'], oof_preds))
+    print('Full AUC score %.6f' % willump_score_function(valid_df['TARGET'], oof_preds))
 
 
 if __name__ == "__main__":
