@@ -3,8 +3,8 @@
 
 import pickle
 import time
+import adtracking_fraud_detection_util
 
-from lightgbm import LGBMClassifier
 from sklearn.model_selection import train_test_split
 
 from adtracking_fraud_detection_util import *
@@ -17,7 +17,9 @@ base_folder = "tests/test_resources/adtracking_fraud_detection/"
 training_cascades = {}
 
 
-@willump_execute(training_cascades=training_cascades)
+@willump_execute(training_cascades=training_cascades, willump_train_function=willump_train_function,
+                 willump_predict_function=willump_predict_function,
+                 willump_score_function=willump_score_function)
 def process_input_and_train(input_df, train_y):
     input_df = input_df.merge(X_ip_channel, how='left', on=X_ip_channel_jc)
     input_df = input_df.merge(X_ip_day_hour, how='left', on=X_ip_day_hour_jc)
@@ -34,23 +36,8 @@ def process_input_and_train(input_df, train_y):
     input_df = input_df.merge(ip_app_os_hour, how='left', on=ip_app_os_hour_jc)
     input_df = input_df.merge(ip_app_chl_mean_hour, how='left', on=ip_app_chl_mean_hour_jc)
     input_df = input_df[predictors]
-    # train_df, valid_df = train_test_split(input_df, test_size=0.1, shuffle=False)
-    clf = LGBMClassifier(
-        n_jobs=1,
-        boosting_type="gbdt",
-        objective="binary",
-        num_leaves=7,
-        max_depth=3,
-        min_child_samples=100,
-        max_bin=100,
-        subsample=0.7,
-        subsample_freq=1,
-        colsample_bytree=0.9,
-        min_child_weight=0,
-        scale_pos_weight=200
-    )
-    clf = clf.fit(input_df, train_y, eval_metric='auc', categorical_feature=categorical_indices)
-    return clf
+    model = willump_train_function(input_df, train_y)
+    return model
 
 
 if __name__ == "__main__":
@@ -117,7 +104,7 @@ if __name__ == "__main__":
                   'ip_tchan_count', 'ip_app_count', 'ip_app_os_count', 'ip_app_os_var', 'ip_app_channel_var_day',
                   'ip_app_channel_mean_hour', 'X0', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8']
     categorical = ['app', 'device', 'os', 'channel', 'hour', 'day']
-    categorical_indices = list(map(lambda x: predictors.index(x), categorical))
+    adtracking_fraud_detection_util.categorical_indices = list(map(lambda x: predictors.index(x), categorical))
 
     train_y = train_df[target].values
 

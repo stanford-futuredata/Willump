@@ -2,14 +2,10 @@ import argparse
 import pickle
 import time
 
-from sklearn import metrics
 from sklearn.model_selection import train_test_split
 
 from willump.evaluation.willump_executor import willump_execute
 from wsdm_utilities import *
-from lightgbm import LGBMClassifier
-
-
 
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
 

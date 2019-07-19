@@ -3,10 +3,47 @@ import os
 
 import numpy as np
 import pandas as pd
+from lightgbm import LGBMClassifier
+from sklearn.metrics import roc_auc_score
+
+categorical_indices = None
+
+
+def willump_train_function(X, y):
+    model = LGBMClassifier(
+        n_jobs=1,
+        boosting_type="gbdt",
+        objective="binary",
+        num_leaves=7,
+        max_depth=3,
+        min_child_samples=100,
+        max_bin=100,
+        subsample=0.7,
+        subsample_freq=1,
+        colsample_bytree=0.9,
+        min_child_weight=0,
+        scale_pos_weight=200
+    )
+    model = model.fit(X, y, eval_metric='auc', categorical_feature=categorical_indices)
+    return model
+
+
+def willump_predict_function(model, X):
+    if X.shape[0] == 0:
+        return np.zeros(0, dtype=np.uint8)
+    else:
+        return model.predict(X)
+
+
+def willump_predict_proba_function(model, X):
+    return model.predict_proba(X)[:, 1]
+
+
+def willump_score_function(true_y, pred_y):
+    return roc_auc_score(true_y, pred_y)
 
 
 def gen_aggregate_statistics_tables(train_df, base_folder, train_start_point, train_end_point, debug):
-
     nextClick_filename = base_folder + 'nextClick_%d_%d.csv' % (train_start_point, train_end_point)
     if os.path.exists(nextClick_filename):
         print('loading from save file')
@@ -96,7 +133,8 @@ def gen_aggregate_statistics_tables(train_df, base_folder, train_start_point, tr
         ['hour']].var().reset_index().rename(index=str, columns={'hour': 'ip_tchan_count'})
     ip_day_hour_channel_jc = ['ip', 'day', 'channel']
 
-    ip_app_os_hour = train_df[['ip', 'app', 'os', 'hour']].groupby(by=['ip', 'app', 'os'])[['hour']].var().reset_index().rename(
+    ip_app_os_hour = train_df[['ip', 'app', 'os', 'hour']].groupby(by=['ip', 'app', 'os'])[
+        ['hour']].var().reset_index().rename(
         index=str, columns={'hour': 'ip_app_os_var'})
     ip_app_os_hour_jc = ['ip', 'app', 'os']
 
@@ -109,9 +147,9 @@ def gen_aggregate_statistics_tables(train_df, base_folder, train_start_point, tr
     ip_app_chl_mean_hour_jc = ['ip', 'app', 'channel']
 
     return X_ip_channel, X_ip_channel_jc, X_ip_day_hour, X_ip_day_hour_jc, X_ip_app, X_ip_app_jc, \
-        X_ip_app_os, X_ip_app_os_jc, \
-        X_ip_device, X_ip_device_jc, X_app_channel, X_app_channel_jc, X_ip_device_app_os, X_ip_device_app_os_jc, \
-        ip_app_os, ip_app_os_jc, ip_day_hour, ip_day_hour_jc, ip_app, ip_app_jc, ip_day_hour_channel, \
-        ip_day_hour_channel_jc, ip_app_channel_var_day, ip_app_channel_var_day_jc, ip_app_os_hour,\
-        ip_app_os_hour_jc, ip_app_chl_mean_hour, ip_app_chl_mean_hour_jc, \
+           X_ip_app_os, X_ip_app_os_jc, \
+           X_ip_device, X_ip_device_jc, X_app_channel, X_app_channel_jc, X_ip_device_app_os, X_ip_device_app_os_jc, \
+           ip_app_os, ip_app_os_jc, ip_day_hour, ip_day_hour_jc, ip_app, ip_app_jc, ip_day_hour_channel, \
+           ip_day_hour_channel_jc, ip_app_channel_var_day, ip_app_channel_var_day_jc, ip_app_os_hour, \
+           ip_app_os_hour_jc, ip_app_chl_mean_hour, ip_app_chl_mean_hour_jc, \
            nextClick, pd.DataFrame(nextClick).shift(+1).values, X_ip_device_os_app.values, X_ip_os.values
