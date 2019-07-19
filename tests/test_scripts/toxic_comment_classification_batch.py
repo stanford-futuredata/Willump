@@ -6,7 +6,7 @@ import pandas as pd
 import scipy.sparse
 from sklearn.model_selection import train_test_split
 
-from toxic_comment_classification_utils import willump_predict_function, willump_predict_proba_function, willump_score_function
+from toxic_comment_classification_utils import *
 from willump.evaluation.willump_executor import willump_execute
 
 class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']

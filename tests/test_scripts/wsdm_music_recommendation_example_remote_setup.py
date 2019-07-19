@@ -265,7 +265,7 @@ def do_merge(combi):
     combi = combi[FEATURES]
     combi = combi.values
     combi = combi.reshape(1, -1)
-    preds = model.predict(combi)
+    preds = willump_predict_function(model, combi)
     return preds
 
 
@@ -389,7 +389,7 @@ def create_featureset(folder):
     combi_train, _, y_train, _ = train_test_split(combi, y, test_size=0.33, random_state=42)
     # Add features and predict.
     y_pred = np.hstack(add_features_and_predict(folder, combi_train))
-    print("Train AUC: %f" % roc_auc_score(y_train, y_pred))
+    print("Train AUC: %f" % willump_score_function(y_train, y_pred))
     print("Train: Number of \"remote\" queries made: %d  Requests per row:  %f" %
           (num_queries, num_queries / len(y_pred)))
     num_queries = 0

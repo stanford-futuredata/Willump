@@ -3,24 +3,23 @@
 # They must be stripped of non-ascii characters as Willump does not yet support arbirary Unicode.
 
 
+import argparse
 import pickle
 import time
-import argparse
 from contextlib import contextmanager
 from operator import itemgetter
 from typing import List, Dict, Union
 
-import mercari_price_suggestion_utils
-from mercari_price_suggestion_utils import *
-from keras.models import load_model
 import numpy as np
 import pandas as pd
 import scipy.sparse
-from sklearn.metrics import mean_squared_log_error
+from keras.models import load_model
 from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 
+import mercari_price_suggestion_utils
+from mercari_price_suggestion_utils import *
 from willump.evaluation.willump_executor import willump_execute
 
 base_folder = "tests/test_resources/mercari_price_suggestion/"

@@ -319,7 +319,7 @@ def do_merge(combi):
                        ss_row, as_row, gs_row, cs_row, ages_row, ls_row, gender_row, comps_row,
                        lyrs_row, snames_row, stabs_row, stypes_row, regs_row], axis=1)
     combi = combi[FEATURES]
-    preds = model.predict(combi)
+    preds = willump_predict_function(model, combi)
     return preds
 
 
@@ -437,9 +437,10 @@ def create_featureset(folder):
     _, combi_valid, _, y_valid = train_test_split(combi, y, test_size=0.33, random_state=42)
     # Add features and predict.
     y_pred = add_features_and_predict(folder, combi_valid)
-    print("Valid AUC: %f" % roc_auc_score(y_valid, y_pred))
+    print("Valid AUC: %f" % willump_score_function(y_valid, y_pred))
     print("Valid: Number of \"remote\" queries made: %d  Requests per row:  %f" %
           (num_queries, num_queries / len(y_pred)))
+
 
 if __name__ == '__main__':
     create_featureset("tests/test_resources/wsdm_cup_features/")

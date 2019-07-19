@@ -1,14 +1,14 @@
-import numpy as np
-import pandas as pd
+import argparse
 import pickle
-
 import time
-from tqdm import tqdm
-from sklearn.metrics import roc_auc_score
+
+import pandas as pd
 import scipy.sparse
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
+
+from toxic_comment_classification_utils import *
 from willump.evaluation.willump_executor import willump_execute
-import argparse
 
 class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 base_path = "tests/test_resources/toxic_comment_classification/"
@@ -36,7 +36,7 @@ def vectorizer_transform(input_text, word_vect, char_vect):
     word_features = word_vect.transform(input_text)
     char_features = char_vect.transform(input_text)
     combined_features = scipy.sparse.hstack([word_features, char_features], format="csr")
-    preds = classifier.predict(combined_features)
+    preds = willump_predict_function(classifier, combined_features)
     return preds
 
 
@@ -67,4 +67,4 @@ print("Classification Time %fs Num Rows %d Throughput %f rows/sec Latency %f sec
       (time_elapsed, set_size, set_size / time_elapsed, time_elapsed / set_size))
 
 y_preds = np.hstack(y_preds)
-print("Validation ROC-AUC Score: %f" % roc_auc_score(valid_target, y_preds))
+print("Validation ROC-AUC Score: %f" % willump_predict_function(valid_target, y_preds))
