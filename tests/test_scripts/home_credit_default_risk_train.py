@@ -254,7 +254,7 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, train_y):
     return clf
 
 
-def main(debug=True):
+def main(debug=False):
     num_rows = 10000 if debug else None
     df = application_train_test(num_rows)
     with timer("Process bureau and bureau_balance"):
