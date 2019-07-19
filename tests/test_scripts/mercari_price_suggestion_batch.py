@@ -10,6 +10,8 @@ from contextlib import contextmanager
 from operator import itemgetter
 from typing import List, Dict, Union
 
+import mercari_price_suggestion_utils
+from mercari_price_suggestion_utils import *
 from keras.models import load_model
 import numpy as np
 import pandas as pd
@@ -62,7 +64,7 @@ def predict_from_input(model_input, name_vectorizer, text_vectorizer, dict_vecto
     valid_records = to_records(model_input[["shipping", "item_condition_id"]])
     dict_vec = dict_vectorizer.transform(valid_records)
     combined_vec = scipy.sparse.hstack([text_vec, name_vec, dict_vec], format="csr")
-    preds = model.predict(combined_vec)
+    preds = willump_predict_function(model, combined_vec)
     return preds
 
 
@@ -74,15 +76,16 @@ def main():
     train_ids, valid_ids = next(cv.split(train))
     train, valid = train.iloc[train_ids], train.iloc[valid_ids]
     y_scaler.fit_transform(np.log1p(train['price'].values.reshape(-1, 1)))
+    mercari_price_suggestion_utils.y_scaler = y_scaler
+    y_true = valid['price'].values
+    y_true = y_scaler.transform(np.log1p(y_true.reshape(-1, 1)))
     vectorizers = pickle.load(open(base_folder + "mercari_vect_lr.pk", "rb"))
     mini_valid = valid.iloc[0:3].copy()
     predict_from_input(mini_valid, *vectorizers).astype(np.float32)
     predict_from_input(mini_valid, *vectorizers).astype(np.float32)
     with timer('Process Train Input'):
         y_pred = predict_from_input(valid, *vectorizers).astype(np.float32)
-    y_pred = np.expm1(y_scaler.inverse_transform(y_pred.reshape(-1, 1))[:, 0])
-    y_pred[y_pred < 0] = 0
-    print('Valid RMSLE: {:.7f}'.format(np.sqrt(mean_squared_log_error(valid["price"], y_pred))))
+    print('Valid 1 - RMSLE: {:.7f}'.format(willump_score_function(y_true, y_pred)))
 
 
 if __name__ == '__main__':
