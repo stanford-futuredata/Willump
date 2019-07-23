@@ -67,4 +67,4 @@ print("Classification Time %fs Num Rows %d Throughput %f rows/sec Latency %f sec
       (time_elapsed, set_size, set_size / time_elapsed, time_elapsed / set_size))
 
 y_preds = np.hstack(y_preds)
-print("Validation ROC-AUC Score: %f" % willump_predict_function(valid_target, y_preds))
+print("Validation ROC-AUC Score: %f" % willump_score_function(valid_target, y_preds))

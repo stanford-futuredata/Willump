@@ -333,12 +333,12 @@ def multithreading_weld_blocks_pass(weld_block_node_list: List[WillumpGraphNode]
     Weld blocks (Tuples of node lists, inputs, and outputs) or parallel node blocks (inputs, then a list of tuples
     of node lists and outputs).
 
-    TODO:  Only parallelizes node blocks ending in a CombineLinearRegressionNode.
+    TODO:  Only parallelizes node blocks ending in a StackSparseNode.
 
-    TODO:  Assumes subgraphs rooted in inputs to a CombineLinearRegressionNode and in weld_block_node_list are disjoint.
+    TODO:  Assumes subgraphs rooted in inputs to a StackSparseNode and in weld_block_node_list are disjoint.
     """
     combine_node = weld_block_node_list[-1]
-    if not isinstance(combine_node, CombineLinearRegressionNode):
+    if not isinstance(combine_node, StackSparseNode):
         return [(weld_block_node_list, weld_block_input_set, weld_block_output_set)]
     input_nodes = combine_node.get_in_nodes()
     thread_list: List[Tuple[List[WillumpGraphNode], Set[str]]] = []

@@ -352,12 +352,14 @@ def generate_input_parser(input_types: List[WeldType], aux_data) -> str:
                             """ % (weld_input_name, inner_i, inner_i)
                 else:
                     panic("Unrecognized struct field type %s" % str(field_type))
-            # Convert scipy indptr to Willump row lists.
+            # Convert scipy indptr to Willump row lists if necessary.
             if isinstance(input_type, WeldCSR):
                 buffer += \
                     """
-                    {0}._0.ptr = csr_matrix_row_maker({0}._0.ptr, {0}._1.size, {0}._0.size);
-                    {0}._0.size = {0}._1.size;
+                    if ({0}._0.size != {0}._1.size) {{
+                        {0}._0.ptr = csr_matrix_row_maker({0}._0.ptr, {0}._1.size, {0}._0.size);
+                        {0}._0.size = {0}._1.size;
+                    }}
                     """.format(weld_input_name)
             buffer += "}\n"
         elif wtype_is_scalar(input_type):
