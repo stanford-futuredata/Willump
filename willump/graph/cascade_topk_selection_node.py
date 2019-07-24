@@ -41,7 +41,7 @@ class CascadeTopKSelectionNode(WillumpGraphNode):
                 appender[i8](output_len),
                 | bs, i: i64, x: f64|
                     # 2 if top percentile, 0 otherwise.
-                    merge(bs, if(x > threshold, 2c, 0c))
+                    merge(bs, if(x >= threshold, 2c, 0c))
             ));
             """
         weld_program = weld_program.replace("OUTPUT_NAME", self._output_name)

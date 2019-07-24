@@ -18,7 +18,7 @@ class WillumpPythonNode(WillumpGraphNode):
                  output_types: List[WeldType],
                  in_nodes: List[WillumpGraphNode],
                  is_async_node: bool = False, is_cached_node: bool = False,
-                 does_not_modify_data=False) -> None:
+                 does_not_modify_data: bool = False, cost: float = 1) -> None:
         self._output_types = output_types
         self._output_names = output_names
         self._in_nodes = in_nodes
@@ -27,10 +27,10 @@ class WillumpPythonNode(WillumpGraphNode):
         self.is_async_node = is_async_node
         self.is_cached_node = is_cached_node
         self.does_not_modify_data = does_not_modify_data
+        self.cost = cost
 
     def get_cost(self) -> float:
-        # TODO:  Find a better way to generate costs for arbitrary Python nodes.
-        return 1
+        return self.cost
 
     def get_in_nodes(self) -> List[WillumpGraphNode]:
         return self._in_nodes
@@ -54,4 +54,4 @@ class WillumpPythonNode(WillumpGraphNode):
         import astor
         return "Willump Python node with inputs %s\n outputs %s\n and code %s\n" % \
                (str(list(map(lambda x: x.get_output_names(), self._in_nodes))), self._output_names,
-               astor.to_source(self.get_python()))
+                astor.to_source(self.get_python()))

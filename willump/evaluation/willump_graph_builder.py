@@ -107,9 +107,9 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         value: ast.expr = node.value
         if isinstance(value, ast.BinOp):
             if not isinstance(output_type, WeldVec):
-                return self._create_py_node(node)
+                return self._create_py_node(node, cost=self._timing_map[node.lineno])
             if isinstance(target, ast.Subscript):
-                return self._create_py_node(node)
+                return self._create_py_node(node, cost=self._timing_map[node.lineno])
             if isinstance(value.left, ast.Name) and value.left.id in self._node_dict:
                 left_name: str = self.get_load_name(value.left.id, value.lineno, self._type_map)
                 left_node: WillumpGraphNode = self._node_dict[left_name]
@@ -174,7 +174,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         elif isinstance(value, ast.Call):
             called_function: Optional[str] = self._get_function_name(value)
             if called_function is None:
-                return self._create_py_node(node)
+                return self._create_py_node(node, cost=self._timing_map[node.lineno])
             # Applying a function to a Pandas column.
             elif "apply" in called_function:
                 if isinstance(value.func, ast.Attribute) and isinstance(value.func.value, ast.Subscript) \
@@ -201,7 +201,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 if WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno not in self._static_vars or \
                         WILLUMP_COUNT_VECTORIZER_VOCAB + lineno not in self._static_vars or \
                         self._static_vars[WILLUMP_COUNT_VECTORIZER_LOWERCASE + lineno] is True:
-                    return self._create_py_node(node)
+                    return self._create_py_node(node, cost=self._timing_map[node.lineno])
                 vectorizer_input_var: str = self.get_load_name(value.args[0].id, node.lineno, self._type_map)
                 analyzer: str = self._static_vars[WILLUMP_COUNT_VECTORIZER_ANALYZER + lineno]
                 vocab_dict: Mapping[str, int] = self._static_vars[WILLUMP_COUNT_VECTORIZER_VOCAB + lineno]
@@ -267,7 +267,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                     return [output_var_name], array_cv_node
             elif ".merge" in called_function:
                 if self._static_vars[WILLUMP_JOIN_HOW + str(node.lineno)] is not 'left':
-                    return self._create_py_node(node)
+                    return self._create_py_node(node, cost=self._timing_map[node.lineno])
                 join_col: str = self._static_vars[WILLUMP_JOIN_COL + str(node.lineno)]
                 right_df = self._static_vars[WILLUMP_JOIN_RIGHT_DATAFRAME + str(node.lineno)]
                 left_df_input_var: str = self.get_load_name(value.func.value.id, value.lineno, self._type_map)
@@ -286,7 +286,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             elif "sparse.hstack" in called_function:
                 if not isinstance(value.args[0], ast.List) or \
                         not all(isinstance(ele, ast.Name) for ele in value.args[0].elts):
-                    return self._create_py_node(node)
+                    return self._create_py_node(node, cost=self._timing_map[node.lineno])
                 input_names = [self.get_load_name(arg_node.id, arg_node.lineno, self._type_map) for arg_node in
                                value.args[0].elts]
                 input_nodes = [self._node_dict[input_name] for input_name in input_names]
@@ -375,7 +375,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
             elif called_function in self._async_funcs or called_function in self._cached_funcs:
                 is_async_func = called_function in self._async_funcs
                 is_cached_func = called_function in self._cached_funcs
-                return self._create_py_node(node, is_costly_node=is_costly_node, is_async_func=is_async_func,
+                return self._create_py_node(node, cost=self._timing_map[node.lineno],
+                                            is_costly_node=is_costly_node, is_async_func=is_async_func,
                                             is_cached_node=is_cached_func)
         elif isinstance(value, ast.Attribute):
             if value.attr == "T" and isinstance(value.value, ast.Call) and isinstance(value.value.func, ast.Attribute) \
@@ -405,7 +406,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                           output_name=output_var_name,
                                                                           output_type=output_type)
                     return [output_var_name], pandas_to_dense_matrix_node
-        return self._create_py_node(node, is_costly_node=is_costly_node)
+        return self._create_py_node(node, cost=self._timing_map[node.lineno], is_costly_node=is_costly_node)
 
     @staticmethod
     def get_store_name(string, lineno):
@@ -431,7 +432,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         output_node = WillumpOutputNode(return_py_node, return_names)
         self.willump_graph = WillumpGraph(output_node)
 
-    def _create_py_node(self, entry: ast.AST, is_costly_node=False,
+    def _create_py_node(self, entry: ast.AST, cost: float = 1, is_costly_node=False,
                         is_async_func=False, is_cached_node=False, does_not_modify_data=False) \
             -> Tuple[List[str], WillumpGraphNode]:
         entry_analyzer = ExpressionVariableAnalyzer(self._type_map)
@@ -450,7 +451,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                    in_nodes=input_node_list,
                                                                    is_async_node=is_async_func,
                                                                    is_cached_node=is_cached_node,
-                                                                   does_not_modify_data=does_not_modify_data)
+                                                                   does_not_modify_data=does_not_modify_data,
+                                                                   cost=cost)
         willump_python_node.set_costly_node(is_costly_node)
         return output_list, willump_python_node
 
