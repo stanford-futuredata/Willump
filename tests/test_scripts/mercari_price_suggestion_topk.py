@@ -89,8 +89,9 @@ def main():
     mini_valid = valid.iloc[0:3].copy()
     predict_from_input(mini_valid, *vectorizers)
     predict_from_input(mini_valid, *vectorizers)
-    with timer('Process Train Input'):
-        y_pred = np.hstack(predict_from_input(valid, *vectorizers))
+    t0 = time.time()
+    y_pred = np.hstack(predict_from_input(valid, *vectorizers))
+    time_elapsed = time.time() - t0
 
     top_k_idx = np.argsort(y_pred)[-1 * top_K:]
     top_k_values = [y_pred[i] for i in top_k_idx]
@@ -101,6 +102,9 @@ def main():
         sum_values += value
 
     print("Sum of top %d values: %f" % (top_K, sum_values))
+
+    print("Top-K Prediction Time %fs Num Rows %d Throughput %f rows/sec" %
+          (time_elapsed, len(valid), len(valid) / time_elapsed))
 
     out_filename = "mercari_top%d.pk" % top_K
     pickle.dump(y_pred, open(out_filename, "wb"))

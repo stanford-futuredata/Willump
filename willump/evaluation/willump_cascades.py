@@ -546,7 +546,8 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
 
     def get_small_model_nodes(orig_model_node: WillumpModelNode, new_input_node: WillumpGraphNode) \
             -> Tuple[WillumpModelNode, WillumpGraphNode]:
-        assert (isinstance(orig_model_node, WillumpPredictNode))
+        assert (isinstance(orig_model_node, WillumpPredictNode) or
+                (top_k is not None and isinstance(orig_model_node, WillumpPredictProbaNode)))
         assert (len(new_input_node.get_output_names()) == 1)
         proba_output_name = "small__proba_" + orig_model_node.get_output_name()
         output_type = WeldVec(WeldDouble())
@@ -572,17 +573,25 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     def get_big_model_nodes(orig_model_node: WillumpModelNode, new_input_node: WillumpGraphNode,
                             small_model_output_node: CascadeThresholdProbaNode, small_model_output_name: str) \
             -> Tuple[WillumpModelNode, CascadeCombinePredictionsNode]:
-        assert (isinstance(orig_model_node, WillumpPredictNode))
+        assert (isinstance(orig_model_node, WillumpPredictNode) or
+                (top_k is not None and isinstance(orig_model_node, WillumpPredictProbaNode)))
         assert (len(new_input_node.get_output_names()) == 1)
         output_name = orig_model_node.get_output_name()
         output_type = orig_model_node.get_output_type()
         new_input_name = new_input_node.get_output_names()[0]
-        big_model_output = WillumpPredictNode(model_name=BIG_MODEL_NAME,
-                                              x_name=new_input_name,
-                                              x_node=new_input_node,
-                                              output_name=output_name,
-                                              output_type=output_type,
-                                              input_width=orig_model_node.input_width)
+        if top_k is None:
+            big_model_output = WillumpPredictNode(model_name=BIG_MODEL_NAME,
+                                                  x_name=new_input_name,
+                                                  x_node=new_input_node,
+                                                  output_name=output_name,
+                                                  output_type=output_type,
+                                                  input_width=orig_model_node.input_width)
+        else:
+            big_model_output = WillumpPredictProbaNode(model_name=BIG_MODEL_NAME,
+                                                  x_name=new_input_name,
+                                                  x_node=new_input_node,
+                                                  output_name=output_name,
+                                                  output_type=output_type)
         combining_node = CascadeCombinePredictionsNode(big_model_predictions_node=big_model_output,
                                                        big_model_predictions_name=output_name,
                                                        small_model_predictions_node=small_model_output_node,
