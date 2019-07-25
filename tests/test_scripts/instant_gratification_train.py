@@ -33,8 +33,10 @@ if __name__ == "__main__":
 
     cols = [c for c in train_data.columns if c not in ['id', 'wheezy-copper-turtle-magic']]
 
-    scaled_data = StandardScaler().fit_transform(
-        PCA(svd_solver='full', n_components='mle').fit_transform(train_data[cols]))
+    pca_scaler = PCA(svd_solver='full', n_components='mle')
+    standard_scaler = StandardScaler()
+    scaled_data = pca_scaler.fit_transform(train_data[cols])
+    scaled_data = standard_scaler.fit_transform(scaled_data)
 
     train_models_data, train_stack_data, train_models_y, train_stack_y = train_test_split(scaled_data, train_y,
                                                                                           test_size=0.5,
@@ -58,5 +60,6 @@ if __name__ == "__main__":
 
     stacked_model = train_stacked_model(train_stack_data, train_stack_y, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc)
 
+    pickle.dump((pca_scaler, standard_scaler), open(base_path + "scaler.pk", "wb"))
     pickle.dump((clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc), open(base_path + "clf.pk", "wb"))
     pickle.dump(stacked_model, open(base_path + "model.pk", "wb"))

@@ -3,9 +3,7 @@ import time
 
 import numpy as np
 import pandas as pd
-from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 
 from instant_gratification_utils import *
 
@@ -33,8 +31,9 @@ if __name__ == "__main__":
 
     cols = [c for c in valid_data.columns if c not in ['id', 'wheezy-copper-turtle-magic']]
 
-    valid_data = StandardScaler().fit_transform(
-        PCA(svd_solver='full', n_components='mle').fit_transform(valid_data[cols]))
+    pca_scaler, standard_scaler = pickle.load(open(base_path + "scaler.pk", "rb"))
+
+    valid_data = standard_scaler.transform(pca_scaler.transform(valid_data[cols]))
 
     clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc = pickle.load(open(base_path + "clf.pk", "rb"))
     model = pickle.load(open(base_path + "model.pk", "rb"))
@@ -45,4 +44,4 @@ if __name__ == "__main__":
 
     score = willump_score_function(valid_y, preds_y)
 
-    print("Time elapsed:  %d  AUC Score: %f  Throughput: %f" % (time_elapsed, score, time_elapsed / len(valid_data)))
+    print("Time elapsed:  %d  AUC Score: %f  Throughput: %f" % (time_elapsed, score, len(valid_data) / time_elapsed))
