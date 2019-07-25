@@ -313,7 +313,7 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
             if small_model_output_node is not None and \
                     len(node_output_types) == 1 and ((isinstance(node_output_types[0], WeldPandas)
                                                       and len(input_node.get_in_nodes()) == 1)
-                    or isinstance(node_output_types[0], WeldVec)):
+                    or (isinstance(node_output_types[0], WeldVec) and node_output_types[0].width is not None)):
                 small_model_output_name = strip_linenos_from_var(small_model_output_node.get_output_names()[0])
                 shorten_python_code = "%s = cascade_df_shorten(%s, %s)" % (node_input_name,
                                                                            node_input_name,
