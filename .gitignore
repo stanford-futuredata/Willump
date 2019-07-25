@@ -2,6 +2,7 @@
 tests/test_resources/home_credit_default_risk/*.csv
 tests/test_resources/mercari_price_suggestion/*.tsv
 tests/test_resources/adtracking_fraud_detection/*.csv
+tests/test_resources/instant_gratification/*.csv
 *.7z
 *.h5
 
