@@ -9,7 +9,6 @@ from willump import *
 from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
 from willump.graph.array_tfidf_node import ArrayTfIdfNode
 from willump.graph.cascade_point_early_exit_node import CascadePointEarlyExitNode
-from willump.graph.combine_linear_regression_node import CombineLinearRegressionNode
 from willump.graph.hash_join_node import WillumpHashJoinNode
 from willump.graph.identity_node import IdentityNode
 from willump.graph.pandas_column_selection_node import PandasColumnSelectionNode
@@ -18,6 +17,7 @@ from willump.graph.pandas_dataframe_concatenation_node import PandasDataframeCon
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.reshape_node import ReshapeNode
+from willump.graph.stack_dense_node import StackDenseNode
 from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
@@ -145,6 +145,19 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
                     assert (len(stacked_node.get_output_types()) == 1)
                     node_output_type = stacked_node.get_output_types()[0]
                     assert (isinstance(node_output_type, WeldCSR))
+                    output_width = node_output_type.width
+                current_node_stack.append(
+                    (stacked_node, (stack_start_index, stack_start_index + output_width), curr_selection_map))
+                stack_start_index += output_width
+        elif isinstance(input_node, StackDenseNode):
+            stack_start_index = index_start
+            for stacked_node in input_node.get_in_nodes():
+                try:
+                    output_width = stacked_node.output_width
+                except AttributeError:
+                    assert (len(stacked_node.get_output_types()) == 1)
+                    node_output_type = stacked_node.get_output_types()[0]
+                    assert (isinstance(node_output_type, WeldVec))
                     output_width = node_output_type.width
                 current_node_stack.append(
                     (stacked_node, (stack_start_index, stack_start_index + output_width), curr_selection_map))

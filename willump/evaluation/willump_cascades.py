@@ -25,6 +25,7 @@ from willump.graph.pandas_dataframe_concatenation_node import PandasDataframeCon
 from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatenationNode
 from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.reshape_node import ReshapeNode
+from willump.graph.stack_dense_node import StackDenseNode
 from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.willump_graph_node import WillumpGraphNode
 from willump.graph.willump_input_node import WillumpInputNode
@@ -72,6 +73,23 @@ def graph_from_input_sources(node: WillumpGraphNode, selected_input_sources: Lis
                                           input_names=new_input_names,
                                           output_name=new_output_name,
                                           output_type=node_output_type)
+            typing_map[new_output_name] = node_output_type
+        elif isinstance(node, StackDenseNode):
+            node_input_nodes = node.get_in_nodes()
+            node_input_names = node.get_in_names()
+            node_output_name = node.get_output_name()
+            new_output_name = ("cascading__%s__" % which) + node_output_name
+            node_output_type = node.get_output_type()
+            new_input_nodes, new_input_names = [], []
+            for node_input_node, node_input_name in zip(node_input_nodes, node_input_names):
+                return_node = graph_from_input_sources_recursive(node_input_node)
+                if return_node is not None:
+                    new_input_nodes.append(return_node)
+                    new_input_names.append(return_node.get_output_names()[0])
+            return_node = StackDenseNode(input_nodes=new_input_nodes,
+                                         input_names=new_input_names,
+                                         output_name=new_output_name,
+                                         output_type=node_output_type)
             typing_map[new_output_name] = node_output_type
         elif isinstance(node, PandasColumnSelectionNode) or isinstance(node, PandasColumnSelectionNodePython):
             node_input_nodes = node.get_in_nodes()
@@ -277,7 +295,8 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
                 or isinstance(input_node, ReshapeNode) or isinstance(input_node, PandasToDenseMatrixNode) \
                 or isinstance(input_node, WillumpInputNode) \
                 or isinstance(input_node, PandasDataframeConcatenationNode) \
-                or isinstance(input_node, PandasColumnSelectionNodePython):
+                or isinstance(input_node, PandasColumnSelectionNodePython) \
+                or isinstance(input_node, StackDenseNode):
             output_block.insert(0, input_node)
             current_node_stack += input_node.get_in_nodes()
         elif isinstance(input_node, WillumpHashJoinNode):
@@ -373,8 +392,6 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, indice
                 current_importance += nodes_to_importances[node]
                 current_cost += nodes_to_costs[node]
     for node in ranked_inputs:
-        # if batch is True and isinstance(node, WillumpPythonNode) and node not in more_important_inputs:
-        #     more_important_inputs.append(node)
         if nodes_to_costs[node] == 0 and node not in more_important_inputs:
             more_important_inputs.append(node)
     less_important_inputs = [entry for entry in ranked_inputs if entry not in more_important_inputs]
@@ -438,6 +455,11 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                    input_names=[mi_head.get_output_names()[0], li_head.get_output_names()[0]],
                                    output_name=orig_node.get_output_names()[0],
                                    output_type=orig_output_type)
+        elif isinstance(orig_output_type, WeldVec):
+            return StackDenseNode(input_nodes=[mi_head, li_head],
+                                  input_names=[mi_head.get_output_names()[0], li_head.get_output_names()[0]],
+                                  output_name=orig_node.get_output_names()[0],
+                                  output_type=orig_output_type)
         elif isinstance(orig_output_type, WeldPandas):
             mi_output_type = mi_head.get_output_types()[0]
             li_output_type = li_head.get_output_types()[0]
@@ -588,10 +610,10 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                                   input_width=orig_model_node.input_width)
         else:
             big_model_output = WillumpPredictProbaNode(model_name=BIG_MODEL_NAME,
-                                                  x_name=new_input_name,
-                                                  x_node=new_input_node,
-                                                  output_name=output_name,
-                                                  output_type=output_type)
+                                                       x_name=new_input_name,
+                                                       x_node=new_input_node,
+                                                       output_name=output_name,
+                                                       output_type=output_type)
         combining_node = CascadeCombinePredictionsNode(big_model_predictions_node=big_model_output,
                                                        big_model_predictions_name=output_name,
                                                        small_model_predictions_node=small_model_output_node,

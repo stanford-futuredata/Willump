@@ -250,7 +250,7 @@ def py_var_to_weld_type(py_var: object) -> Optional[WeldType]:
         return WeldSeriesPandas(weld_elem_type, list(py_var.index))
     elif isinstance(py_var, numpy.ndarray):
         if py_var.ndim > 1:
-            return WeldVec(py_var_to_weld_type(py_var[0]))
+            return WeldVec(py_var_to_weld_type(py_var[0]), width=py_var.shape[1])
         if py_var.dtype == numpy.int8:
             return WeldVec(WeldChar())
         elif py_var.dtype == numpy.uint8:

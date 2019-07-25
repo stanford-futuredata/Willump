@@ -16,7 +16,7 @@ def predict_stacked_model(X, model, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc)
     pred_lr = model_prediction(clf_lr, X)
     pred_mlp = model_prediction(clf_mlp, X)
     pred_svc = model_prediction(clf_svc, X)
-    combined_pred = np.concatenate((pred_svnu, pred_knn, pred_lr, pred_mlp, pred_svc), axis=1)
+    combined_pred = np.hstack([pred_svnu, pred_knn, pred_lr, pred_mlp, pred_svc])
     preds = willump_predict_proba_function(model, combined_pred)
     return preds
 

@@ -16,6 +16,7 @@ from willump.graph.pandas_series_concatenation_node import PandasSeriesConcatena
 from willump.graph.pandas_series_to_dataframe_node import PandasSeriesToDataFrameNode
 from willump.graph.pandas_to_dense_matrix_node import PandasToDenseMatrixNode
 from willump.graph.reshape_node import ReshapeNode
+from willump.graph.stack_dense_node import StackDenseNode
 from willump.graph.stack_sparse_node import StackSparseNode
 from willump.graph.string_lower_node import StringLowerNode
 from willump.graph.willump_graph import WillumpGraph
@@ -296,14 +297,26 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                     input_names=input_names,
                                                     output_name=output_var_name,
                                                     output_type=output_type)
-                stack_sparse_node.set_costly_node(is_costly_node)
+                return [output_var_name], stack_sparse_node
+            elif "np.hstack" in called_function:
+                if not isinstance(value.args[0], ast.List) or \
+                        not all(isinstance(ele, ast.Name) for ele in value.args[0].elts):
+                    return self._create_py_node(node, cost=self._timing_map[node.lineno])
+                input_names = [self.get_load_name(arg_node.id, arg_node.lineno, self._type_map) for arg_node in
+                               value.args[0].elts]
+                input_nodes = [self._node_dict[input_name] for input_name in input_names]
+                output_type = self._type_map[output_var_name]
+                stack_sparse_node = StackDenseNode(input_nodes=input_nodes,
+                                                   input_names=input_names,
+                                                   output_name=output_var_name,
+                                                   output_type=output_type)
                 return [output_var_name], stack_sparse_node
             elif "willump_train_function" in called_function:
                 x_name = self.get_load_name(value.args[0].id, value.lineno, self._type_map)
                 y_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
                 x_node, y_node = self._node_dict[x_name], self._node_dict[y_name]
                 train_x_y = self._static_vars[WILLUMP_TRAIN_X_Y]
-                assert(isinstance(train_x_y, tuple) and len(train_x_y) == 2)
+                assert (isinstance(train_x_y, tuple) and len(train_x_y) == 2)
                 training_node = WillumpTrainingNode(x_name=x_name, x_node=x_node,
                                                     y_name=y_name, y_node=y_node,
                                                     output_name=output_var_name,
@@ -325,7 +338,8 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 x_node = self._node_dict[x_name]
                 output_type = self._type_map[output_var_name]
                 predict_node = WillumpPredictProbaNode(model_name=model_name, x_name=x_name,
-                                                  x_node=x_node, output_name=output_var_name, output_type=output_type)
+                                                       x_node=x_node, output_name=output_var_name,
+                                                       output_type=output_type)
                 return [output_var_name], predict_node
             elif ".fillna" in called_function and isinstance(value.func, ast.Attribute) and \
                     isinstance(value.func.value, ast.Name):
