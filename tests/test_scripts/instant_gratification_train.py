@@ -18,11 +18,11 @@ training_cascades = {}
 @willump_execute(training_cascades=training_cascades, willump_train_function=willump_train_function,
                  willump_predict_function=willump_predict_function, willump_score_function=willump_score_function)
 def train_stacked_model(X, y, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc):
-    pred_svnu = model_prediction(clf_svnu, X)
-    pred_knn = model_prediction(clf_knn, X)
-    pred_lr = model_prediction(clf_lr, X)
-    pred_mlp = model_prediction(clf_mlp, X)
-    pred_svc = model_prediction(clf_svc, X)
+    pred_svnu = model_prediction(X, clf_svnu)
+    pred_knn = model_prediction(X, clf_knn)
+    pred_lr = model_prediction(X, clf_lr)
+    pred_mlp = model_prediction(X, clf_mlp)
+    pred_svc = model_prediction(X, clf_svc)
     combined_pred = np.hstack([pred_svnu, pred_knn, pred_lr, pred_mlp, pred_svc])
     model = willump_train_function(combined_pred, y)
     return model

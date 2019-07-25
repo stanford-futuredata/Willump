@@ -1,4 +1,3 @@
-import copy
 from typing import Callable
 
 import numpy as np
@@ -24,15 +23,17 @@ def willump_cache(func: Callable, args: tuple, willump_cache_dict, cache_index: 
         return result
 
 
-# TODO:  Use small_model_output to shorten more_important_vecs before combining in batch case.
 def cascade_dense_stacker(more_important_vecs, less_important_vecs, small_model_output):
+    indices = [i for i in range(len(small_model_output)) if small_model_output[i] == 2]
+    for i, entry in enumerate(more_important_vecs):
+        more_important_vecs[i] = entry[indices]
     output = np.hstack((*more_important_vecs, *less_important_vecs))
     return output
 
 
 def cascade_df_shorten(df, small_model_output):
-    indicies = [i for i in range(len(small_model_output)) if small_model_output[i] == 2]
-    return df[indicies]
+    indices = [i for i in range(len(small_model_output)) if small_model_output[i] == 2]
+    return df[indices]
 
 
 def csr_marshall(csr_matrix):
@@ -41,17 +42,3 @@ def csr_marshall(csr_matrix):
     length, width = csr_matrix.shape
     indptr = csr_matrix.indptr
     return indptr, indices, data, length, width
-
-
-def willump_duplicate_keras(original_model, new_input_length):
-    import keras as ks
-    # TODO: Hardcoded placeholder needs fix
-    copied_model = copy.deepcopy(original_model)
-    new_input_layer = ks.Input(shape=(new_input_length,), dtype='float32', sparse=True)
-    out = ks.layers.Dense(192, activation='relu')(new_input_layer)
-    out = ks.layers.Dense(64, activation='relu')(out)
-    out = ks.layers.Dense(64, activation='relu')(out)
-    out = ks.layers.Dense(1)(out)
-    new_model = ks.Model(new_input_layer, out)
-    new_model.compile(loss='mean_squared_error', optimizer=ks.optimizers.Adam(lr=3e-3))
-    return new_model

@@ -286,6 +286,7 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
     current_node_stack: List[WillumpGraphNode] = [training_input_node]
     # Nodes through which the model has been pushed which are providing output.
     output_block: List[WillumpGraphNode] = []
+    shortening_nodes = {}
     while len(current_node_stack) > 0:
         input_node = current_node_stack.pop()
         if isinstance(input_node, ArrayCountVectorizerNode) or isinstance(input_node, ArrayTfIdfNode):
@@ -308,10 +309,11 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
         elif isinstance(input_node, WillumpPythonNode):
             output_block.insert(0, input_node)
             node_output_types = input_node.get_output_types()
+            node_input_name = strip_linenos_from_var(input_node.get_in_names()[0])
             if small_model_output_node is not None and \
-                    len(node_output_types) == 1 and isinstance(node_output_types[0], WeldPandas) \
-                    and len(input_node.get_in_nodes()) == 1:
-                node_input_name = strip_linenos_from_var(input_node.get_in_names()[0])
+                    len(node_output_types) == 1 and ((isinstance(node_output_types[0], WeldPandas)
+                                                      and len(input_node.get_in_nodes()) == 1)
+                    or isinstance(node_output_types[0], WeldVec)):
                 small_model_output_name = strip_linenos_from_var(small_model_output_node.get_output_names()[0])
                 shorten_python_code = "%s = cascade_df_shorten(%s, %s)" % (node_input_name,
                                                                            node_input_name,
@@ -324,12 +326,14 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
                                                         output_names=[input_node.get_in_names()[0]],
                                                         output_types=input_node.get_in_nodes()[0].get_output_types(),
                                                         in_nodes=[input_node, small_model_output_node])
-                output_block.insert(0, shorten_python_node)
+                shortening_nodes[node_input_name] = shorten_python_node
                 input_node._in_nodes = [shorten_python_node]
             if input_node.does_not_modify_data:
                 current_node_stack += input_node.get_in_nodes()
         else:
             panic("Unrecognized node found when making cascade dependencies: %s" % input_node.__repr__())
+    for shortening_node in shortening_nodes.values():
+        output_block.insert(0, shortening_node)
     return output_block
 
 

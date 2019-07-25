@@ -41,7 +41,7 @@ class CascadeStackDenseNode(WillumpPythonNode):
             more_important_str += "%s," % vec
         for vec in less_important_vecs:
             less_important_str += "%s," % vec
-        python_string = "%s = cascade_dense_stacker((%s), (%s), %s)" % (
+        python_string = "%s = cascade_dense_stacker([%s], [%s], %s)" % (
             strip_linenos_from_var(output_name), more_important_str,
             less_important_str, strip_linenos_from_var(small_model_output_name))
         python_ast = ast.parse(python_string, "exec")
