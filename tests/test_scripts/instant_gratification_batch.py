@@ -43,6 +43,7 @@ if __name__ == "__main__":
     _, valid_data = train_test_split(data, test_size=0.5, random_state=42)
     print("Validation Data Length: %d" % len(valid_data))
     valid_y = valid_data.pop('target')
+    partition_column = valid_data.pop('wheezy-copper-turtle-magic').values.reshape(-1, 1)
     del data
 
     cols = [c for c in valid_data.columns if c not in ['id', 'wheezy-copper-turtle-magic']]
@@ -50,6 +51,7 @@ if __name__ == "__main__":
     pca_scaler, standard_scaler = pickle.load(open(base_path + "scaler.pk", "rb"))
 
     valid_data = standard_scaler.transform(pca_scaler.transform(valid_data[cols]))
+    valid_data = np.append(valid_data, partition_column, 1)
 
     clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc = pickle.load(open(base_path + "clf.pk", "rb"))
     model = pickle.load(open(base_path + "model.pk", "rb"))
