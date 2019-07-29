@@ -31,9 +31,9 @@ def train_stacked_model(X, y, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc):
 
 if __name__ == "__main__":
     data = pd.read_csv(base_path + "train.csv")
-    data = data[data['wheezy-copper-turtle-magic'] < NUM_PARTITIONS].reset_index(drop=True)
-    print("Data Length: %d" % len(data))
     train_data, _ = train_test_split(data, test_size=0.1, random_state=42)
+    train_data = train_data[train_data['wheezy-copper-turtle-magic'] < NUM_PARTITIONS].reset_index(drop=True)
+    print("Data Length: %d" % len(data))
     train_y = train_data.pop('target')
     partition_column = train_data.pop('wheezy-copper-turtle-magic').values.reshape(-1, 1)
     del data
@@ -63,7 +63,7 @@ if __name__ == "__main__":
 
     for i in tqdm(range(NUM_PARTITIONS)):
         partition_indices = np.nonzero(train_models_data[:, PARTITION_INDEX] == i)[0]
-        partition_X = train_models_data[partition_indices]
+        partition_X = train_models_data[partition_indices, :-1]
         partition_y = train_models_y[partition_indices]
         clf_svnu[i].fit(partition_X, partition_y)
         clf_knn[i].fit(partition_X, partition_y)

@@ -14,7 +14,7 @@ def model_prediction(X, model):
         for i in range(NUM_PARTITIONS):
             partition_indices = np.nonzero(X[:, PARTITION_INDEX] == i)[0]
             if len(partition_indices) > 0:
-                preds[partition_indices] = model[i].predict_proba(X[partition_indices])[:, 1]
+                preds[partition_indices] = model[i].predict_proba(X[partition_indices, :-1])[:, 1]
         return preds.reshape(-1, 1)
 
 
