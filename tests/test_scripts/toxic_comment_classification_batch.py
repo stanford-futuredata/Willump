@@ -14,6 +14,7 @@ base_path = "tests/test_resources/toxic_comment_classification/"
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+parser.add_argument("-t", "--threshold", help="Use threshold set", action="store_true")
 args = parser.parse_args()
 if args.cascades is None:
     cascades = None
@@ -42,6 +43,11 @@ word_vectorizer, char_vectorizer = pickle.load(open(base_path + "vectorizer.pk",
 class_name = "toxic"
 train_target = train[class_name]
 _, valid_text, _, valid_target = train_test_split(train_text, train_target, test_size=0.33, random_state=42)
+df_v, df_t, y_v, y_t = train_test_split(valid_text, valid_target, test_size=0.5, random_state=42)
+if args.threshold:
+    valid_text, valid_target = df_t, y_t
+else:
+    valid_text, valid_target = df_v, y_v
 set_size = len(valid_text)
 
 mini_text = valid_text[:2]
