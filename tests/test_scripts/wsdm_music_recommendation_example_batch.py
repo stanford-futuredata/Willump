@@ -12,6 +12,7 @@ model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk",
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+parser.add_argument("-t", "--threshold", help="Use threshold set", action="store_true")
 args = parser.parse_args()
 if args.cascades is None:
     cascades = None
@@ -145,6 +146,11 @@ def create_featureset(folder):
     y = combi["target"].values
 
     _, combi, _, y = train_test_split(combi, y, test_size=0.33, random_state=42)
+    df_v, df_t, y_v, y_t = train_test_split(combi, y, test_size=0.5, random_state=42)
+    if args.threshold:
+        combi, y = df_t, y_t
+    else:
+        combi, y = df_v, y_v
 
     # add latent features
     y_pred = add_features_and_predict(folder, combi)
