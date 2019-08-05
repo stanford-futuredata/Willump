@@ -7,6 +7,7 @@ from lightgbm import LGBMClassifier
 from sklearn.metrics import roc_auc_score
 
 categorical_indices = None
+random_state = None
 
 
 def willump_train_function(X, y):
@@ -22,7 +23,8 @@ def willump_train_function(X, y):
         subsample_freq=1,
         colsample_bytree=0.9,
         min_child_weight=0,
-        scale_pos_weight=200
+        scale_pos_weight=200,
+        random_state=random_state
     )
     model = model.fit(X, y, eval_metric='auc', categorical_feature=categorical_indices)
     return model

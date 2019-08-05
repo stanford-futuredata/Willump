@@ -10,13 +10,13 @@ from sklearn.model_selection import train_test_split
 from adtracking_fraud_detection_util import *
 from willump.evaluation.willump_executor import willump_execute
 
-debug = False
-
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+parser.add_argument("-t", "--threshold", help="Use threshold set", action="store_true")
+parser.add_argument("-b", "--debug", help="Debug", action="store_true")
 args = parser.parse_args()
 if args.cascades is None:
     cascades = None
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     clf = pickle.load(open(base_folder + "model.pk", "rb"))
 
     max_rows = 10000000
-    if debug:
+    if args.debug:
         train_start_point = 0
         train_end_point = 100000
     else:
@@ -109,6 +109,11 @@ if __name__ == "__main__":
 
     _, valid_df, _, valid_y = train_test_split(train_df, train_y, test_size=0.1, shuffle=False)
     del train_df, train_y
+    df_v, df_t, y_v, y_t = train_test_split(valid_df, valid_y, test_size=0.5, random_state=42)
+    if args.threshold:
+        valid_df, valid_y = df_t, y_t
+    else:
+        valid_df, valid_y = df_v, y_v
 
     num_rows = len(valid_df)
 

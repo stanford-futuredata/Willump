@@ -1,6 +1,7 @@
 # Original source: https://www.kaggle.com/bk0000/non-blending-lightgbm-model-lb-0-977
 # Data files can be found on Kaggle:  https://www.kaggle.com/c/talkingdata-adtracking-fraud-detection
 
+import argparse
 import pickle
 import time
 import adtracking_fraud_detection_util
@@ -9,8 +10,6 @@ from sklearn.model_selection import train_test_split
 
 from adtracking_fraud_detection_util import *
 from willump.evaluation.willump_executor import willump_execute
-
-debug = False
 
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
@@ -41,8 +40,14 @@ def process_input_and_train(input_df, train_y):
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-r", "--random_state", type=int, help="Random Seed")
+    parser.add_argument("-b", "--debug", help="Debug", action="store_true")
+    args = parser.parse_args()
+
     max_rows = 10000000
-    if debug:
+    if args.debug:
         train_start_point = 0
         train_end_point = 100000
     else:
@@ -105,6 +110,7 @@ if __name__ == "__main__":
                   'ip_app_channel_mean_hour', 'X0', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8']
     categorical = ['app', 'device', 'os', 'channel', 'hour', 'day']
     adtracking_fraud_detection_util.categorical_indices = list(map(lambda x: predictors.index(x), categorical))
+    adtracking_fraud_detection_util.random_state = args.random_state
 
     train_y = train_df[target].values
 
