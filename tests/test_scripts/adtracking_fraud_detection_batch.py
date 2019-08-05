@@ -70,7 +70,6 @@ if __name__ == "__main__":
         'click_id': 'uint32',
     }
 
-    print('loading train data...', train_start_point, train_end_point)
     train_df = pd.read_csv(base_folder + "train.csv", parse_dates=['click_time'], skiprows=range(1, train_start_point),
                            nrows=train_end_point - train_start_point,
                            dtype=dtypes,
@@ -95,9 +94,6 @@ if __name__ == "__main__":
     train_df["X1"] = X1
     train_df["X7"] = X7
     train_df = train_df.drop(columns=["click_time"])
-
-    print("Train Dataframe Information: ")
-    train_df.info()
 
     target = 'is_attributed'
     predictors = ['nextClick', 'nextClick_shift', 'app', 'device', 'os', 'channel', 'hour', 'day', 'ip_tcount',
