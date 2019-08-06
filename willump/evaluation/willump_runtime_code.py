@@ -24,9 +24,10 @@ def willump_cache(func: Callable, args: tuple, willump_cache_dict, cache_index: 
 
 
 def cascade_dense_stacker(more_important_vecs, less_important_vecs, small_model_output):
-    indices = [i for i in range(len(small_model_output)) if small_model_output[i] == 2]
-    for i, entry in enumerate(more_important_vecs):
-        more_important_vecs[i] = entry[indices]
+    if not isinstance(more_important_vecs[0], list):
+        indices = [i for i in range(len(small_model_output)) if small_model_output[i] == 2]
+        for i, entry in enumerate(more_important_vecs):
+            more_important_vecs[i] = entry[indices]
     output = np.hstack((*more_important_vecs, *less_important_vecs))
     return output
 
