@@ -62,9 +62,14 @@ vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, brand_vectoriz
 entry_list = []
 for i in df.index:
     entry_list.append(df.loc[i:i]["title"])
-t0 = time.time()
+times = []
 for entry in entry_list:
+    t0 = time.time()
     preds = vectorizer_transform(title_vectorizer, entry, color_vectorizer, brand_vectorizer)
-time_elapsed = time.time() - t0
-print("Title Processing Time %fs Num Rows %d Latency %f sec/row" %
-      (time_elapsed, set_size, time_elapsed / set_size))
+    time_elapsed = time.time() - t0
+    times.append(time_elapsed)
+
+p50 = numpy.percentile(times, 50)
+p99 = numpy.percentile(times, 99)
+print("p50 Latency: %f p99 Latency: %f" %
+      (p50, p99))

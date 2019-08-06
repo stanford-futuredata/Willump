@@ -11,13 +11,13 @@ from tqdm import tqdm
 from adtracking_fraud_detection_util import *
 from willump.evaluation.willump_executor import willump_execute
 
-debug = False
 
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+parser.add_argument("-b", "--debug", help="Debug", action="store_true")
 args = parser.parse_args()
 if args.cascades is None:
     cascades = None
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     clf = pickle.load(open(base_folder + "model.pk", "rb"))
 
     max_rows = 10000000
-    if debug:
+    if args.debug:
         train_start_point = 0
         train_end_point = 100000
     else:
@@ -73,7 +73,6 @@ if __name__ == "__main__":
         'click_id': 'uint32',
     }
 
-    print('loading train data...', train_start_point, train_end_point)
     train_df = pd.read_csv(base_folder + "train.csv", parse_dates=['click_time'], skiprows=range(1, train_start_point),
                            nrows=train_end_point - train_start_point,
                            dtype=dtypes,
@@ -99,9 +98,6 @@ if __name__ == "__main__":
     train_df["X7"] = X7
     train_df = train_df.drop(columns=["click_time"])
 
-    print("Train Dataframe Information: ")
-    train_df.info()
-
     target = 'is_attributed'
     predictors = ['nextClick', 'nextClick_shift', 'app', 'device', 'os', 'channel', 'hour', 'day', 'ip_tcount',
                   'ip_tchan_count', 'ip_app_count', 'ip_app_os_count', 'ip_app_os_var', 'ip_app_channel_var_day',
@@ -122,13 +118,18 @@ if __name__ == "__main__":
     for i in range(num_rows):
         entry_list.append(valid_df.iloc[i])
     y_preds = []
-    start = time.time()
+    times = []
     for entry in tqdm(entry_list):
+        t0 = time.time()
         pred = process_input_and_predict(entry)
+        time_elapsed = time.time() - t0
+        times.append(time_elapsed)
         y_preds.append(pred)
-    elapsed_time = time.time() - start
     y_preds = np.hstack(y_preds)
-    print('Prediction in %f seconds rows %d throughput %f: ' % (
-        elapsed_time, num_rows, num_rows / elapsed_time))
+    p50 = np.percentile(times, 50)
+    p99 = np.percentile(times, 99)
+
+    print("p50 Latency: %f p99 Latency: %f" %
+          (p50, p99))
 
     print("Validation ROC-AUC Score: %f" % willump_score_function(valid_y, y_preds))

@@ -1,6 +1,7 @@
 import argparse
 import pickle
 import time
+import numpy
 
 import pandas as pd
 import scipy.sparse
@@ -58,13 +59,17 @@ mini_text = valid_text[:2]
 vectorizer_transform(mini_text, word_vectorizer, char_vectorizer)
 vectorizer_transform(mini_text, word_vectorizer, char_vectorizer)
 y_preds = []
-t0 = time.time()
+times = []
 for entry in tqdm(entry_list):
+    t0 = time.time()
     preds = vectorizer_transform(entry, word_vectorizer, char_vectorizer)
+    time_elapsed = time.time() - t0
+    times.append(time_elapsed)
     y_preds.append(preds)
-time_elapsed = time.time() - t0
-print("Classification Time %fs Num Rows %d Throughput %f rows/sec Latency %f sec/row" %
-      (time_elapsed, set_size, set_size / time_elapsed, time_elapsed / set_size))
+p50 = numpy.percentile(times, 50)
+p99 = numpy.percentile(times, 99)
+print("p50 Latency: %f p99 Latency: %f" %
+      (p50, p99))
 
 y_preds = np.hstack(y_preds)
 print("Validation ROC-AUC Score: %f" % willump_score_function(valid_target, y_preds))

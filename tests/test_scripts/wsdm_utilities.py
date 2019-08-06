@@ -22,7 +22,7 @@ def willump_train_function(X, y):
 
 
 def willump_predict_function(model, X):
-    if X.shape[0] == 0:
+    if len(X) == 0:
         return np.zeros(0, dtype=np.float32)
     else:
         return model.predict(X)
