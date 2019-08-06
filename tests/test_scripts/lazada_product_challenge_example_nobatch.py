@@ -48,6 +48,7 @@ model = pickle.load(open("tests/test_resources/lazada_challenge_features/lazada_
 y = numpy.loadtxt("tests/test_resources/lazada_challenge_features/conciseness_train.labels", dtype=int)
 
 _, df, _, y = train_test_split(df, y, test_size=0.33, random_state=42)
+df, _, y, _ = train_test_split(df, y, test_size=0.5, random_state=42)
 
 title_vectorizer, color_vectorizer, brand_vectorizer = pickle.load(
     open("tests/test_resources/lazada_challenge_features/lazada_vectorizers.pk", "rb"))
