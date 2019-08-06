@@ -14,6 +14,7 @@ base_path = "tests/test_resources/instant_gratification/"
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+parser.add_argument("-t", "--threshold", help="Use threshold set", action="store_true")
 args = parser.parse_args()
 if args.cascades is None:
     cascades = None
@@ -40,6 +41,11 @@ def predict_stacked_model(X, model, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc)
 if __name__ == "__main__":
     data = pd.read_csv(base_path + "train.csv")
     _, valid_data = train_test_split(data, test_size=0.1, random_state=42)
+    df_v, df_t = train_test_split(valid_data, test_size=0.5, random_state=42)
+    if args.threshold:
+        valid_data = df_t
+    else:
+        valid_data = df_v
     valid_data = valid_data[valid_data['wheezy-copper-turtle-magic'] < NUM_PARTITIONS].reset_index(drop=True)
     print("Validation Data Length: %d" % len(valid_data))
     valid_y = valid_data.pop('target')
