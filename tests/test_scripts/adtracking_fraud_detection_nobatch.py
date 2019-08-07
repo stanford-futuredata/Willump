@@ -15,21 +15,17 @@ from willump.evaluation.willump_executor import willump_execute
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+parser.add_argument("-c", "--cascades", action="store_true", help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 parser.add_argument("-b", "--debug", help="Debug", action="store_true")
 args = parser.parse_args()
-if args.cascades is None:
-    cascades = None
-    cascade_threshold = 1.0
-else:
-    assert (0.5 <= args.cascades <= 1.0)
-    assert(not args.disable)
+if args.cascades:
     cascades = pickle.load(open(base_folder + "cascades.pk", "rb"))
-    cascade_threshold = args.cascades
+else:
+    cascades = None
 
 
-@willump_execute(disable=args.disable, batch=False, eval_cascades=cascades, cascade_threshold=cascade_threshold)
+@willump_execute(disable=args.disable, batch=False, eval_cascades=cascades)
 def process_input_and_predict(input_df):
     input_df = input_df.to_frame().T
     input_df = input_df.merge(X_ip_channel, how='left', on=X_ip_channel_jc)
@@ -107,7 +103,6 @@ if __name__ == "__main__":
     train_y = train_df[target].values
 
     _, valid_df, _, valid_y = train_test_split(train_df, train_y, test_size=0.1, shuffle=False)
-    valid_df, _, valid_y, _ = train_test_split(valid_df, valid_y, test_size=0.5, random_state=42)
     del train_df, train_y
 
     num_rows = len(valid_df)

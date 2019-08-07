@@ -18,6 +18,7 @@ training_cascades = {}
 
 @willump_execute(training_cascades=training_cascades, willump_train_function=willump_train_function,
                  willump_predict_function=willump_predict_function,
+                 willump_predict_proba_function=willump_predict_proba_function,
                  willump_score_function=willump_score_function)
 def process_input_and_train(input_df, train_y):
     input_df = input_df.merge(X_ip_channel, how='left', on=X_ip_channel_jc)
@@ -85,7 +86,7 @@ if __name__ == "__main__":
                                             base_folder,
                                             train_start_point,
                                             train_end_point,
-                                            debug)
+                                            args.debug)
         pickle.dump(aggregate_statistics_tables, open(tables_filename, "wb"))
 
     (X_ip_channel, X_ip_channel_jc, X_ip_day_hour, X_ip_day_hour_jc, X_ip_app, X_ip_app_jc,

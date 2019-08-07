@@ -17,19 +17,15 @@ debug = True
 base_folder = "tests/test_resources/adtracking_fraud_detection/"
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+parser.add_argument("-c", "--cascades", action="store_true", help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 parser.add_argument("-a", "--caching", type=float, help="Max cache size")
 parser.add_argument("-r", "--redis", help="Redis IP", type=str)
 args = parser.parse_args()
-if args.cascades is None:
-    cascades = None
-    cascade_threshold = 1.0
-else:
-    assert (0.5 <= args.cascades <= 1.0)
-    assert (not args.disable)
+if args.cascades:
     cascades = pickle.load(open(base_folder + "cascades.pk", "rb"))
-    cascade_threshold = args.cascades
+else:
+    cascades = None
 
 if args.redis is None:
     redis_ip = "127.0.0.1"
@@ -208,7 +204,7 @@ else:
     max_cache_size = None
 
 
-@willump_execute(disable=args.disable, batch=False, eval_cascades=cascades, cascade_threshold=cascade_threshold,
+@willump_execute(disable=args.disable, batch=False, eval_cascades=cascades,
                  cached_funcs=cached_funcs, max_cache_size=max_cache_size, async_funcs=remote_funcs)
 def process_input_and_predict(input_df):
     X_ip_channel_entry = tuple(input_df[X_ip_channel_jc])
