@@ -39,7 +39,7 @@ word_vectorizer, char_vectorizer = pickle.load(open(base_path + "vectorizer.pk",
 
 class_name = "toxic"
 train_target = train[class_name]
-_, valid_text, _, valid_target = train_test_split(train_text, train_target, test_size=0.33, random_state=42)
+_, valid_text, _, valid_target = train_test_split(train_text, train_target, test_size=0.2, random_state=42)
 del train_text, train_target
 set_size = len(valid_text)
 

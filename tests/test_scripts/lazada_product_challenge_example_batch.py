@@ -11,21 +11,16 @@ from lazada_product_challenge_utils import *
 from willump.evaluation.willump_executor import willump_execute
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+parser.add_argument("-c", "--cascades", action="store_true", help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
-parser.add_argument("-t", "--threshold", help="Use threshold set", action="store_true")
 args = parser.parse_args()
-if args.cascades is None:
-    cascades = None
-    cascade_threshold = 1.0
-else:
-    assert (0.5 <= args.cascades <= 1.0)
-    assert(not args.disable)
+if args.cascades:
     cascades = pickle.load(open("tests/test_resources/lazada_challenge_features/lazada_training_cascades.pk", "rb"))
-    cascade_threshold = args.cascades
+else:
+    cascades = None
 
 
-@willump_execute(disable=args.disable, num_workers=0, eval_cascades=cascades, cascade_threshold=cascade_threshold)
+@willump_execute(disable=args.disable, num_workers=0, eval_cascades=cascades, cascade_threshold=None)
 def vectorizer_transform(title_vect, input_df, color_vect, brand_vect):
     np_input = list(input_df.values)
     transformed_result = title_vect.transform(np_input)
@@ -43,12 +38,8 @@ df = pd.read_csv("tests/test_resources/lazada_challenge_features/lazada_data_tra
 model = pickle.load(open("tests/test_resources/lazada_challenge_features/lazada_model.pk", "rb"))
 y = numpy.loadtxt("tests/test_resources/lazada_challenge_features/conciseness_train.labels", dtype=int)
 
-_, df, _, y = train_test_split(df, y, test_size=0.33, random_state=42)
-df_v, df_t, y_v, y_t = train_test_split(df, y, test_size=0.5, random_state=42)
-if args.threshold:
-    df, y = df_t, y_t
-else:
-    df, y = df_v, y_v
+_, df, _, y = train_test_split(df, y, test_size=0.2, random_state=42)
+
 
 title_vectorizer, color_vectorizer, brand_vectorizer = pickle.load(
     open("tests/test_resources/lazada_challenge_features/lazada_vectorizers.pk", "rb"))

@@ -14,25 +14,21 @@ from willump.evaluation.willump_executor import willump_execute
 class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
 base_path = "tests/test_resources/toxic_comment_classification/"
 parser = argparse.ArgumentParser()
-parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+parser.add_argument("-c", "--cascades", action="store_true", help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 parser.add_argument("-w", "--workers", type=int, help="Number of Workers")
 args = parser.parse_args()
-if args.cascades is None:
-    cascades = None
-    cascade_threshold = 1.0
-else:
-    assert (0.5 <= args.cascades <= 1.0)
-    assert(not args.disable)
+if args.cascades:
     cascades = pickle.load(open(base_path + "training_cascades.pk", "rb"))
-    cascade_threshold = args.cascades
+else:
+    cascades = None
 if args.workers is None:
     workers = 0
 else:
     workers = args.workers
 
 
-@willump_execute(disable=args.disable, num_workers=workers, eval_cascades=cascades, cascade_threshold=cascade_threshold)
+@willump_execute(disable=args.disable, num_workers=workers, eval_cascades=cascades)
 def vectorizer_transform(input_text, word_vect, char_vect):
     word_features = word_vect.transform(input_text)
     char_features = char_vect.transform(input_text)
@@ -48,8 +44,7 @@ word_vectorizer, char_vectorizer = pickle.load(open(base_path + "vectorizer.pk",
 
 class_name = "toxic"
 train_target = train[class_name]
-_, valid_text, _, valid_target = train_test_split(train_text, train_target, test_size=0.33, random_state=42)
-valid_text, _, valid_target, _ = train_test_split(valid_text, valid_target, test_size=0.5, random_state=42)
+_, valid_text, _, valid_target = train_test_split(train_text, train_target, test_size=0.2, random_state=42)
 set_size = len(valid_text)
 
 entry_list = []

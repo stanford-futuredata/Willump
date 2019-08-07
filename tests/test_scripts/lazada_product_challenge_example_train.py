@@ -13,21 +13,18 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 
 import willump.evaluation.willump_executor
-from lazada_product_challenge_utils import willump_train_function, willump_predict_function, willump_score_function
+from lazada_product_challenge_utils import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-c", "--cascades", help="Use cascades?", action="store_true")
 args = parser.parse_args()
 
-if args.cascades:
-    training_cascades = {}
-else:
-    training_cascades = None
+training_cascades = {}
 
 
 @willump.evaluation.willump_executor.willump_execute(num_workers=0, training_cascades=training_cascades,
                                                      willump_train_function=willump_train_function,
                                                      willump_predict_function=willump_predict_function,
+                                                     willump_predict_proba_function=willump_predict_proba_function,
                                                      willump_score_function=willump_score_function)
 def vectorizer_transform(title_vect, input_df, color_vect, brand_vect, y_df):
     np_input = list(input_df.values)
@@ -44,7 +41,7 @@ df = pd.read_csv("tests/test_resources/lazada_challenge_features/lazada_data_tra
                         'short_description', 'price', 'product_type'])
 y = numpy.loadtxt("tests/test_resources/lazada_challenge_features/conciseness_train.labels", dtype=int)
 
-df, _, y, _ = train_test_split(df, y, test_size=0.33, random_state=42)
+df, _, y, _ = train_test_split(df, y, test_size=0.2, random_state=42)
 
 title_vectorizer = CountVectorizer(analyzer='char', ngram_range=(2, 6), min_df=0.005, max_df=1.0,
                                    lowercase=False, stop_words=None, binary=False, decode_error='replace')

@@ -9,7 +9,7 @@ import scipy.sparse
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 
-from toxic_comment_classification_utils import willump_train_function, willump_predict_function, willump_score_function
+from toxic_comment_classification_utils import *
 from willump.evaluation.willump_executor import willump_execute
 
 class_names = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
@@ -18,17 +18,14 @@ train = pd.read_csv(base_path + 'train.csv').fillna(' ')
 train_text = train['comment_text'].values
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-c", "--cascades", help="Use cascades?", action="store_true")
 args = parser.parse_args()
 
-if args.cascades:
-    training_cascades = {}
-else:
-    training_cascades = None
+training_cascades = {}
 
 
 @willump_execute(training_cascades=training_cascades, willump_train_function=willump_train_function,
-                 willump_predict_function=willump_predict_function, willump_score_function=willump_score_function)
+                 willump_predict_function=willump_predict_function, willump_score_function=willump_score_function,
+                 willump_predict_proba_function=willump_predict_proba_function)
 def vectorizer_transform(input_text, word_vect, char_vect, train_target):
     word_features = word_vect.transform(input_text)
     char_features = char_vect.transform(input_text)
@@ -65,7 +62,7 @@ class_name = "toxic"
 train_target = train[class_name]
 del train
 gc.collect()
-train_text, _, train_target, _ = train_test_split(train_text, train_target, test_size=0.33, random_state=42)
+train_text, _, train_target, _ = train_test_split(train_text, train_target, test_size=0.2, random_state=42)
 
 classifier = vectorizer_transform(train_text, word_vectorizer, char_vectorizer, train_target)
 gc.collect()

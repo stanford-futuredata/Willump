@@ -12,7 +12,6 @@ model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk",
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--cascades", action="store_true", help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
-parser.add_argument("-t", "--threshold", help="Use threshold set", action="store_true")
 args = parser.parse_args()
 
 if args.cascades:
