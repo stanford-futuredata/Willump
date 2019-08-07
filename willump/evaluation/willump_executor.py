@@ -158,7 +158,7 @@ willump_timing_map_set: MutableMapping[str, MutableMapping[str, float]] = {}
 
 
 def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), training_cascades=None,
-                    eval_cascades=None, cascade_threshold=1.0, cached_funcs=(), max_cache_size=None, top_k=None,
+                    eval_cascades=None, cascade_threshold=None, cached_funcs=(), max_cache_size=None, top_k=None,
                     costly_statements=(), willump_train_function=None, willump_predict_function=None,
                     willump_predict_proba_function=None,
                     willump_score_function=None) \

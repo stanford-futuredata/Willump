@@ -13,19 +13,16 @@ from wsdm_utilities import *
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+parser.add_argument("-c", "--cascades", action="store_true", help="Cascade threshold")
 parser.add_argument("-a", "--caching", type=float, help="Max cache size")
 parser.add_argument("-s", "--costly_statements", help="Mark costly (remotely stored) statements?", action="store_true")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 parser.add_argument("-r", "--redis", help="Redis IP", type=str)
 args = parser.parse_args()
-if args.cascades is None:
-    cascades = None
-    cascade_threshold = 1.0
-else:
-    assert (0.5 <= args.cascades <= 1.0)
+if args.cascades:
     cascades = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_training_cascades.pk", "rb"))
-    cascade_threshold = args.cascades
+else:
+    cascades = None
 
 if args.redis is None:
     redis_ip = "127.0.0.1"
@@ -212,7 +209,7 @@ else:
 
 
 @willump_execute(disable=args.disable, batch=False, cached_funcs=cached_funcs, costly_statements=costly_statements,
-                 eval_cascades=cascades, cascade_threshold=cascade_threshold, max_cache_size=max_cache_size,
+                 eval_cascades=cascades, max_cache_size=max_cache_size,
                  async_funcs=remote_funcs)
 def do_merge(combi):
     cluster_one_entry = combi[join_col_cluster_one]

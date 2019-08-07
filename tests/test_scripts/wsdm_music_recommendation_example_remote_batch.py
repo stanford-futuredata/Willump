@@ -12,18 +12,15 @@ from wsdm_utilities import *
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-c", "--cascades", type=float, help="Cascade threshold")
+parser.add_argument("-c", "--cascades", action="store_true", help="Cascade threshold")
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 parser.add_argument("-r", "--redis", help="Redis IP", type=str)
 args = parser.parse_args()
 
-if args.cascades is None:
-    cascades = None
-    cascade_threshold = 1.0
-else:
-    assert (0.5 <= args.cascades <= 1.0)
+if args.cascades:
     cascades = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_training_cascades.pk", "rb"))
-    cascade_threshold = args.cascades
+else:
+    cascades = None
 
 if args.redis is None:
     redis_ip = "127.0.0.1"
@@ -268,7 +265,7 @@ all_funcs = ["get_row_to_merge_features_uf", "get_row_to_merge_features_sf", "ge
 
 
 @willump_execute(disable=args.disable,
-                 eval_cascades=cascades, cascade_threshold=cascade_threshold,
+                 eval_cascades=cascades,
                  async_funcs=remote_funcs)
 def do_merge(combi):
     cluster_one_entry = combi[join_col_cluster_one].values

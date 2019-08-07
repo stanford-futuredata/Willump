@@ -605,6 +605,7 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
 def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                             typing_map: MutableMapping[str, WeldType],
                             eval_cascades: dict,
+                            cascade_threshold: float,
                             batch: bool,
                             top_k: Optional[int]) -> List[WillumpGraphNode]:
     """
@@ -729,7 +730,8 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         return sorted_nodes
     feature_importances = eval_cascades["feature_importances"]
     indices_to_costs_map = eval_cascades["indices_to_costs_map"]
-    cascade_threshold = eval_cascades["cascade_threshold"]
+    if cascade_threshold is None:
+        cascade_threshold = eval_cascades["cascade_threshold"]
     cost_cutoff = eval_cascades["cost_cutoff"]
     more_important_inputs, less_important_inputs, _, _, _ = split_model_inputs(model_node, feature_importances,
                                                                       indices_to_costs_map, cost_cutoff)
