@@ -17,7 +17,9 @@ training_cascades = {}
 
 
 @willump_execute(training_cascades=training_cascades, willump_train_function=willump_train_function,
-                 willump_predict_function=willump_predict_function, willump_score_function=willump_score_function)
+                 willump_predict_function=willump_predict_function,
+                 willump_predict_proba_function=willump_predict_proba_function,
+                 willump_score_function=willump_score_function)
 def train_stacked_model(X, y, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc):
     pred_svnu = model_prediction(X, clf_svnu)
     pred_knn = model_prediction(X, clf_knn)
