@@ -28,7 +28,8 @@ else:
                                                      costly_statements=costly_statements,
                                                      willump_train_function=willump_train_function,
                                                      willump_predict_function=willump_predict_function,
-                                                     willump_score_function=willump_score_function)
+                                                     willump_score_function=willump_score_function,
+                                                     willump_predict_proba_function=willump_predict_proba_function)
 def do_merge(combi, features_one, join_col_one, features_two, join_col_two, cluster_one, join_col_cluster_one,
              cluster_two, join_col_cluster_two, cluster_three, join_col_cluster_three, uc_features, uc_join_col,
              sc_features, sc_join_col, ac_features, ac_join_col, us_features, us_col, ss_features, ss_col, as_features,
@@ -146,7 +147,7 @@ def add_features_and_train_model(folder, combi):
     regs_features, regs_col = scol_features(folder, combi, 'registered_via', 'rv_')
     regs_features = regs_features.reset_index(drop=True)
 
-    combi, _, y, _ = train_test_split(combi, y, test_size=0.33, random_state=42)
+    combi, _, y, _ = train_test_split(combi, y, test_size=0.2, random_state=42)
 
     num_rows = len(combi)
 

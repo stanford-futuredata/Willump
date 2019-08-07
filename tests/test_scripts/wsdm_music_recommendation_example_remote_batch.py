@@ -434,7 +434,7 @@ def create_featureset(folder):
     y = combi["target"].values
     num_queries = 0
 
-    _, combi_valid, _, y_valid = train_test_split(combi, y, test_size=0.33, random_state=42)
+    _, combi_valid, _, y_valid = train_test_split(combi, y, test_size=0.2, random_state=42)
     # Add features and predict.
     y_pred = add_features_and_predict(folder, combi_valid)
     print("Valid AUC: %f" % willump_score_function(y_valid, y_pred))

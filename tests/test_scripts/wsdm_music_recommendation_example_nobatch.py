@@ -166,8 +166,7 @@ def create_featureset(folder):
     combi = combi.dropna(subset=["target"])
     y = combi["target"].values
 
-    _, combi, _, y = train_test_split(combi, y, test_size=0.33, random_state=42)
-    combi, _, y, _ = train_test_split(combi, y, test_size=0.5, random_state=42)
+    _, combi, _, y = train_test_split(combi, y, test_size=0.2, random_state=42)
 
     # add latent features
     y_pred = np.hstack(add_features_and_predict(folder, combi))

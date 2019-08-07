@@ -145,12 +145,7 @@ def create_featureset(folder):
     combi = combi.dropna(subset=["target"])
     y = combi["target"].values
 
-    _, combi, _, y = train_test_split(combi, y, test_size=0.33, random_state=42)
-    df_v, df_t, y_v, y_t = train_test_split(combi, y, test_size=0.5, random_state=42)
-    if args.threshold:
-        combi, y = df_t, y_t
-    else:
-        combi, y = df_v, y_v
+    _, combi, _, y = train_test_split(combi, y, test_size=0.2, random_state=42)
 
     # add latent features
     y_pred = add_features_and_predict(folder, combi)

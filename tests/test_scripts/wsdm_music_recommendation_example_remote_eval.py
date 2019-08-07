@@ -354,7 +354,7 @@ def create_featureset(folder):
     y = combi["target"].values
     num_queries = 0
 
-    _, combi_valid, _, y_valid = train_test_split(combi, y, test_size=0.33, random_state=42)
+    _, combi_valid, _, y_valid = train_test_split(combi, y, test_size=0.2, random_state=42)
     # Add features and predict.
     entry_list = set_up_serving(folder, combi_valid)
     preds = []

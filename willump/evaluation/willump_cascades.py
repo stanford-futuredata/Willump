@@ -313,7 +313,8 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
             if small_model_output_node is not None and \
                     len(node_output_types) == 1 and ((isinstance(node_output_types[0], WeldPandas)
                                                       and len(input_node.get_in_nodes()) == 1)
-                    or (isinstance(node_output_types[0], WeldVec) and node_output_types[0].width is not None)):
+                                                     or (isinstance(node_output_types[0], WeldVec) and
+                                                         node_output_types[0].width is not None)):
                 small_model_output_name = strip_linenos_from_var(small_model_output_node.get_output_names()[0])
                 shorten_python_code = "%s = cascade_df_shorten(%s, %s)" % (node_input_name,
                                                                            node_input_name,
@@ -355,8 +356,8 @@ def create_indices_to_costs_map(training_node: WillumpModelNode) -> Mapping[tupl
 
 
 def split_model_inputs(model_node: WillumpModelNode, feature_importances, indices_to_costs_map,
-                       more_important_cost_frac=0.5) -> \
-        Tuple[List[WillumpGraphNode], List[WillumpGraphNode]]:
+                       cost_cutoff) -> \
+        Tuple[List[WillumpGraphNode], List[WillumpGraphNode], List[int], float, float]:
     """
     Use a model's feature importances to divide its inputs into those more and those less important.  Return
     lists of each.
@@ -365,50 +366,53 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, indice
         WillumpGraphNode, Union[Tuple[int, int], Mapping[str, int]]] = model_node.get_model_inputs()
     nodes_to_efficiencies: MutableMapping[WillumpGraphNode, float] = {}
     nodes_to_importances: MutableMapping[WillumpGraphNode, float] = {}
+    nodes_to_indices: MutableMapping[WillumpGraphNode, tuple] = {}
     nodes_to_costs: MutableMapping[WillumpGraphNode, float] = {}
-    total_cost = 0
+    total_cost: float = 0.0
     for node, indices in training_node_inputs.items():
         if isinstance(indices, tuple):
             node_importance = feature_importances[indices]
+            start, end = indices
+            nodes_to_indices[node] = tuple(range(start, end))
         else:
             indices = tuple(indices.values())
             node_importance = feature_importances[indices]
+            nodes_to_indices[node] = indices
         nodes_to_importances[node] = node_importance
         node_cost: float = indices_to_costs_map[indices]
         nodes_to_costs[node] = node_cost
-        nodes_to_efficiencies[node] = node_importance / node_cost
+        if node_cost == 0:
+            nodes_to_efficiencies[node] = np.inf
+        else:
+            nodes_to_efficiencies[node] = node_importance / node_cost
         total_cost += node_cost
     ranked_inputs = sorted(nodes_to_efficiencies.keys(), key=lambda x: nodes_to_efficiencies[x], reverse=True)
-    current_cost = 0
-    current_importance = 0
+    current_cost: float = 0.0
     more_important_inputs = []
+    mi_feature_indices: List[int] = []
     for node in ranked_inputs:
-        if current_cost == 0:
-            average_efficiency = 0
-        else:
-            average_efficiency = current_importance / current_cost
-        node_efficiency = nodes_to_importances[node] / nodes_to_costs[node]
-        if node_efficiency < average_efficiency / 5:
-            break
-        if current_cost + nodes_to_costs[node] <= more_important_cost_frac * total_cost:
+        if current_cost + nodes_to_costs[node] <= cost_cutoff * total_cost:
             more_important_inputs.append(node)
-            if nodes_to_costs[node] > 0:
-                current_importance += nodes_to_importances[node]
-                current_cost += nodes_to_costs[node]
+            current_cost += nodes_to_costs[node]
+            for index in nodes_to_indices[node]:
+                mi_feature_indices.append(index)
     for node in ranked_inputs:
         if nodes_to_costs[node] == 0 and node not in more_important_inputs:
             more_important_inputs.append(node)
+            for index in nodes_to_indices[node]:
+                mi_feature_indices.append(index)
     less_important_inputs = [entry for entry in ranked_inputs if entry not in more_important_inputs]
-    return more_important_inputs, less_important_inputs
+    return more_important_inputs, less_important_inputs, mi_feature_indices, current_cost, total_cost
 
 
-def calculate_feature_importance(x, y, train_predict_score_functions: tuple, model_inputs) -> Mapping[tuple, float]:
+def calculate_feature_importance(x, y, train_predict_score_functions: tuple, model_inputs) -> \
+        Tuple[Mapping[tuple, float], np.ndarray]:
     """
     Calculate the importance of all operators' feature sets using mean decrease accuracy.
     Return a map from the indices of the features generated by an operator (used as a unique identifier of the
     operator) to the operator's importance.
     """
-    willump_train_function, willump_predict_function, willump_score_function = train_predict_score_functions
+    willump_train_function, willump_predict_function, _, willump_score_function = train_predict_score_functions
     train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25, random_state=42)
     model = willump_train_function(train_x, train_y)
     base_preds = willump_predict_function(model, valid_x)
@@ -434,7 +438,35 @@ def calculate_feature_importance(x, y, train_predict_score_functions: tuple, mod
         shuffled_score = willump_score_function(valid_y, shuffled_preds)
         return_map[indices] = base_score - shuffled_score
         del valid_x_copy
-    return return_map
+    return return_map, base_preds
+
+
+def calculate_feature_set_performance(x, y, train_predict_score_functions: tuple, mi_feature_indices: List[int],
+                                      original_model_holdout_predictions, mi_cost: float, total_cost: float):
+    willump_train_function, willump_predict_function, willump_predict_proba_function, willump_score_function = train_predict_score_functions
+    if isinstance(x, pd.DataFrame):
+        x = x.values
+    x = x[:, mi_feature_indices]
+    train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25, random_state=42)
+    small_model = willump_train_function(train_x, train_y)
+    small_confidences = willump_predict_proba_function(small_model, valid_x)
+    small_preds = willump_predict_function(small_model, valid_x)
+    orig_score = willump_score_function(valid_y, original_model_holdout_predictions)
+    threshold_to_combined_cost_map = {}
+    for cascade_threshold in [0.6, 0.7, 0.8, 0.9, 1.0]:
+        combined_preds = original_model_holdout_predictions.copy()
+        num_mi_predicted = 0
+        for i in range(len(small_confidences)):
+            if small_confidences[i] > cascade_threshold or small_confidences[i] < 1 - cascade_threshold:
+                num_mi_predicted += 1
+                combined_preds[i] = small_preds[i]
+        combined_score = willump_score_function(valid_y, combined_preds)
+        frac_mi_predicted = num_mi_predicted / len(combined_preds)
+        combined_cost = frac_mi_predicted * mi_cost + (1 - frac_mi_predicted) * total_cost
+        if combined_score > orig_score - 0.001:
+            threshold_to_combined_cost_map[cascade_threshold] = combined_cost
+    best_threshold, best_cost = min(threshold_to_combined_cost_map.items(), key=lambda x: x[1])
+    return best_threshold, best_cost
 
 
 def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
@@ -507,14 +539,27 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     else:
         return sorted_nodes
     train_x, train_y = training_node.get_train_x_y()
-    feature_importances = calculate_feature_importance(x=train_x, y=train_y,
-                                                       train_predict_score_functions=train_predict_score_functions,
-                                                       model_inputs=training_node.get_model_inputs())
+    feature_importances, original_model_holdout_predictions = calculate_feature_importance(x=train_x, y=train_y,
+                                                                                           train_predict_score_functions=train_predict_score_functions,
+                                                                                           model_inputs=training_node.get_model_inputs())
     training_cascades["feature_importances"] = feature_importances
     indices_to_costs_map = create_indices_to_costs_map(training_node)
     training_cascades["indices_to_costs_map"] = indices_to_costs_map
-    more_important_inputs, less_important_inputs = split_model_inputs(training_node, feature_importances,
-                                                                      indices_to_costs_map)
+    min_cost = np.inf
+    more_important_inputs, less_important_inputs = None, None
+    for cost_cutoff in [0.1, 0.2, 0.3, 0.4, 0.5]:
+        mi_candidate, li_candidate, mi_indices, mi_cost, t_cost = split_model_inputs(training_node,
+                                                                                     feature_importances,
+                                                                                     indices_to_costs_map,
+                                                                                     cost_cutoff)
+        threshold, cost = calculate_feature_set_performance(train_x, train_y, train_predict_score_functions, mi_indices,
+                                                            original_model_holdout_predictions, mi_cost, t_cost)
+        if cost < min_cost:
+            more_important_inputs = mi_candidate
+            less_important_inputs = li_candidate
+            training_cascades["cascade_threshold"] = threshold
+            training_cascades["cost_cutoff"] = cost_cutoff
+            min_cost = cost
     training_input_node = training_node.get_in_nodes()[0]
     # Create Willump graphs and code blocks that produce the more and less important inputs.
     base_discovery_dict = {}
@@ -560,7 +605,6 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
 def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                             typing_map: MutableMapping[str, WeldType],
                             eval_cascades: dict,
-                            cascade_threshold: float,
                             batch: bool,
                             top_k: Optional[int]) -> List[WillumpGraphNode]:
     """
@@ -685,8 +729,10 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         return sorted_nodes
     feature_importances = eval_cascades["feature_importances"]
     indices_to_costs_map = eval_cascades["indices_to_costs_map"]
-    more_important_inputs, less_important_inputs = split_model_inputs(model_node, feature_importances,
-                                                                      indices_to_costs_map)
+    cascade_threshold = eval_cascades["cascade_threshold"]
+    cost_cutoff = eval_cascades["cost_cutoff"]
+    more_important_inputs, less_important_inputs, _, _, _ = split_model_inputs(model_node, feature_importances,
+                                                                      indices_to_costs_map, cost_cutoff)
     model_input_node = model_node.get_in_nodes()[0]
     # Create Willump graphs and code blocks that produce the more important inputs.
     base_discovery_dict = {}
