@@ -24,11 +24,11 @@ else:
 @willump_execute(disable=args.disable, eval_cascades=cascades, cascade_threshold=None)
 def predict_stacked_model(X, model, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc):
     pred_svnu = model_prediction(X, clf_svnu)
-    pred_knn = model_prediction(X, clf_knn)
+    #pred_knn = model_prediction(X, clf_knn)
     pred_lr = model_prediction(X, clf_lr)
     pred_mlp = model_prediction(X, clf_mlp)
     pred_svc = model_prediction(X, clf_svc)
-    combined_pred = np.hstack([pred_svnu, pred_knn, pred_lr, pred_mlp, pred_svc])
+    combined_pred = np.hstack([pred_svnu, pred_lr, pred_mlp, pred_svc])
     preds = willump_predict_function(model, combined_pred)
     return preds
 
