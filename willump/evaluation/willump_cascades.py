@@ -420,20 +420,17 @@ def calculate_feature_importance(x, y, train_predict_score_functions: tuple, mod
     return_map = {}
     for node, indices in model_inputs.items():
         valid_x_copy = valid_x.copy()
-        if scipy.sparse.issparse(valid_x):
-            valid_x_copy = valid_x_copy.toarray()
         if isinstance(valid_x_copy, pd.DataFrame):
             valid_x_copy = valid_x_copy.values
+        shuffle_order = np.arange(valid_x_copy.shape[0])
+        np.random.shuffle(shuffle_order)
         if isinstance(indices, tuple):
             start, end = indices
-            for i in range(start, end):
-                np.random.shuffle(valid_x_copy[:, i])
+            valid_x_copy[:, start:end] = valid_x_copy[shuffle_order, start:end]
         else:
             indices = tuple(indices.values())
             for i in indices:
-                np.random.shuffle(valid_x_copy[:, i])
-        if scipy.sparse.issparse(valid_x):
-            valid_x_copy = scipy.sparse.csr_matrix(valid_x_copy)
+                valid_x_copy[:, i] = valid_x_copy[shuffle_order, i]
         shuffled_preds = willump_predict_function(model, valid_x_copy)
         shuffled_score = willump_score_function(valid_y, shuffled_preds)
         return_map[indices] = base_score - shuffled_score

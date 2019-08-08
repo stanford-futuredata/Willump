@@ -4,7 +4,7 @@ from sklearn.metrics import mean_squared_error
 
 
 def willump_train_function(X, y):
-    model = LogisticRegression()
+    model = LogisticRegression(solver='liblinear')
     model = model.fit(X, y)
     return model
 
