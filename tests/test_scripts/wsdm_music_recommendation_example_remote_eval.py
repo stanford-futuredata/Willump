@@ -363,15 +363,19 @@ def create_featureset(folder):
         del ref_to_willump_cache[key]
     for entry in trained_cache:
         ref_to_willump_cache[entry] = trained_cache[entry]
-    start = time.time()
+    times = []
     for entry in tqdm(entry_list):
+        t0 = time.time()
         pred = do_merge(entry)
+        time_elapsed = time.time() - t0
+        times.append(time_elapsed)
         preds.append(pred)
-    elapsed_time = time.time() - start
     y_pred = np.hstack(preds)
-    num_rows = len(y_pred)
-    print('Latent feature join in %f seconds rows %d throughput %f: ' % (
-        elapsed_time, num_rows, num_rows / elapsed_time))
+    p50 = np.percentile(times, 50)
+    p99 = np.percentile(times, 99)
+
+    print("p50 Latency: %f p99 Latency: %f" %
+          (p50, p99))
     print("Valid AUC: %f" % willump_score_function(y_valid, y_pred))
     print("Valid: Number of \"remote\" queries made: %d  Requests per row:  %f" %
           (num_queries, num_queries / len(y_pred)))
