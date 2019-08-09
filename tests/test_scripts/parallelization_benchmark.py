@@ -22,6 +22,10 @@ else:
     workers = args.workers
 
 
+def willump_predict_function(model, X):
+    return model.predict(X)
+
+
 @willump_execute(disable=args.disable, num_workers=workers)
 def vectorizer_transform(input_text, char_vect):
     char_features_one = char_vect.transform(input_text)
@@ -36,7 +40,7 @@ def vectorizer_transform(input_text, char_vect):
                                              char_features_three, char_features_four,
                                              char_features_five, char_features_six,
                                              char_features_seven, char_features_eight], format="csr")
-    preds = classifier.predict(combined_features)
+    preds = willump_predict_function(classifier, combined_features)
     return preds
 
 
@@ -56,9 +60,14 @@ for i in range(len(valid_text)):
 mini_text = valid_text[:2]
 vectorizer_transform(mini_text, char_vectorizer)
 vectorizer_transform(mini_text, char_vectorizer)
-t0 = time.time()
+times = []
 for entry in tqdm(entry_list):
+    t0 = time.time()
     vectorizer_transform(entry, char_vectorizer)
-time_elapsed = time.time() - t0
-print("Classification Time %fs Num Rows %d Throughput %f rows/sec Latency %f sec/row" %
-      (time_elapsed, set_size, set_size / time_elapsed, time_elapsed / set_size))
+    time_elapsed = time.time() - t0
+    times.append(time_elapsed)
+p50 = np.percentile(times, 50)
+p99 = np.percentile(times, 99)
+
+print("p50 Latency: %f p99 Latency: %f" %
+      (p50, p99))
