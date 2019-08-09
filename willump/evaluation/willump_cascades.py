@@ -368,7 +368,7 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, indice
     nodes_to_importances: MutableMapping[WillumpGraphNode, float] = {}
     nodes_to_indices: MutableMapping[WillumpGraphNode, tuple] = {}
     nodes_to_costs: MutableMapping[WillumpGraphNode, float] = {}
-    total_cost: float = 0.0
+    total_cost: float = sum(indices_to_costs_map.values())
     for node, indices in training_node_inputs.items():
         if isinstance(indices, tuple):
             node_importance = feature_importances[indices]
@@ -385,7 +385,6 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, indice
             nodes_to_efficiencies[node] = np.inf
         else:
             nodes_to_efficiencies[node] = node_importance / node_cost
-        total_cost += node_cost
     ranked_inputs = sorted(nodes_to_efficiencies.keys(), key=lambda x: nodes_to_efficiencies[x], reverse=True)
     current_cost: float = 0.0
     more_important_inputs = []
