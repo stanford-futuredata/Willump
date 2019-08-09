@@ -411,8 +411,8 @@ def add_features_and_predict(folder, combi):
             db.set(redis_key, ser_value)
 
     num_rows = len(combi)
-    do_merge(combi.iloc[0:3].copy())
-    do_merge(combi.iloc[0:3].copy())
+    do_merge(combi.iloc[0:100].copy())
+    do_merge(combi.iloc[0:100].copy())
 
     start = time.time()
     preds = do_merge(combi)
