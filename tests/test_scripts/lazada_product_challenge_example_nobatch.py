@@ -67,7 +67,10 @@ for entry in tqdm(entry_list):
     time_elapsed = time.time() - t0
     times.append(time_elapsed)
 
+times = numpy.array(times) * 1000000
+
 p50 = numpy.percentile(times, 50)
 p99 = numpy.percentile(times, 99)
-print("p50 Latency: %f p99 Latency: %f" %
+print("p50 Latency: %f us p99 Latency: %f us" %
       (p50, p99))
+pickle.dump(times, open("latencies.pk", "wb"))

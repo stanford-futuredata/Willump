@@ -1,7 +1,6 @@
 import argparse
 import pickle
 import time
-import numpy
 
 import pandas as pd
 import scipy.sparse
@@ -62,10 +61,13 @@ for entry in tqdm(entry_list):
     time_elapsed = time.time() - t0
     times.append(time_elapsed)
     y_preds.append(preds)
-p50 = numpy.percentile(times, 50)
-p99 = numpy.percentile(times, 99)
-print("p50 Latency: %f p99 Latency: %f" %
+times = np.array(times) * 1000000
+
+p50 = np.percentile(times, 50)
+p99 = np.percentile(times, 99)
+print("p50 Latency: %f us p99 Latency: %f us" %
       (p50, p99))
+pickle.dump(times, open("latencies.pk", "wb"))
 
 y_preds = np.hstack(y_preds)
 print("Validation ROC-AUC Score: %f" % willump_score_function(valid_target, y_preds))

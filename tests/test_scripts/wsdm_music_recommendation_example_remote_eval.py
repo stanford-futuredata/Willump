@@ -371,11 +371,13 @@ def create_featureset(folder):
         times.append(time_elapsed)
         preds.append(pred)
     y_pred = np.hstack(preds)
+    times = np.array(times) * 1000000
+
     p50 = np.percentile(times, 50)
     p99 = np.percentile(times, 99)
-
-    print("p50 Latency: %f p99 Latency: %f" %
+    print("p50 Latency: %f us p99 Latency: %f us" %
           (p50, p99))
+    pickle.dump(times, open("latencies.pk", "wb"))
     print("Valid AUC: %f" % willump_score_function(y_valid, y_pred))
     print("Valid: Number of \"remote\" queries made: %d  Requests per row:  %f" %
           (num_queries, num_queries / len(y_pred)))

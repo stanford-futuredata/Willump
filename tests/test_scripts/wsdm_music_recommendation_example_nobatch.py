@@ -150,12 +150,13 @@ def add_features_and_predict(folder, combi):
         time_elapsed = time.time() - t0
         times.append(time_elapsed)
         preds.append(pred)
+    times = np.array(times) * 1000000
+
     p50 = np.percentile(times, 50)
     p99 = np.percentile(times, 99)
-
-    print("p50 Latency: %f p99 Latency: %f" %
+    print("p50 Latency: %f us p99 Latency: %f us" %
           (p50, p99))
-
+    pickle.dump(times, open("latencies.pk", "wb"))
     return preds
 
 

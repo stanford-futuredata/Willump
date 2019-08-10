@@ -81,8 +81,10 @@ if __name__ == "__main__":
     preds_y = np.hstack(preds_y)
     score = willump_score_function(valid_y, preds_y)
 
+    times = np.array(times) * 1000000
+
     p50 = np.percentile(times, 50)
     p99 = np.percentile(times, 99)
-
-    print("p50 Latency: %f p99 Latency: %f  AUC: %f" %
-          (p50, p99, score))
+    print("p50 Latency: %f us p99 Latency: %f us" %
+          (p50, p99))
+    pickle.dump(times, open("latencies.pk", "wb"))
