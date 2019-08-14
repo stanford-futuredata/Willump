@@ -467,13 +467,11 @@ def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions:
     small_model = willump_train_function(train_x_efficient, train_y)
     small_probs = willump_predict_proba_function(small_model, valid_x_efficient)
     orig_probs = willump_predict_proba_function(orig_model, valid_x)
-    print("Validation set length: %d" % len(orig_probs))
     orig_model_top_k_idx = np.argsort(orig_probs)[-1 * top_k:]
     good_ratio, cost = np.inf, np.inf
     for ratio in range(1, len(orig_probs) // top_k):
         small_model_top_ratio_k_idx = np.argsort(small_probs)[-1 * top_k * ratio:]
         small_model_precision = len(np.intersect1d(orig_model_top_k_idx, small_model_top_ratio_k_idx)) / top_k
-        print(ratio, small_model_precision)
         if small_model_precision > 0.95:
             good_ratio = ratio
             cost = mi_cost * len(orig_probs) + total_cost * ratio * top_k

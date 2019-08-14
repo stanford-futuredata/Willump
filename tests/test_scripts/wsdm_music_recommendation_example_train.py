@@ -12,20 +12,12 @@ from wsdm_utilities import *
 training_cascades = {}
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-s", "--costly_statements", help="Mark costly (remotely stored) statements?", action="store_true")
+parser.add_argument("-k", "--top_k", type=int, help="Top-K to return")
 args = parser.parse_args()
-
-if args.costly_statements:
-    costly_statements = ("features_one", "features_two", "uc_features",
-                         "sc_features", "ac_features", "us_features",
-                         "ss_features", "as_features",
-                         "comps_features", "lyrs_features")
-else:
-    costly_statements = ()
 
 
 @willump.evaluation.willump_executor.willump_execute(batch=True, training_cascades=training_cascades,
-                                                     costly_statements=costly_statements,
+                                                     top_k=args.top_k,
                                                      willump_train_function=willump_train_function,
                                                      willump_predict_function=willump_predict_function,
                                                      willump_score_function=willump_score_function,
@@ -192,6 +184,7 @@ def create_featureset(folder):
 
     pickle.dump(model, open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "wb"))
     pickle.dump(training_cascades, open("tests/test_resources/wsdm_cup_features/wsdm_training_cascades.pk", "wb"))
+    print(training_cascades)
 
 
 if __name__ == '__main__':

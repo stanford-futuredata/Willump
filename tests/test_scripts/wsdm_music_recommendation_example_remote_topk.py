@@ -12,17 +12,18 @@ from wsdm_utilities import *
 model = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_model.pk", "rb"))
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-k", "--top_k_cascade", type=int, help="Top-K to return")
+parser.add_argument("-c", "--cascades", action="store_true", help="Cascades?")
+parser.add_argument("-k", "--top_k", type=int, help="Top-K to return", required=True)
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 parser.add_argument("-r", "--redis", help="Redis IP", type=str)
 args = parser.parse_args()
 
-if args.top_k_cascade is None:
-    cascades = None
-    top_K = None
-else:
+if args.cascades:
     cascades = pickle.load(open("tests/test_resources/wsdm_cup_features/wsdm_training_cascades.pk", "rb"))
-    top_K = args.top_k_cascade
+else:
+    cascades = None
+
+top_K = args.top_k
 
 if args.redis is None:
     redis_ip = "127.0.0.1"
@@ -411,15 +412,23 @@ def add_features_and_predict(folder, combi):
             db.set(redis_key, ser_value)
 
     num_rows = len(combi)
-    do_merge(combi.iloc[0:3].copy())
+    orig_preds = do_merge(combi)
     do_merge(combi.iloc[0:3].copy())
 
     start = time.time()
     preds = do_merge(combi)
     elapsed_time = time.time() - start
 
-    print('Latent feature join in %f seconds rows %d throughput %f: ' % (
-        elapsed_time, num_rows, num_rows / elapsed_time))
+    orig_model_top_k_idx = np.argsort(orig_preds)[-1 * top_K:]
+    actual_model_top_k_idx = np.argsort(preds)[-1 * top_K:]
+    precision = len(np.intersect1d(orig_model_top_k_idx, actual_model_top_k_idx)) / top_K
+
+    orig_model_sum = sum(orig_preds[orig_model_top_k_idx])
+    actual_model_sum = sum(preds[actual_model_top_k_idx])
+
+    print("Title Processing Time %fs Num Rows %d Throughput %f rows/sec" %
+          (elapsed_time, num_rows, num_rows / elapsed_time))
+    print("Precision: %f Orig Model Sum: %f Actual Model Sum: %f" % (precision, orig_model_sum, actual_model_sum))
 
     return preds
 
@@ -433,22 +442,7 @@ def create_featureset(folder):
 
     _, combi_valid, _, y_valid = train_test_split(combi, y, test_size=0.2, random_state=42)
     # Add features and predict.
-    y_pred = add_features_and_predict(folder, combi_valid)
-    print("Valid AUC: %f" % willump_score_function(y_valid, y_pred))
-    print("Valid: Number of \"remote\" queries made: %d  Requests per row:  %f" %
-          (num_queries, num_queries / len(y_pred)))
-
-    top_k_idx = np.argsort(y_pred)[-1 * top_K:]
-    top_k_values = [y_pred[i] for i in top_k_idx]
-    sum_values = 0
-
-    for idx, value in zip(top_k_idx, top_k_values):
-        print(idx, value)
-        sum_values += value
-
-    print("Sum of top %d values: %f" % (top_K, sum_values))
-    out_filename = "wsdm_top%d.pk" % top_K
-    pickle.dump(y_pred, open(out_filename, "wb"))
+    add_features_and_predict(folder, combi_valid)
 
 
 if __name__ == '__main__':

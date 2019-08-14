@@ -337,9 +337,10 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                 x_name = self.get_load_name(value.args[1].id, value.lineno, self._type_map)
                 x_node = self._node_dict[x_name]
                 output_type = self._type_map[output_var_name]
+                input_width = self._static_vars[WILLUMP_INPUT_WIDTH]
                 predict_node = WillumpPredictProbaNode(model_name=model_name, x_name=x_name,
                                                        x_node=x_node, output_name=output_var_name,
-                                                       output_type=output_type)
+                                                       output_type=output_type, input_width=input_width)
                 return [output_var_name], predict_node
             elif ".fillna" in called_function and isinstance(value.func, ast.Attribute) and \
                     isinstance(value.func.value, ast.Name):
