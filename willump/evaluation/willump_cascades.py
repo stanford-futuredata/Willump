@@ -22,7 +22,8 @@ from willump.willump_utilities import *
 def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                 typing_map: MutableMapping[str, WeldType],
                                 training_cascades: dict,
-                                train_predict_score_functions: tuple) -> List[WillumpGraphNode]:
+                                train_predict_score_functions: tuple,
+                                top_k: int) -> List[WillumpGraphNode]:
     """
     Take in a program training a model.  Rank features in the model by importance.  Partition
     features into "more important" and "less important."  Train a small model on only more important features
@@ -102,8 +103,12 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                                                                      feature_importances,
                                                                                      indices_to_costs_map,
                                                                                      cost_cutoff)
-        threshold, cost = calculate_feature_set_performance(train_x, train_y, train_predict_score_functions, mi_indices,
-                                                            orig_model, mi_cost, t_cost)
+        if top_k is not None:
+            threshold, cost = calculate_feature_set_performance_top_k(train_x, train_y, train_predict_score_functions,
+                                                                mi_indices, orig_model, mi_cost, t_cost, top_k)
+        else:
+            threshold, cost = calculate_feature_set_performance(train_x, train_y, train_predict_score_functions,
+                                                                mi_indices, orig_model, mi_cost, t_cost)
         if cost < min_cost:
             more_important_inputs = mi_candidate
             less_important_inputs = li_candidate
@@ -187,7 +192,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         else:
             threshold_node = CascadeTopKSelectionNode(input_node=predict_proba_node, input_name=proba_output_name,
                                                       output_name=threshold_output_name,
-                                                      top_k=top_k)
+                                                      top_k=top_k * cascade_threshold)
         typing_map[threshold_output_name] = WeldVec(WeldChar())
         return predict_proba_node, threshold_node
 

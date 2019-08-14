@@ -17,7 +17,11 @@ def willump_predict_function(model, X):
 
 
 def willump_predict_proba_function(model, X):
-    return model.predict_proba(X)[:, 1]
+    if X.shape[0] == 0:
+        return numpy.zeros(0, dtype=numpy.float64)
+    else:
+        return model.predict_proba(X)[:, 1]
+
 
 
 def rmse_score(y, pred):

@@ -14,16 +14,16 @@ from willump.evaluation.willump_executor import willump_execute
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-k", "--top_k_cascade", type=int, help="Top-K to return")
+parser.add_argument("-c", "--cascades", action="store_true", help="Cascades?")
+parser.add_argument("-k", "--top_k", type=int, help="Top-K to return", required=True)
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
-parser.add_argument("-m", "--sample", type=float, help="Sample one in S elements")
 args = parser.parse_args()
-if args.top_k_cascade is None:
-    cascades = None
-    top_K = None
-else:
+
+if args.cascades:
     cascades = pickle.load(open("tests/test_resources/lazada_challenge_features/lazada_training_cascades.pk", "rb"))
-    top_K = args.top_k_cascade
+else:
+    cascades = None
+top_K = args.top_k
 
 
 @willump_execute(disable=args.disable, num_workers=0, eval_cascades=cascades, top_k=top_K)
@@ -48,36 +48,23 @@ _, df, _, y = train_test_split(df, y, test_size=0.2, random_state=42)
 
 title_vectorizer, color_vectorizer, brand_vectorizer = pickle.load(
     open("tests/test_resources/lazada_challenge_features/lazada_vectorizers.pk", "rb"))
-print("Title Vocabulary has length %d" % len(title_vectorizer.vocabulary_))
-print("Color Vocabulary has length %d" % len(color_vectorizer.vocabulary_))
-print("Brand Vocabulary has length %d" % len(brand_vectorizer.vocabulary_))
 
 set_size = len(df)
 mini_df = df.head(2).copy()["title"]
-vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, brand_vectorizer)
+orig_preds = vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, brand_vectorizer)
 vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, brand_vectorizer)
 vectorizer_transform(title_vectorizer, mini_df, color_vectorizer, brand_vectorizer)
 t0 = time.time()
 preds = vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, brand_vectorizer)
 time_elapsed = time.time() - t0
+
+orig_model_top_k_idx = np.argsort(orig_preds)[-1 * top_K:]
+actual_model_top_k_idx = np.argsort(preds)[-1 * top_K:]
+precision = len(np.intersect1d(orig_model_top_k_idx, actual_model_top_k_idx)) / top_K
+
+orig_model_sum = sum(orig_preds[orig_model_top_k_idx])
+actual_model_sum = sum(preds[actual_model_top_k_idx])
+
 print("Title Processing Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
-
-if args.sample is not None:
-    assert args.disable
-    for i in range(len(preds)):
-        if random.uniform(0, args.sample) > 1:
-            preds[i] = 0
-
-top_k_idx = np.argsort(preds)[-1 * top_K:]
-top_k_values = [preds[i] for i in top_k_idx]
-sum_values = 0
-
-for idx, value in zip(top_k_idx, top_k_values):
-    print(idx, value)
-    sum_values += value
-
-print("Sum of top %d values: %f" % (top_K,  sum_values))
-
-out_filename = "lazada_top%d.pk" % top_K
-pickle.dump(preds, open(out_filename, "wb"))
+print("Precision: %f Orig Model Sum: %f Actual Model Sum: %f" % (precision, orig_model_sum, actual_model_sum))

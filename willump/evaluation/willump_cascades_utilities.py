@@ -428,7 +428,8 @@ def calculate_feature_importance(x, y, train_predict_score_functions: tuple, mod
 
 def calculate_feature_set_performance(x, y, train_predict_score_functions: tuple, mi_feature_indices: List[int],
                                       orig_model, mi_cost: float, total_cost: float):
-    willump_train_function, willump_predict_function, willump_predict_proba_function, willump_score_function = train_predict_score_functions
+    willump_train_function, willump_predict_function, willump_predict_proba_function, willump_score_function = \
+        train_predict_score_functions
     if isinstance(x, pd.DataFrame):
         x = x.values
     train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25, random_state=42)
@@ -454,3 +455,27 @@ def calculate_feature_set_performance(x, y, train_predict_score_functions: tuple
     best_threshold, best_cost = min(threshold_to_combined_cost_map.items(), key=lambda x: x[1])
     return best_threshold, best_cost
 
+
+def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions: tuple, mi_feature_indices: List[int],
+                                            orig_model, mi_cost: float, total_cost: float, top_k: int):
+    willump_train_function, willump_predict_function, willump_predict_proba_function, willump_score_function = \
+        train_predict_score_functions
+    if isinstance(x, pd.DataFrame):
+        x = x.values
+    train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25, random_state=42)
+    train_x_efficient, valid_x_efficient = train_x[:, mi_feature_indices], valid_x[:, mi_feature_indices]
+    small_model = willump_train_function(train_x_efficient, train_y)
+    small_probs = willump_predict_proba_function(small_model, valid_x_efficient)
+    orig_probs = willump_predict_proba_function(orig_model, valid_x)
+    print("Validation set length: %d" % len(orig_probs))
+    orig_model_top_k_idx = np.argsort(orig_probs)[-1 * top_k:]
+    good_ratio, cost = np.inf, np.inf
+    for ratio in range(1, len(orig_probs) // top_k):
+        small_model_top_ratio_k_idx = np.argsort(small_probs)[-1 * top_k * ratio:]
+        small_model_precision = len(np.intersect1d(orig_model_top_k_idx, small_model_top_ratio_k_idx)) / top_k
+        print(ratio, small_model_precision)
+        if small_model_precision > 0.95:
+            good_ratio = ratio
+            cost = mi_cost * len(orig_probs) + total_cost * ratio * top_k
+            break
+    return good_ratio, cost

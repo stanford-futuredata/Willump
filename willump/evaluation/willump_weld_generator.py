@@ -115,7 +115,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType]
     if training_cascades is not None:
         assert (eval_cascades is None)
         sorted_nodes = w_cascades.training_model_cascade_pass(sorted_nodes, typing_map, training_cascades,
-                                                              train_predict_score_functions)
+                                                              train_predict_score_functions, top_k)
     if eval_cascades is not None:
         assert (training_cascades is None)
         sorted_nodes = w_cascades.eval_model_cascade_pass(sorted_nodes, typing_map, eval_cascades,

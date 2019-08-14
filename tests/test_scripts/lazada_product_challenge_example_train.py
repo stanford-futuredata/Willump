@@ -16,6 +16,7 @@ import willump.evaluation.willump_executor
 from lazada_product_challenge_utils import *
 
 parser = argparse.ArgumentParser()
+parser.add_argument("-k", "--top_k", type=int, help="Top-K to return")
 args = parser.parse_args()
 
 training_cascades = {}
@@ -25,7 +26,8 @@ training_cascades = {}
                                                      willump_train_function=willump_train_function,
                                                      willump_predict_function=willump_predict_function,
                                                      willump_predict_proba_function=willump_predict_proba_function,
-                                                     willump_score_function=willump_score_function)
+                                                     willump_score_function=willump_score_function,
+                                                     top_k=args.top_k)
 def vectorizer_transform(title_vect, input_df, color_vect, brand_vect, y_df):
     np_input = list(input_df.values)
     transformed_result = title_vect.transform(np_input)
