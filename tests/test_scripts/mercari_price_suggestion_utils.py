@@ -18,10 +18,13 @@ def willump_train_function(X, y):
 
 
 def willump_predict_function(model, X):
-    y_pred = model.predict(X)
-    y_pred = np.expm1(y_scaler.inverse_transform(y_pred.reshape(-1, 1))[:, 0])
-    y_pred[y_pred < 0] = 0
-    return y_pred
+    if X.shape[0] == 0:
+        return np.zeros(0, dtype=np.float64)
+    else:
+        y_pred = model.predict(X)
+        y_pred = np.expm1(y_scaler.inverse_transform(y_pred.reshape(-1, 1))[:, 0])
+        y_pred[y_pred < 0] = 0
+        return y_pred
 
 
 def willump_predict_proba_function(model, X):

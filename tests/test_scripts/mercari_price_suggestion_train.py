@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from operator import itemgetter
 from typing import List, Dict, Union
 
+import argparse
 import keras as ks
 import pandas as pd
 import scipy.sparse
@@ -27,6 +28,11 @@ base_folder = "tests/test_resources/mercari_price_suggestion/"
 
 config = tf.ConfigProto(
     intra_op_parallelism_threads=1, use_per_session_threads=1, inter_op_parallelism_threads=1)
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-k", "--top_k", type=int, help="Top-K to return")
+parser.add_argument("-b", "--debug", help="Debug Mode", action="store_true")
+args = parser.parse_args()
 
 
 @contextmanager
@@ -69,7 +75,9 @@ training_cascades = {}
 
 @willump_execute(training_cascades=training_cascades, willump_train_function=willump_train_function,
                  willump_predict_function=willump_predict_function,
-                 willump_score_function=willump_score_function)
+                 willump_predict_proba_function=willump_predict_proba_function,
+                 willump_score_function=willump_score_function,
+                 top_k=args.top_k)
 def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_vectorizer, y_train):
     model_input = preprocess(model_input)
     name_input = model_input["name"].values
@@ -85,14 +93,13 @@ def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_
 
 def main():
     global sess
-    debug = False
     y_scaler = StandardScaler()
     train = pd.read_table(base_folder + 'train.tsv')
     train = train[train['price'] > 0].reset_index(drop=True)
     cv = KFold(n_splits=3, shuffle=True, random_state=42)
     train_ids, _ = next(cv.split(train))
-    if debug:
-        train_ids = train_ids[:1000]
+    if args.debug:
+        train_ids = train_ids[:10000]
     train = train.iloc[train_ids]
     print("Training set rows %d" % len(train))
     y_train = y_scaler.fit_transform(np.log1p(train['price'].values.reshape(-1, 1)))
