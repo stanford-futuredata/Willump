@@ -32,7 +32,10 @@ def willump_predict_function(model, X):
 
 
 def willump_predict_proba_function(model, X):
-    return model.predict_proba(X)[:, 1]
+    if X.shape[0] == 0:
+        return np.zeros(0, dtype=np.float64)
+    else:
+        return model.predict_proba(X)[:, 1]
 
 
 def willump_score_function(y_true, y_pred):

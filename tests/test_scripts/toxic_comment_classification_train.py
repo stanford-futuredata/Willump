@@ -18,6 +18,7 @@ train = pd.read_csv(base_path + 'train.csv').fillna(' ')
 train_text = train['comment_text'].values
 
 parser = argparse.ArgumentParser()
+parser.add_argument("-k", "--top_k", type=int, help="Top-K to return")
 args = parser.parse_args()
 
 training_cascades = {}
@@ -25,7 +26,7 @@ training_cascades = {}
 
 @willump_execute(training_cascades=training_cascades, willump_train_function=willump_train_function,
                  willump_predict_function=willump_predict_function, willump_score_function=willump_score_function,
-                 willump_predict_proba_function=willump_predict_proba_function)
+                 willump_predict_proba_function=willump_predict_proba_function, top_k=args.top_k)
 def vectorizer_transform(input_text, word_vect, char_vect, train_target):
     word_features = word_vect.transform(input_text)
     char_features = char_vect.transform(input_text)

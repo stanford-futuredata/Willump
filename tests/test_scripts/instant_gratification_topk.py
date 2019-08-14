@@ -2,9 +2,9 @@ import argparse
 import pickle
 import time
 
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from tqdm import tqdm
 
 from instant_gratification_utils import *
 from willump.evaluation.willump_executor import willump_execute
@@ -12,16 +12,19 @@ from willump.evaluation.willump_executor import willump_execute
 base_path = "tests/test_resources/instant_gratification/"
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-c", "--cascades", action="store_true", help="Cascade threshold")
+parser.add_argument("-c", "--cascades", action="store_true", help="Cascades?")
+parser.add_argument("-k", "--top_k", type=int, help="Top-K to return", required=True)
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 args = parser.parse_args()
+
 if args.cascades:
     cascades = pickle.load(open(base_path + "cascades.pk", "rb"))
 else:
-    cascades=None
+    cascades = None
+top_K = args.top_k
 
 
-@willump_execute(disable=args.disable, eval_cascades=cascades)
+@willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K)
 def predict_stacked_model(X, model, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc):
     pred_svnu = model_prediction(X, clf_svnu)
     # pred_knn = model_prediction(X, clf_knn)
@@ -29,14 +32,13 @@ def predict_stacked_model(X, model, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc)
     pred_mlp = model_prediction(X, clf_mlp)
     pred_svc = model_prediction(X, clf_svc)
     combined_pred = np.hstack([pred_svnu, pred_lr, pred_mlp, pred_svc])
-    preds = willump_predict_function(model, combined_pred)
+    preds = willump_predict_proba_function(model, combined_pred)
     return preds
 
 
 if __name__ == "__main__":
     data = pd.read_csv(base_path + "train.csv")
     _, valid_data = train_test_split(data, test_size=0.1, random_state=42)
-    valid_data, _ = train_test_split(valid_data, test_size=0.5, random_state=42)
     valid_data = valid_data[valid_data['wheezy-copper-turtle-magic'] < NUM_PARTITIONS].reset_index(drop=True)
     print("Validation Data Length: %d" % len(valid_data))
     valid_y = valid_data.pop('target')
@@ -61,30 +63,20 @@ if __name__ == "__main__":
     model = pickle.load(open(base_path + "model.pk", "rb"))
 
     mini_data = valid_data[:3]
+    orig_preds = predict_stacked_model(valid_data, model, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc)
     predict_stacked_model(mini_data, model, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc)
-    predict_stacked_model(mini_data, model, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc)
 
-    entry_list = []
-    for i in range(len(valid_data)):
-        new_entry = valid_data[i:i+1]
-        entry_list.append(new_entry)
+    t0 = time.time()
+    preds = predict_stacked_model(valid_data, model, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc)
+    time_elapsed = time.time() - t0
 
-    preds_y = []
-    times = []
-    for entry in tqdm(entry_list):
-        t0 = time.time()
-        pred = predict_stacked_model(entry, model, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc)
-        time_elapsed = time.time() - t0
-        times.append(time_elapsed)
-        preds_y.append(pred)
+    orig_model_top_k_idx = np.argsort(orig_preds)[-1 * top_K:]
+    actual_model_top_k_idx = np.argsort(preds)[-1 * top_K:]
+    precision = len(np.intersect1d(orig_model_top_k_idx, actual_model_top_k_idx)) / top_K
 
-    preds_y = np.hstack(preds_y)
-    score = willump_score_function(valid_y, preds_y)
-
-    times = np.array(times) * 1000000
-
-    p50 = np.percentile(times, 50)
-    p99 = np.percentile(times, 99)
-    print("p50 Latency: %f us p99 Latency: %f us" %
-          (p50, p99))
-    pickle.dump(times, open("latencies.pk", "wb"))
+    orig_model_sum = sum(orig_preds[orig_model_top_k_idx])
+    actual_model_sum = sum(preds[actual_model_top_k_idx])
+    set_size = len(valid_data)
+    print("Title Processing Time %fs Num Rows %d Throughput %f rows/sec" %
+          (time_elapsed, set_size, set_size / time_elapsed))
+    print("Precision: %f Orig Model Sum: %f Actual Model Sum: %f" % (precision, orig_model_sum, actual_model_sum))
