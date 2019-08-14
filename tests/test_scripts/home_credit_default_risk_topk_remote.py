@@ -20,16 +20,18 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 base_folder = "tests/test_resources/home_credit_default_risk/"
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-k", "--top_k_cascade", type=int, help="Top-K to return")
+parser.add_argument("-c", "--cascades", action="store_true", help="Cascades?")
+parser.add_argument("-b", "--debug", help="Debug Mode", action="store_true")
+parser.add_argument("-k", "--top_k", type=int, help="Top-K to return", required=True)
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
 parser.add_argument("-r", "--redis", help="Redis IP", type=str)
 args = parser.parse_args()
-if args.top_k_cascade is None:
-    cascades = None
-    top_K = None
-else:
+
+if args.cascades:
     cascades = pickle.load(open(base_folder + "training_cascades.pk", "rb"))
-    top_K = args.top_k_cascade
+else:
+    cascades = None
+top_K = args.top_k
 
 if args.redis is None:
     redis_ip = "127.0.0.1"
@@ -207,9 +209,9 @@ def join_and_lgbm(df):
     return oof_preds_proba
 
 
-def main(debug=False):
+def main():
     global bureau, prev, pos, ins, cc, clf, num_queries, bureau_nan, prev_nan, pos_nan, ins_nan, cc_nan, num_nan
-    num_rows = 10000 if debug else None
+    num_rows = 10000 if args.debug else None
     df = application_train_test(num_rows)
     bureau, prev, pos, ins, cc = pickle.load(open(base_folder + "tables.csv", "rb"))
 
@@ -256,24 +258,24 @@ def main(debug=False):
     valid_df = valid_df.reset_index().drop("index", axis=1)
 
     mini_df = valid_df.iloc[0:3]
+    orig_preds = join_and_lgbm(valid_df)
     join_and_lgbm(mini_df)
-    join_and_lgbm(mini_df)
-    with timer("Joins and Prediction"):
-        oof_preds = join_and_lgbm(valid_df)
-    print("Num Queries: %d  Num NaN: %d Queries per Row: %f" % (num_queries, num_nan, num_queries / len(valid_df)))
 
-    top_k_idx = np.argsort(oof_preds)[-1 * top_K:]
-    top_k_values = [oof_preds[i] for i in top_k_idx]
-    sum_values = 0
+    t0 = time.time()
+    preds = join_and_lgbm(valid_df)
+    elapsed_time = time.time() - t0
 
-    for idx, value in zip(top_k_idx, top_k_values):
-        print(idx, value)
-        sum_values += value
+    orig_model_top_k_idx = np.argsort(orig_preds)[-1 * top_K:]
+    actual_model_top_k_idx = np.argsort(preds)[-1 * top_K:]
+    precision = len(np.intersect1d(orig_model_top_k_idx, actual_model_top_k_idx)) / top_K
 
-    print("Sum of top %d values: %f" % (top_K, sum_values))
+    orig_model_sum = sum(orig_preds[orig_model_top_k_idx])
+    actual_model_sum = sum(preds[actual_model_top_k_idx])
 
-    out_filename = "credit_top%d.pk" % top_K
-    pickle.dump(oof_preds, open(out_filename, "wb"))
+    num_rows = len(valid_df)
+    print("Title Processing Time %fs Num Rows %d Throughput %f rows/sec" %
+          (elapsed_time, num_rows, num_rows / elapsed_time))
+    print("Precision: %f Orig Model Sum: %f Actual Model Sum: %f" % (precision, orig_model_sum, actual_model_sum))
 
 
 if __name__ == "__main__":

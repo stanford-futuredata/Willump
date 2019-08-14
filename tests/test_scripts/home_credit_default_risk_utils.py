@@ -26,11 +26,14 @@ def willump_train_function(X, y):
 
 
 def willump_predict_function(model, X):
-    return model.predict_proba(X, num_iteration=model.best_iteration_)[:, 1]
+    if X.shape[0] == 0:
+        return numpy.zeros(0, dtype=numpy.float64)
+    else:
+        return model.predict_proba(X, num_iteration=model.best_iteration_)[:, 1]
 
 
 def willump_predict_proba_function(model, X):
-    return model.predict_proba(X, num_iteration=model.best_iteration_)[:, 1]
+    return willump_predict_function(model, X)
 
 
 def rmse_score(y, pred):

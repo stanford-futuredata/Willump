@@ -1,6 +1,7 @@
 # Data files are too large to include.  Download from Kaggle: https://www.kaggle.com/c/home-credit-default-risk/data
 # Code source:  https://www.kaggle.com/jsaguiar/lightgbm-with-simple-features
 
+import argparse
 import gc
 import pickle
 import time
@@ -16,6 +17,11 @@ from willump.evaluation.willump_executor import willump_execute
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 base_folder = "tests/test_resources/home_credit_default_risk/"
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-k", "--top_k", type=int, help="Top-K to return")
+parser.add_argument("-b", "--debug", help="Debug Mode", action="store_true")
+args = parser.parse_args()
 
 
 @contextmanager
@@ -240,7 +246,9 @@ training_cascades = {}
 
 
 @willump_execute(training_cascades=training_cascades, willump_train_function=willump_train_function,
-                 willump_predict_function=willump_predict_function, willump_score_function=willump_score_function)
+                 willump_predict_function=willump_predict_function, willump_score_function=willump_score_function,
+                 willump_predict_proba_function=willump_predict_proba_function,
+                 top_k=args.top_k)
 def join_and_lgbm(df, bureau, prev, pos, ins, cc, train_y):
     df = df.merge(bureau, how='left', on='SK_ID_CURR')
     df = df.merge(prev, how='left', on='SK_ID_CURR')
@@ -254,8 +262,8 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, train_y):
     return clf
 
 
-def main(debug=False):
-    num_rows = 10000 if debug else None
+def main():
+    num_rows = 10000 if args.debug else None
     df = application_train_test(num_rows)
     with timer("Process bureau and bureau_balance"):
         bureau = bureau_and_balance(None)
