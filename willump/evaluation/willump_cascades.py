@@ -110,8 +110,10 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         if mi_cost == 0.0:
             continue
         if top_k is not None:
+            valid_size = 5000
             threshold, cost = calculate_feature_set_performance_top_k(train_x, train_y, train_predict_score_functions,
-                                                                mi_indices, orig_model, mi_cost, t_cost, top_k)
+                                                                mi_indices, orig_model, mi_cost, t_cost, top_k,
+                                                                      valid_size)
         else:
             threshold, cost = calculate_feature_set_performance(train_x, train_y, train_predict_score_functions,
                                                                 mi_indices, orig_model, mi_cost, t_cost)

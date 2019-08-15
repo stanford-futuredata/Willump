@@ -84,6 +84,7 @@ def main():
     cv = KFold(n_splits=3, shuffle=True, random_state=42)
     train_ids, valid_ids = next(cv.split(train))
     train, valid = train.iloc[train_ids], train.iloc[valid_ids]
+    valid = valid[:5000]
     y_scaler.fit_transform(np.log1p(train['price'].values.reshape(-1, 1)))
     mercari_price_suggestion_utils.y_scaler = y_scaler
     vectorizers = pickle.load(open(base_folder + "mercari_vect_lr.pk", "rb"))

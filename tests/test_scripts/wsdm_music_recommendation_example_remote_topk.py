@@ -437,10 +437,10 @@ def create_featureset(folder):
     global num_queries
     combi = load_combi_prep(folder=folder, split=None)
     combi = combi.dropna(subset=["target"]).astype("float64")
-    y = combi["target"].values
     num_queries = 0
 
-    _, combi_valid, _, y_valid = train_test_split(combi, y, test_size=0.2, random_state=42)
+    _, combi_valid = train_test_split(combi, test_size=0.2, random_state=42)
+    combi_valid = combi_valid[:5000]
     # Add features and predict.
     add_features_and_predict(folder, combi_valid)
 

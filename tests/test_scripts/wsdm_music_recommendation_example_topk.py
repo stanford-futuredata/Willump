@@ -150,11 +150,11 @@ def add_features_and_predict(folder, combi):
 def create_featureset(folder):
     combi = load_combi_prep(folder=folder, split=None)
     combi = combi.dropna(subset=["target"])
-    y = combi["target"].values
 
-    _, combi, _, y = train_test_split(combi, y, test_size=0.2, random_state=42)
+    _, combi_valid = train_test_split(combi, test_size=0.2, random_state=42)
+    combi_valid = combi_valid[:5000]
 
-    add_features_and_predict(folder, combi)
+    add_features_and_predict(folder, combi_valid)
 
 
 if __name__ == '__main__':

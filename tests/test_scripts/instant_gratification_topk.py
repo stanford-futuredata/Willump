@@ -40,6 +40,7 @@ if __name__ == "__main__":
     data = pd.read_csv(base_path + "train.csv")
     _, valid_data = train_test_split(data, test_size=0.1, random_state=42)
     valid_data = valid_data[valid_data['wheezy-copper-turtle-magic'] < NUM_PARTITIONS].reset_index(drop=True)
+    valid_data = valid_data[:5000]
     print("Validation Data Length: %d" % len(valid_data))
     valid_y = valid_data.pop('target')
     partition_column = valid_data.pop('wheezy-copper-turtle-magic').values.reshape(-1, 1)
