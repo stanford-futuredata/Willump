@@ -211,7 +211,7 @@ def join_and_lgbm(df):
 
 def main():
     global bureau, prev, pos, ins, cc, clf, num_queries, bureau_nan, prev_nan, pos_nan, ins_nan, cc_nan, num_nan
-    num_rows = 10000 if args.debug else None
+    num_rows = 1000 if args.debug else None
     df = application_train_test(num_rows)
     bureau, prev, pos, ins, cc = pickle.load(open(base_folder + "tables.csv", "rb"))
 

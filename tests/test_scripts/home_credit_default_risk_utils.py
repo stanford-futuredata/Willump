@@ -26,7 +26,7 @@ def willump_train_function(X, y):
 
 
 def willump_predict_function(model, X):
-    if X.shape[0] == 0:
+    if len(X) == 0:
         return numpy.zeros(0, dtype=numpy.float64)
     else:
         return model.predict_proba(X, num_iteration=model.best_iteration_)[:, 1]

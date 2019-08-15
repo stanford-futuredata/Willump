@@ -21,6 +21,7 @@ base_folder = "tests/test_resources/home_credit_default_risk/"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+parser.add_argument("-b", "--debug", help="Debug Mode", action="store_true")
 args = parser.parse_args()
 
 
@@ -79,8 +80,8 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, clf):
     return oof_preds_proba
 
 
-def main(debug=False):
-    num_rows = 10000 if debug else None
+def main():
+    num_rows = 1000 if args.debug else None
     df = application_train_test(num_rows)
     bureau, prev, pos, ins, cc = pickle.load(open(base_folder + "tables.csv", "rb"))
     clf = pickle.load(open(base_folder + "lgbm_model.pk", "rb"))
@@ -90,8 +91,10 @@ def main(debug=False):
     mini_df = valid_df.iloc[0:3]
     join_and_lgbm(mini_df, bureau, prev, pos, ins, cc, clf)
     join_and_lgbm(mini_df, bureau, prev, pos, ins, cc, clf)
-    with timer("Joins and Prediction"):
-        oof_preds = join_and_lgbm(valid_df, bureau, prev, pos, ins, cc, clf)
+    t0 = time.time()
+    oof_preds = join_and_lgbm(valid_df, bureau, prev, pos, ins, cc, clf)
+    time_elapsed = time.time() - t0
+    print("Time: %f  Length: %d Throughput: %f" % (time_elapsed, len(valid_df), len(valid_df) / time_elapsed))
 
     print('Full AUC score %.6f' % willump_score_function(valid_df['TARGET'], oof_preds))
 

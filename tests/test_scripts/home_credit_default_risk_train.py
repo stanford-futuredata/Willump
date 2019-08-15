@@ -263,22 +263,22 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, train_y):
 
 
 def main():
-    num_rows = 10000 if args.debug else None
+    num_rows = 1000 if args.debug else None
     df = application_train_test(num_rows)
     with timer("Process bureau and bureau_balance"):
-        bureau = bureau_and_balance(None)
+        bureau = bureau_and_balance(num_rows)
         print("Bureau df shape:", bureau.shape)
     with timer("Process previous_applications"):
-        prev = previous_applications(None)
+        prev = previous_applications(num_rows)
         print("Previous applications df shape:", prev.shape)
     with timer("Process POS-CASH balance"):
-        pos = pos_cash(None)
+        pos = pos_cash(num_rows)
         print("Pos-cash balance df shape:", pos.shape)
     with timer("Process installments payments"):
-        ins = installments_payments(None)
+        ins = installments_payments(num_rows)
         print("Installments payments df shape:", ins.shape)
     with timer("Process credit card balance"):
-        cc = credit_card_balance(None)
+        cc = credit_card_balance(num_rows)
         print("Credit card balance df shape:", cc.shape)
     bureau = bureau.reset_index().astype('float64')
     prev = prev.reset_index().astype('float64')

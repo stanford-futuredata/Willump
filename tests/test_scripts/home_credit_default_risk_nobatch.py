@@ -22,6 +22,7 @@ base_folder = "tests/test_resources/home_credit_default_risk/"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--disable", help="Disable Willump", action="store_true")
+parser.add_argument("-b", "--debug", help="Debug Mode", action="store_true")
 args = parser.parse_args()
 
 
@@ -82,8 +83,8 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, clf):
     return oof_preds_proba
 
 
-def main(debug=False):
-    num_rows = 10000 if debug else None
+def main():
+    num_rows = 1000 if args.debug else None
     df = application_train_test(num_rows)
     bureau, prev, pos, ins, cc = pickle.load(open(base_folder + "tables.csv", "rb"))
     clf = pickle.load(open(base_folder + "lgbm_model.pk", "rb"))
@@ -97,10 +98,22 @@ def main(debug=False):
     join_and_lgbm(mini_df, bureau, prev, pos, ins, cc, clf)
     join_and_lgbm(mini_df, bureau, prev, pos, ins, cc, clf)
     oof_preds = []
+    times = []
     with timer("Joins and Prediction"):
         for entry in tqdm(entry_list):
+            t0 = time.time()
             preds = join_and_lgbm(entry, bureau, prev, pos, ins, cc, clf)
+            time_elapsed = time.time() - t0
+            times.append(time_elapsed)
             oof_preds.append(preds)
+
+    times = np.array(times) * 1000000
+
+    p50 = np.percentile(times, 50)
+    p99 = np.percentile(times, 99)
+    print("p50 Latency: %f us p99 Latency: %f us" %
+          (p50, p99))
+    pickle.dump(times, open("latencies.pk", "wb"))
 
     oof_preds = np.hstack(oof_preds)
     print('Full AUC score %.6f' % willump_score_function(valid_df['TARGET'], oof_preds))

@@ -98,11 +98,17 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     training_cascades["indices_to_costs_map"] = indices_to_costs_map
     min_cost = np.inf
     more_important_inputs, less_important_inputs = None, None
+    last_mi_candidate_length = 0
     for cost_cutoff in [0.1, 0.2, 0.3, 0.4, 0.5]:
         mi_candidate, li_candidate, mi_indices, mi_cost, t_cost = split_model_inputs(training_node,
                                                                                      feature_importances,
                                                                                      indices_to_costs_map,
                                                                                      cost_cutoff)
+        if len(mi_candidate) == last_mi_candidate_length:
+            continue
+        last_mi_candidate_length = len(mi_candidate)
+        if mi_cost == 0.0:
+            continue
         if top_k is not None:
             threshold, cost = calculate_feature_set_performance_top_k(train_x, train_y, train_predict_score_functions,
                                                                 mi_indices, orig_model, mi_cost, t_cost, top_k)
