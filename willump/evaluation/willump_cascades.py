@@ -90,6 +90,8 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     else:
         return sorted_nodes
     train_x, train_y = training_node.get_train_x_y()
+    if isinstance(train_x, pd.DataFrame):
+        train_x = train_x.values
     feature_importances, orig_model = calculate_feature_importance(x=train_x, y=train_y,
                                                                    train_predict_score_functions=train_predict_score_functions,
                                                                    model_inputs=training_node.get_model_inputs())
@@ -110,13 +112,14 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         if mi_cost == 0.0:
             continue
         if top_k is not None:
-            valid_size = 5000
+            valid_size = train_x.shape[0] // 4
             threshold, cost = calculate_feature_set_performance_top_k(train_x, train_y, train_predict_score_functions,
                                                                 mi_indices, orig_model, mi_cost, t_cost, top_k,
                                                                       valid_size)
         else:
             threshold, cost = calculate_feature_set_performance(train_x, train_y, train_predict_score_functions,
                                                                 mi_indices, orig_model, mi_cost, t_cost)
+        print(cost_cutoff, threshold, cost)
         if cost < min_cost:
             more_important_inputs = mi_candidate
             less_important_inputs = li_candidate

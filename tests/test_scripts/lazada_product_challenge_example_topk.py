@@ -44,7 +44,6 @@ df = pd.read_csv("tests/test_resources/lazada_challenge_features/lazada_data_tra
 model = pickle.load(open("tests/test_resources/lazada_challenge_features/lazada_model.pk", "rb"))
 
 _, df, = train_test_split(df, test_size=0.2, random_state=42)
-df = df[:5000]
 
 title_vectorizer, color_vectorizer, brand_vectorizer = pickle.load(
     open("tests/test_resources/lazada_challenge_features/lazada_vectorizers.pk", "rb"))

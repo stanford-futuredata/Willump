@@ -430,8 +430,6 @@ def calculate_feature_set_performance(x, y, train_predict_score_functions: tuple
                                       orig_model, mi_cost: float, total_cost: float):
     willump_train_function, willump_predict_function, willump_predict_proba_function, willump_score_function = \
         train_predict_score_functions
-    if isinstance(x, pd.DataFrame):
-        x = x.values
     train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25, random_state=42)
     train_x_efficient, valid_x_efficient = train_x[:, mi_feature_indices], valid_x[:, mi_feature_indices]
     small_model = willump_train_function(train_x_efficient, train_y)
@@ -460,8 +458,6 @@ def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions:
                                             orig_model, mi_cost: float, total_cost: float, top_k: int, valid_size: int):
     willump_train_function, willump_predict_function, willump_predict_proba_function, willump_score_function = \
         train_predict_score_functions
-    if isinstance(x, pd.DataFrame):
-        x = x.values
     train_x, valid_x, train_y, _ = train_test_split(x, y, test_size=0.25, random_state=42)
     assert valid_x.shape[0] >= valid_size
     train_x_efficient, valid_x_efficient = train_x[:, mi_feature_indices], valid_x[:, mi_feature_indices]
@@ -476,7 +472,7 @@ def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions:
         for ratio in range(1, valid_size // top_k):
             small_model_top_ratio_k_idx = np.argsort(small_probs)[-1 * top_k * ratio:]
             small_model_precision = len(np.intersect1d(orig_model_top_k_idx, small_model_top_ratio_k_idx)) / top_k
-            if not small_model_precision > 0.95:
+            if not small_model_precision >= 0.95:
                 ratios_map[ratio] = False
     good_ratios = [ratio for ratio in ratios_map.keys() if ratios_map[ratio] is True]
     good_ratio = min(good_ratios)

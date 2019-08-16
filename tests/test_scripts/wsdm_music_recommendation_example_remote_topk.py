@@ -440,7 +440,6 @@ def create_featureset(folder):
     num_queries = 0
 
     _, combi_valid = train_test_split(combi, test_size=0.2, random_state=42)
-    combi_valid = combi_valid[:5000]
     # Add features and predict.
     add_features_and_predict(folder, combi_valid)
 

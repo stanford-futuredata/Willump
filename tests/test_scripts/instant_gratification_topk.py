@@ -40,7 +40,6 @@ if __name__ == "__main__":
     data = pd.read_csv(base_path + "train.csv")
     _, valid_data = train_test_split(data, test_size=0.1, random_state=42)
     valid_data = valid_data[valid_data['wheezy-copper-turtle-magic'] < NUM_PARTITIONS].reset_index(drop=True)
-    valid_data = valid_data[:5000]
     print("Validation Data Length: %d" % len(valid_data))
     valid_y = valid_data.pop('target')
     partition_column = valid_data.pop('wheezy-copper-turtle-magic').values.reshape(-1, 1)
@@ -54,12 +53,6 @@ if __name__ == "__main__":
     valid_data = np.append(valid_data, partition_column, 1)
 
     clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc = pickle.load(open(base_path + "clf.pk", "rb"))
-
-    # print("svnu: %f" % roc_auc_score(valid_y, model_prediction(valid_data, clf_svnu)))
-    # print("knn: %f" % roc_auc_score(valid_y, model_prediction(valid_data, clf_knn)))
-    # print("lr: %f" % roc_auc_score(valid_y, model_prediction(valid_data, clf_lr)))
-    # print("mlp: %f" % roc_auc_score(valid_y, model_prediction(valid_data, clf_mlp)))
-    # print("svc: %f" % roc_auc_score(valid_y, model_prediction(valid_data, clf_svc)))
 
     model = pickle.load(open(base_path + "model.pk", "rb"))
 

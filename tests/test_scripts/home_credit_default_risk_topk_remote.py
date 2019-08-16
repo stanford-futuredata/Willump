@@ -256,7 +256,6 @@ def main():
     del df
 
     valid_df = valid_df.reset_index().drop("index", axis=1)
-    valid_df = valid_df[:5000]
 
     mini_df = valid_df.iloc[0:3]
     orig_preds = join_and_lgbm(valid_df)
