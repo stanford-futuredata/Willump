@@ -4,7 +4,7 @@ from typing import MutableMapping, List, Tuple, Mapping, Optional
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 
 import willump.evaluation.willump_graph_passes as wg_passes
 from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
@@ -454,20 +454,28 @@ def calculate_feature_set_performance(x, y, train_predict_score_functions: tuple
     return best_threshold, best_cost
 
 
+trained_models = {}
+
+
 def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions: tuple, mi_feature_indices: List[int],
-                                            orig_model, mi_cost: float, total_cost: float, top_k: int, valid_size: int):
+                                            mi_cost: float, total_cost: float, top_k: int, valid_size: int):
     willump_train_function, willump_predict_function, willump_predict_proba_function, willump_score_function = \
         train_predict_score_functions
-    train_x, valid_x, train_y, _ = train_test_split(x, y, test_size=0.25, random_state=42)
-    assert valid_x.shape[0] >= valid_size
-    train_x_efficient, valid_x_efficient = train_x[:, mi_feature_indices], valid_x[:, mi_feature_indices]
-    small_model = willump_train_function(train_x_efficient, train_y)
+    kf = KFold(n_splits=4, random_state=42)
     ratios_map = {i: True for i in range(1, valid_size // top_k)}
-    num_validations = min(valid_x.shape[0] // valid_size, 10)
-    for i in range(num_validations):
-        small_probs = willump_predict_proba_function(small_model, valid_x_efficient[i * valid_size:(i+1) * valid_size])
-        orig_probs = willump_predict_proba_function(orig_model, valid_x[i * valid_size:(i+1) * valid_size])
-        assert(len(small_probs) == len(orig_probs) == valid_size)
+    for train_index, valid_index in kf.split(x):
+        train_x, valid_x, train_y, valid_y = x[train_index], x[valid_index], y[train_index], y[valid_index]
+        train_x_efficient, valid_x_efficient = train_x[:, mi_feature_indices], valid_x[:, mi_feature_indices]
+        assert valid_size - 2 <= valid_x.shape[0] <= valid_size + 2
+        small_model = willump_train_function(train_x_efficient, train_y)
+        if tuple(train_index) not in trained_models:
+            orig_model = willump_train_function(train_x, train_y)
+            trained_models[tuple(train_index)] = orig_model
+        else:
+            orig_model = trained_models[tuple(train_index)]
+        small_probs = willump_predict_proba_function(small_model, valid_x_efficient)
+        orig_probs = willump_predict_proba_function(orig_model, valid_x)
+        assert(len(small_probs) == len(orig_probs) == valid_x.shape[0])
         orig_model_top_k_idx = np.argsort(orig_probs)[-1 * top_k:]
         for ratio in range(1, valid_size // top_k):
             small_model_top_ratio_k_idx = np.argsort(small_probs)[-1 * top_k * ratio:]
