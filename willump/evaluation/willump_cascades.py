@@ -99,7 +99,7 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     min_cost = np.inf
     more_important_inputs, less_important_inputs = None, None
     last_mi_candidate_length = 0
-    for cost_cutoff in [0.1, 0.2, 0.3, 0.4, 0.5]:
+    for cost_cutoff in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]:
         mi_candidate, li_candidate, mi_indices, mi_cost, t_cost = split_model_inputs(training_node,
                                                                                      feature_importances,
                                                                                      indices_to_costs_map,
