@@ -346,18 +346,45 @@ def create_indices_to_costs_map(training_node: WillumpModelNode) -> Mapping[tupl
 
 def split_model_inputs(model_node: WillumpModelNode, feature_importances, indices_to_costs_map,
                        cost_cutoff) -> \
-        Tuple[List[WillumpGraphNode], List[WillumpGraphNode], List[int], float, float]:
+        Tuple[List[WillumpGraphNode], List[WillumpGraphNode], List[int], int, int]:
     """
     Use a model's feature importances to divide its inputs into those more and those less important.  Return
     lists of each.
     """
+
+    def knapsack_dp(values, weights, capacity):
+        # Credit: https://gist.github.com/KaiyangZhou/71a473b1561e0ea64f97d0132fe07736
+        n_items = len(values)
+        table = np.zeros((n_items + 1, capacity + 1), dtype=np.float32)
+        keep = np.zeros((n_items + 1, capacity + 1), dtype=np.float32)
+
+        for i in range(1, n_items + 1):
+            for w in range(0, capacity + 1):
+                wi = weights[i - 1]  # weight of current item
+                vi = values[i - 1]  # value of current item
+                if (wi <= w) and (vi + table[i - 1, w - wi] > table[i - 1, w]):
+                    table[i, w] = vi + table[i - 1, w - wi]
+                    keep[i, w] = 1
+                else:
+                    table[i, w] = table[i - 1, w]
+        picks = []
+        K = capacity
+        for i in range(n_items, 0, -1):
+            if keep[i, K] == 1:
+                picks.append(i)
+                K -= weights[i - 1]
+        picks.sort()
+        picks = [x - 1 for x in picks]  # change to 0-index
+        return picks
+
     training_node_inputs: Mapping[
         WillumpGraphNode, Union[Tuple[int, int], Mapping[str, int]]] = model_node.get_model_inputs()
-    nodes_to_efficiencies: MutableMapping[WillumpGraphNode, float] = {}
     nodes_to_importances: MutableMapping[WillumpGraphNode, float] = {}
     nodes_to_indices: MutableMapping[WillumpGraphNode, tuple] = {}
     nodes_to_costs: MutableMapping[WillumpGraphNode, float] = {}
-    total_cost: float = sum(indices_to_costs_map.values())
+    orig_total_cost = sum(indices_to_costs_map.values())
+    scaled_total_cost = 1000
+    scale_factor = scaled_total_cost / orig_total_cost
     for node, indices in training_node_inputs.items():
         if isinstance(indices, tuple):
             node_importance = feature_importances[indices]
@@ -368,29 +395,22 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, indice
             node_importance = feature_importances[indices]
             nodes_to_indices[node] = indices
         nodes_to_importances[node] = node_importance
-        node_cost: float = indices_to_costs_map[indices]
+        node_cost: float = round(indices_to_costs_map[indices] * scale_factor)
         nodes_to_costs[node] = node_cost
-        if node_cost == 0:
-            nodes_to_efficiencies[node] = np.inf
-        else:
-            nodes_to_efficiencies[node] = node_importance / node_cost
-    ranked_inputs = sorted(nodes_to_efficiencies.keys(), key=lambda x: nodes_to_efficiencies[x], reverse=True)
-    current_cost: float = 0.0
-    more_important_inputs = []
+    assert(sum(nodes_to_costs.values()) == scaled_total_cost)
+    nodes, importances, costs = list(nodes_to_indices.keys()), [], []
+    for node in nodes:
+        importances.append(nodes_to_importances[node])
+        costs.append(nodes_to_costs[node])
+    picks_indices = knapsack_dp(importances, costs, int(scaled_total_cost * cost_cutoff))
+    more_important_inputs = [nodes[i] for i in picks_indices]
+    current_cost: int = sum([costs[i] for i in picks_indices])
     mi_feature_indices: List[int] = []
-    for node in ranked_inputs:
-        if current_cost + nodes_to_costs[node] <= cost_cutoff * total_cost:
-            more_important_inputs.append(node)
-            current_cost += nodes_to_costs[node]
-            for index in nodes_to_indices[node]:
-                mi_feature_indices.append(index)
-    for node in ranked_inputs:
-        if nodes_to_costs[node] == 0 and node not in more_important_inputs:
-            more_important_inputs.append(node)
-            for index in nodes_to_indices[node]:
-                mi_feature_indices.append(index)
-    less_important_inputs = [entry for entry in ranked_inputs if entry not in more_important_inputs]
-    return more_important_inputs, less_important_inputs, mi_feature_indices, current_cost, total_cost
+    for node in more_important_inputs:
+        for i in nodes_to_indices[node]:
+            mi_feature_indices.append(i)
+    less_important_inputs = [entry for entry in nodes if entry not in more_important_inputs]
+    return more_important_inputs, less_important_inputs, mi_feature_indices, current_cost, scaled_total_cost
 
 
 def calculate_feature_importance(x, y, train_predict_score_functions: tuple, model_inputs) -> \
@@ -415,7 +435,7 @@ def calculate_feature_importance(x, y, train_predict_score_functions: tuple, mod
         if isinstance(indices, tuple):
             start, end = indices
             for i in range(0, valid_x.shape[0], 1000):
-                valid_x_copy[i:i+1000, start:end] = valid_x[shuffle_order[i:i+1000], start:end]
+                valid_x_copy[i:i + 1000, start:end] = valid_x[shuffle_order[i:i + 1000], start:end]
         else:
             indices = tuple(indices.values())
             for i in indices:
@@ -476,7 +496,7 @@ def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions:
             orig_model = trained_models[tuple(train_index)]
         small_probs = willump_predict_proba_function(small_model, valid_x_efficient)
         orig_probs = willump_predict_proba_function(orig_model, valid_x)
-        assert(len(small_probs) == len(orig_probs) == valid_x.shape[0])
+        assert (len(small_probs) == len(orig_probs) == valid_x.shape[0])
         orig_model_top_k_idx = np.argsort(orig_probs)[-1 * top_k:]
         for ratio in range(1, valid_size // top_k):
             small_model_top_ratio_k_idx = np.argsort(small_probs)[-1 * top_k * ratio:]
