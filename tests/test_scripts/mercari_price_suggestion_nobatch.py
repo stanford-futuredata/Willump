@@ -86,10 +86,21 @@ def main():
     for i in range(len(valid)):
         entry_list.append(valid.iloc[i].to_frame().T)
     y_pred = []
-    with timer('Process Train Input'):
-        for entry in tqdm(entry_list):
-            pred = predict_from_input(entry, *vectorizers).astype(np.float32)
-            y_pred.append(pred)
+    times = []
+    for entry in tqdm(entry_list):
+        t0 = time.time()
+        pred = predict_from_input(entry, *vectorizers).astype(np.float32)
+        time_elapsed = time.time() - t0
+        times.append(time_elapsed)
+        y_pred.append(pred)
+
+    times = np.array(times) * 1000000
+
+    p50 = np.percentile(times, 50)
+    p99 = np.percentile(times, 99)
+    print("p50 Latency: %f us p99 Latency: %f us" %
+          (p50, p99))
+    pickle.dump(times, open("latencies.pk", "wb"))
     y_pred = np.hstack(y_pred)
     print('Valid 1 - RMSLE: {:.7f}'.format(willump_score_function(y_true, y_pred)))
 

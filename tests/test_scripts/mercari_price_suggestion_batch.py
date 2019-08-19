@@ -82,8 +82,10 @@ def main():
     mini_valid = valid.iloc[0:3].copy()
     predict_from_input(mini_valid, *vectorizers).astype(np.float32)
     predict_from_input(mini_valid, *vectorizers).astype(np.float32)
-    with timer('Process Train Input'):
-        y_pred = predict_from_input(valid, *vectorizers).astype(np.float32)
+    t0 = time.time()
+    y_pred = predict_from_input(valid, *vectorizers).astype(np.float32)
+    time_elapsed = time.time() - t0
+    print("Time: %f Length: %d Throughput: %f" % (time_elapsed, len(valid), len(valid) / time_elapsed))
     print('Valid 1 - RMSLE: {:.7f}'.format(willump_score_function(y_true, y_pred)))
 
 
