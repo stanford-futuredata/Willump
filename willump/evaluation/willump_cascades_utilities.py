@@ -340,7 +340,8 @@ def create_indices_to_costs_map(training_node: WillumpModelNode) -> Mapping[tupl
             pass
         else:
             indices = tuple(indices.values())
-        indices_to_costs_map[indices] = node.get_cost()
+        if len(indices) > 0:
+            indices_to_costs_map[indices] = node.get_cost()
     return indices_to_costs_map
 
 
@@ -395,7 +396,7 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, indice
             node_importance = feature_importances[indices]
             nodes_to_indices[node] = indices
         nodes_to_importances[node] = node_importance
-        node_cost: float = round(indices_to_costs_map[indices] * scale_factor)
+        node_cost: float = indices_to_costs_map[indices] * scale_factor
         nodes_to_costs[node] = node_cost
     assert(sum(nodes_to_costs.values()) == scaled_total_cost)
     nodes, importances, costs = list(nodes_to_indices.keys()), [], []
