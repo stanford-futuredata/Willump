@@ -1,10 +1,11 @@
 import ast
 import copy
+import random
 from typing import MutableMapping, List, Tuple, Mapping, Optional
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split, KFold
+from sklearn.model_selection import train_test_split
 
 import willump.evaluation.willump_graph_passes as wg_passes
 from willump.graph.array_count_vectorizer_node import ArrayCountVectorizerNode
@@ -480,12 +481,13 @@ orig_model = None
 
 
 def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions: tuple, mi_feature_indices: List[int],
-                                            mi_cost: float, total_cost: float, top_k: int, valid_size: int):
+                                            mi_cost: float, total_cost: float, top_k_distribution: List[int],
+                                            valid_size_distribution: List[int]):
     global orig_model
     willump_train_function, willump_predict_function, willump_predict_proba_function, willump_score_function = \
         train_predict_score_functions
     train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.5, random_state=42)
-    assert (valid_x.shape[0] > valid_size)
+    assert (valid_x.shape[0] > max(valid_size_distribution))
     train_x_efficient, valid_x_efficient = train_x[:, mi_feature_indices], valid_x[:, mi_feature_indices]
     if orig_model is None:
         orig_model = willump_train_function(train_x, train_y)
@@ -493,9 +495,12 @@ def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions:
     small_probs = willump_predict_proba_function(small_model, valid_x_efficient)
     orig_probs = willump_predict_proba_function(orig_model, valid_x)
     num_samples = 100
-    candidate_ratios = sorted(list(set(range(1, 100)).union(set(range(1, valid_size // top_k, 10)))))
+    candidate_ratios = sorted(list(set(range(1, 100)).union(set(range(1, min(valid_size_distribution) //
+                                                                      max(top_k_distribution), 10)))))
     ratios_map = {i: 0 for i in candidate_ratios}
     for i in range(num_samples):
+        valid_size = random.choice(valid_size_distribution)
+        top_k = random.choice(top_k_distribution)
         sample_indices = np.random.choice(len(orig_probs), size=valid_size)
         sample_small_probs = small_probs[sample_indices]
         sample_orig_probs = orig_probs[sample_indices]
@@ -508,5 +513,6 @@ def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions:
                 ratios_map[ratio] += 1
     good_ratios = [ratio for ratio in candidate_ratios if ratios_map[ratio] >= 0.95 * num_samples]
     good_ratio = min(good_ratios)
-    cost = mi_cost * valid_size + (total_cost - mi_cost) * good_ratio * top_k
+    cost = mi_cost * np.mean(valid_size_distribution) + (total_cost - mi_cost) * good_ratio *\
+           np.mean(top_k_distribution)
     return good_ratio, cost

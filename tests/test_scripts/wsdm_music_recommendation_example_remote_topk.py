@@ -413,7 +413,7 @@ def add_features_and_predict(folder, combi):
 
     num_rows = len(combi)
     orig_preds = do_merge(combi)
-    do_merge(combi.iloc[0:3].copy())
+    do_merge(combi.iloc[0:300].copy())
 
     start = time.time()
     preds = do_merge(combi)

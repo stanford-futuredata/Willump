@@ -111,7 +111,7 @@ def add_features_and_predict(folder, combi):
                           composer_col,
                           lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
                           stypes_col, regs_features, regs_col)
-    do_merge(combi.iloc[0:1].copy(), features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
+    do_merge(combi.iloc[0:100].copy(), features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
              join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
              join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
              ac_join_col, us_features, us_col, ss_features, ss_col, as_features, as_col, gs_features,

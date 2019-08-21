@@ -95,8 +95,8 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     if isinstance(train_y, pd.DataFrame) or isinstance(train_y, pd.Series):
         train_y = train_y.values
     feature_importances, orig_model = calculate_feature_importance(x=train_x, y=train_y,
-                                                          train_predict_score_functions=train_predict_score_functions,
-                                                          model_inputs=training_node.get_model_inputs())
+                                                                   train_predict_score_functions=train_predict_score_functions,
+                                                                   model_inputs=training_node.get_model_inputs())
     training_cascades["feature_importances"] = feature_importances
     indices_to_costs_map = create_indices_to_costs_map(training_node)
     training_cascades["indices_to_costs_map"] = indices_to_costs_map
@@ -115,12 +115,18 @@ def training_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
             continue
         if top_k is not None:
             valid_size = train_x.shape[0] // 4
-            threshold, cost = calculate_feature_set_performance_top_k(train_x, train_y, train_predict_score_functions,
-                                                                      mi_indices, mi_cost, t_cost, top_k,
-                                                                      valid_size)
+            threshold, cost = \
+                calculate_feature_set_performance_top_k(x=train_x, y=train_y,
+                                                        train_predict_score_functions=train_predict_score_functions,
+                                                        mi_feature_indices=mi_indices, mi_cost=mi_cost,
+                                                        total_cost=t_cost, top_k_distribution=[top_k],
+                                                        valid_size_distribution=[valid_size])
         else:
-            threshold, cost = calculate_feature_set_performance(train_x, train_y, train_predict_score_functions,
-                                                                mi_indices, orig_model, mi_cost, t_cost)
+            threshold, cost = \
+                calculate_feature_set_performance(x=train_x, y=train_y,
+                                                  train_predict_score_functions=train_predict_score_functions,
+                                                  mi_feature_indices=mi_indices, orig_model=orig_model, mi_cost=mi_cost,
+                                                  total_cost=t_cost)
         print(cost_cutoff, threshold, cost)
         if cost < min_cost:
             more_important_inputs = mi_candidate
