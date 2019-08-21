@@ -196,18 +196,21 @@ def model_input_identification_pass(sorted_nodes: List[WillumpGraphNode]) -> Non
             if join_base_node is not input_node:
                 current_node_stack.append((join_left_input, (index_start, index_end), next_map))
             else:
-                model_inputs[join_left_input] = next_map
+                if len(next_map) > 0:
+                    model_inputs[join_left_input] = next_map
         elif isinstance(input_node, IdentityNode) or isinstance(input_node, ReshapeNode) \
                 or isinstance(input_node, PandasToDenseMatrixNode):
             node_input_node = input_node.get_in_nodes()[0]
             current_node_stack.append((node_input_node, (index_start, index_end), curr_selection_map))
         elif isinstance(input_node, WillumpInputNode) or isinstance(input_node, WillumpPythonNode):
             if curr_selection_map is not None:
-                model_inputs[input_node] = curr_selection_map
+                if len(curr_selection_map) > 0:
+                    model_inputs[input_node] = curr_selection_map
             else:
                 model_inputs[input_node] = (index_start, index_end)
         else:
             panic("Unrecognized node found when processing model inputs %s" % input_node.__repr__())
+    assert(all(len(v) > 0 for v in model_inputs.values()))
     model_node.set_model_inputs(model_inputs)
     return
 

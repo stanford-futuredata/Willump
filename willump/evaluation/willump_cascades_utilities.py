@@ -340,8 +340,7 @@ def create_indices_to_costs_map(training_node: WillumpModelNode) -> Mapping[tupl
             pass
         else:
             indices = tuple(indices.values())
-        if len(indices) > 0:
-            indices_to_costs_map[indices] = node.get_cost()
+        indices_to_costs_map[indices] = node.get_cost()
     return indices_to_costs_map
 
 
@@ -382,7 +381,7 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, indice
         WillumpGraphNode, Union[Tuple[int, int], Mapping[str, int]]] = model_node.get_model_inputs()
     nodes_to_importances: MutableMapping[WillumpGraphNode, float] = {}
     nodes_to_indices: MutableMapping[WillumpGraphNode, tuple] = {}
-    nodes_to_costs: MutableMapping[WillumpGraphNode, float] = {}
+    nodes_to_costs: MutableMapping[WillumpGraphNode, int] = {}
     orig_total_cost = sum(indices_to_costs_map.values())
     scaled_total_cost = 1000
     scale_factor = scaled_total_cost / orig_total_cost
@@ -396,9 +395,10 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, indice
             node_importance = feature_importances[indices]
             nodes_to_indices[node] = indices
         nodes_to_importances[node] = node_importance
-        node_cost: float = indices_to_costs_map[indices] * scale_factor
+        node_cost: int = round(indices_to_costs_map[indices] * scale_factor)
         nodes_to_costs[node] = node_cost
-    assert(sum(nodes_to_costs.values()) == scaled_total_cost)
+    assert (scaled_total_cost - len(training_node_inputs) <= sum(nodes_to_costs.values()) <= scaled_total_cost + len(
+        training_node_inputs))
     nodes, importances, costs = list(nodes_to_indices.keys()), [], []
     for node in nodes:
         importances.append(nodes_to_importances[node])
@@ -485,7 +485,7 @@ def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions:
     willump_train_function, willump_predict_function, willump_predict_proba_function, willump_score_function = \
         train_predict_score_functions
     train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.5, random_state=42)
-    assert(valid_x.shape[0] > valid_size)
+    assert (valid_x.shape[0] > valid_size)
     train_x_efficient, valid_x_efficient = train_x[:, mi_feature_indices], valid_x[:, mi_feature_indices]
     if orig_model is None:
         orig_model = willump_train_function(train_x, train_y)
