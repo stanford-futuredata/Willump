@@ -57,7 +57,8 @@ def predict(addr, x, batch=False):
     end = datetime.now()
     latency = (end - start).total_seconds() * 1000.0
     print("'%s', %f ms" % (r.text, latency))
-    latencies.append(latency)
+    if "No connected models found" not in r.text:
+        latencies.append(latency)
 
 
 def willump_vectorizer_transform_caller(input_text):
@@ -116,7 +117,7 @@ if __name__ == '__main__':
     set_size = len(valid_text)
 
     try:
-        for _ in range(200):
+        for count in range(250):
             i = random.randint(0, len(valid_text) - batch_size - 1)
             if batch_size > 1:
                 predict(
@@ -126,6 +127,15 @@ if __name__ == '__main__':
             else:
                 predict(clipper_conn.get_query_addr(), valid_text[i])
             time.sleep(0.2)
+            if count > 0 and count % 50 == 0:
+                clipper_conn.stop_all()
+                clipper_conn = ClipperConnection(DockerContainerManager())
+                clipper_conn.start_clipper()
+                clipper_conn.register_application("vectorizer-test", "strings", "default_pred", 15000000)
+                python_deployer.deploy_python_closure(clipper_conn, name="vectorizer-model", version=1,
+                                                      input_type="strings", func=func_to_use,
+                                                      base_image='custom-model-image')
+                clipper_conn.link_model_to_app("vectorizer-test", "vectorizer-model")
     except Exception as e:
         clipper_conn.stop_all()
 
