@@ -56,7 +56,7 @@ def predict(addr, x, batch=False):
     r = requests.post(url, headers=headers, data=req_json)
     end = datetime.now()
     latency = (end - start).total_seconds() * 1000.0
-    print("'%s', %f ms" % (r.text, latency))
+    print("'%s', %f ms" % (r.text[:150], latency))
     latencies.append(latency)
 
 
@@ -137,7 +137,7 @@ if __name__ == '__main__':
                                                       input_type="strings", func=func_to_use,
                                                       base_image='custom-model-image')
                 clipper_conn.link_model_to_app("vectorizer-test", "vectorizer-model")
-    except Exception as e:
+    except KeyboardInterrupt as e:
         clipper_conn.stop_all()
 
     pickle.dump(latencies[20:], open("latencies.pk", "wb"))
