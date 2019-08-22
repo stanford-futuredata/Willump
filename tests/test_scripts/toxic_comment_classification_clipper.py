@@ -56,7 +56,7 @@ def predict(addr, x, batch=False):
     r = requests.post(url, headers=headers, data=req_json)
     end = datetime.now()
     latency = (end - start).total_seconds() * 1000.0
-    print("'%s', %f ms" % (r.text, latency))
+    print("'%s', %f ms" % (r.text[:150], latency))
     if "No connected models found" not in r.text:
         latencies.append(latency)
 
@@ -128,6 +128,7 @@ if __name__ == '__main__':
                 predict(clipper_conn.get_query_addr(), valid_text[i])
             time.sleep(0.2)
             if count > 0 and count % 50 == 0:
+                print(latencies)
                 clipper_conn.stop_all()
                 clipper_conn = ClipperConnection(DockerContainerManager())
                 clipper_conn.start_clipper()
@@ -139,5 +140,5 @@ if __name__ == '__main__':
     except Exception as e:
         clipper_conn.stop_all()
 
-    pickle.dump(latencies[20:], open("latencies.pk", "wb"))
+    pickle.dump(latencies, open("latencies.pk", "wb"))
     clipper_conn.stop_all()
