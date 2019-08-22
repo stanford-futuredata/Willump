@@ -95,7 +95,6 @@ if __name__ == '__main__':
     else:
         func_to_use = willump_vectorizer_transform_caller
 
-    signal.signal(signal.SIGINT, signal_handler)
     clipper_conn = ClipperConnection(DockerContainerManager())
     clipper_conn.start_clipper()
     clipper_conn.register_application("vectorizer-test", "strings", "default_pred", 15000000)
