@@ -4,6 +4,7 @@ import argparse
 import inspect
 import json
 import pickle
+import random
 import time
 from datetime import datetime
 
@@ -117,9 +118,9 @@ if __name__ == '__main__':
     _, valid_text = train_test_split(train_text, test_size=0.33, random_state=42)
     set_size = len(valid_text)
 
-    i = 0
     try:
         for _ in range(200):
+            i = random.randint(0, len(valid_text) - batch_size - 1)
             if batch_size > 1:
                 predict(
                     clipper_conn.get_query_addr(),
@@ -127,7 +128,6 @@ if __name__ == '__main__':
                     batch=True)
             else:
                 predict(clipper_conn.get_query_addr(), valid_text[i])
-            i += batch_size
             time.sleep(0.2)
     except Exception as e:
         clipper_conn.stop_all()
