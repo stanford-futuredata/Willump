@@ -1,13 +1,10 @@
 from __future__ import print_function
 
 import argparse
+import inspect
 import json
 import pickle
-import signal
-import sys
-import cloudpickle
 import time
-import inspect
 from datetime import datetime
 
 import pandas as pd
@@ -15,6 +12,7 @@ import requests
 import scipy.sparse
 from clipper_admin import ClipperConnection, DockerContainerManager
 from clipper_admin.deployers import python as python_deployer
+from clippper_admin.exceptions import ClipperException
 from sklearn.model_selection import train_test_split
 
 from willump.evaluation.willump_executor import willump_execute_inner
@@ -99,7 +97,11 @@ if __name__ == '__main__':
         func_to_use = willump_vectorizer_transform_caller
 
     clipper_conn = ClipperConnection(DockerContainerManager())
-    clipper_conn.start_clipper()
+    try:
+        clipper_conn.start_clipper()
+    except ClipperException:
+        clipper_conn.stop_all()
+        clipper_conn.start_clipper()
     clipper_conn.register_application("vectorizer-test", "strings", "default_pred", 15000000)
     python_deployer.deploy_python_closure(clipper_conn, name="vectorizer-model", version=1,
                                           input_type="strings", func=func_to_use,
