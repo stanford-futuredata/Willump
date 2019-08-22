@@ -12,7 +12,7 @@ import requests
 import scipy.sparse
 from clipper_admin import ClipperConnection, DockerContainerManager
 from clipper_admin.deployers import python as python_deployer
-from clippper_admin.exceptions import ClipperException
+from clipper_admin.exceptions import ClipperException
 from sklearn.model_selection import train_test_split
 
 from willump.evaluation.willump_executor import willump_execute_inner
