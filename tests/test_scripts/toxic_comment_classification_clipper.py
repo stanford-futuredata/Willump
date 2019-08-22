@@ -39,6 +39,8 @@ if args.batch is None:
 else:
     batch_size = args.batch
 
+latencies = []
+
 
 def predict(addr, x, batch=False):
     url = "http://%s/vectorizer-test/predict" % addr
@@ -56,6 +58,7 @@ def predict(addr, x, batch=False):
     end = datetime.now()
     latency = (end - start).total_seconds() * 1000.0
     print("'%s', %f ms" % (r.text, latency))
+    latencies.append(latency)
 
 
 def willump_vectorizer_transform_caller(input_text):
@@ -81,15 +84,6 @@ def vectorizer_transform(input_text):
 
 
 vt_source = inspect.getsource(vectorizer_transform)
-
-
-# Stop Clipper on Ctrl-C
-def signal_handler(signal, frame):
-    print("Stopping Clipper...")
-    clipper_conn = ClipperConnection(DockerContainerManager())
-    clipper_conn.stop_all()
-    sys.exit(0)
-
 
 classifier = pickle.load(open(base_path + "model.pk", "rb"))
 word_vectorizer, char_vectorizer = pickle.load(open(base_path + "vectorizer.pk", "rb"))
@@ -121,7 +115,7 @@ if __name__ == '__main__':
 
     i = 0
     try:
-        while True:
+        for _ in range(200):
             if batch_size > 1:
                 predict(
                     clipper_conn.get_query_addr(),
@@ -133,3 +127,6 @@ if __name__ == '__main__':
             time.sleep(0.2)
     except Exception as e:
         clipper_conn.stop_all()
+
+    pickle.dump(latencies[20:], open("latencies.pk", "wb"))
+    clipper_conn.stop_all()
