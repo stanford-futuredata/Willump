@@ -419,7 +419,7 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, indice
     return more_important_inputs, less_important_inputs, mi_feature_indices, li_feature_indices, current_cost, scaled_total_cost
 
 
-def calculate_feature_importance(x, y, train_predict_score_functions: tuple, model_inputs) -> \
+def calculate_feature_importance(valid_x, valid_y, orig_model, train_predict_score_functions: tuple, model_inputs) -> \
         Tuple[Mapping[tuple, float], object]:
     """
     Calculate the importance of all operators' feature sets using mean decrease accuracy.
@@ -427,8 +427,6 @@ def calculate_feature_importance(x, y, train_predict_score_functions: tuple, mod
     operator) to the operator's importance.
     """
     willump_train_function, willump_predict_function, _, willump_score_function = train_predict_score_functions
-    train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25, random_state=42)
-    orig_model = willump_train_function(train_x, train_y)
     base_preds = willump_predict_function(orig_model, valid_x)
     base_score = willump_score_function(valid_y, base_preds)
     return_map = {}
@@ -453,11 +451,11 @@ def calculate_feature_importance(x, y, train_predict_score_functions: tuple, mod
     return return_map, orig_model
 
 
-def calculate_feature_set_performance(x, y, train_predict_score_functions: tuple, mi_feature_indices: List[int],
+def calculate_feature_set_performance(train_x, train_y, valid_x, valid_y, train_predict_score_functions: tuple,
+                                      mi_feature_indices: List[int],
                                       orig_model, mi_cost: float, total_cost: float):
     willump_train_function, willump_predict_function, willump_predict_proba_function, willump_score_function = \
         train_predict_score_functions
-    train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25, random_state=42)
     train_x_efficient, valid_x_efficient = train_x[:, mi_feature_indices], valid_x[:, mi_feature_indices]
     small_model = willump_train_function(train_x_efficient, train_y)
     small_confidences = willump_predict_proba_function(small_model, valid_x_efficient)
@@ -481,24 +479,18 @@ def calculate_feature_set_performance(x, y, train_predict_score_functions: tuple
     return best_threshold, best_cost
 
 
-orig_model = None
-
-
-def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions: tuple, mi_feature_indices: List[int],
+def calculate_feature_set_performance_top_k(train_x, train_y, valid_x, orig_model_probs,
+                                            train_predict_score_functions: tuple,
+                                            mi_feature_indices: List[int],
                                             mi_cost: float, total_cost: float, top_k_distribution: List[int],
                                             valid_size_distribution: List[int]):
-    global orig_model
     min_precision = 0.95
     willump_train_function, willump_predict_function, willump_predict_proba_function, willump_score_function = \
         train_predict_score_functions
-    train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.5, random_state=42)
     assert (valid_x.shape[0] > max(valid_size_distribution))
     train_x_efficient, valid_x_efficient = train_x[:, mi_feature_indices], valid_x[:, mi_feature_indices]
-    if orig_model is None:
-        orig_model = willump_train_function(train_x, train_y)
     small_model = willump_train_function(train_x_efficient, train_y)
     small_probs = willump_predict_proba_function(small_model, valid_x_efficient)
-    orig_probs = willump_predict_proba_function(orig_model, valid_x)
     num_samples = 100
     candidate_ratios = sorted(list(set(range(1, 100)).union(set(range(1, min(valid_size_distribution) //
                                                                       max(top_k_distribution), 10)))))
@@ -506,9 +498,9 @@ def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions:
     for i in range(num_samples):
         valid_size = random.choice(valid_size_distribution)
         top_k = random.choice(top_k_distribution)
-        sample_indices = np.random.choice(len(orig_probs), size=valid_size)
+        sample_indices = np.random.choice(len(orig_model_probs), size=valid_size)
         sample_small_probs = small_probs[sample_indices]
-        sample_orig_probs = orig_probs[sample_indices]
+        sample_orig_probs = orig_model_probs[sample_indices]
         assert (len(sample_small_probs) == len(sample_orig_probs) == valid_size)
         orig_model_top_k_idx = np.argsort(sample_orig_probs)[-1 * top_k:]
         for ratio in candidate_ratios:

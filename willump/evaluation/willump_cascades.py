@@ -37,12 +37,25 @@ def training_model_cascade_pass(graph: WillumpGraph,
     else:
         panic("No Model in Training Function")
         return None
-    train_x, train_y = training_node.get_train_x_y()
-    if isinstance(train_x, pd.DataFrame):
-        train_x = train_x.values
-    if isinstance(train_y, pd.DataFrame) or isinstance(train_y, pd.Series):
-        train_y = train_y.values
-    feature_importances, orig_model = calculate_feature_importance(x=train_x, y=train_y,
+
+    willump_train_function, _, willump_predict_proba_function, _ = train_predict_score_functions
+
+    orig_x, orig_y = training_node.get_train_x_y()
+    if isinstance(orig_x, pd.DataFrame):
+        orig_x = orig_x.values
+    if isinstance(orig_y, pd.DataFrame) or isinstance(orig_y, pd.Series):
+        orig_y = orig_y.values
+    if top_k is not None:
+        test_size = 0.5
+    else:
+        test_size = 0.25
+    train_x, valid_x, train_y, valid_y = train_test_split(orig_x, orig_y, test_size=test_size, random_state=42)
+    orig_model = willump_train_function(train_x, train_y)
+    if top_k is not None:
+        orig_model_probs = willump_predict_proba_function(orig_model, valid_x)
+
+    feature_importances, orig_model = calculate_feature_importance(valid_x=valid_x, valid_y=valid_y,
+                                                                   orig_model=orig_model,
                                                                    train_predict_score_functions=train_predict_score_functions,
                                                                    model_inputs=training_node.get_model_inputs())
     training_cascades["feature_importances"] = feature_importances
@@ -53,25 +66,26 @@ def training_model_cascade_pass(graph: WillumpGraph,
     last_mi_candidate_length = 0
     for cost_cutoff in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]:
         _, _, mi_indices, li_indices, mi_cost, t_cost = split_model_inputs(training_node,
-                                                               feature_importances,
-                                                               indices_to_costs_map,
-                                                               cost_cutoff)
+                                                                           feature_importances,
+                                                                           indices_to_costs_map,
+                                                                           cost_cutoff)
         if len(mi_indices) == last_mi_candidate_length:
             continue
         last_mi_candidate_length = len(mi_indices)
         if mi_cost == 0.0:
             continue
         if top_k is not None:
-            valid_size = train_x.shape[0] // 4
+            valid_size = orig_x.shape[0] // 4
             threshold, cost = \
-                calculate_feature_set_performance_top_k(x=train_x, y=train_y,
+                calculate_feature_set_performance_top_k(train_x=train_x, train_y=train_y, valid_x=valid_x,
+                                                        orig_model_probs=orig_model_probs,
                                                         train_predict_score_functions=train_predict_score_functions,
                                                         mi_feature_indices=mi_indices, mi_cost=mi_cost,
                                                         total_cost=t_cost, top_k_distribution=[top_k],
                                                         valid_size_distribution=[valid_size])
         else:
             threshold, cost = \
-                calculate_feature_set_performance(x=train_x, y=train_y,
+                calculate_feature_set_performance(train_x=train_x, train_y=train_y, valid_x=valid_x, valid_y=valid_y,
                                                   train_predict_score_functions=train_predict_score_functions,
                                                   mi_feature_indices=mi_indices, orig_model=orig_model, mi_cost=mi_cost,
                                                   total_cost=t_cost)
@@ -82,15 +96,14 @@ def training_model_cascade_pass(graph: WillumpGraph,
             training_cascades["cascade_threshold"] = threshold
             training_cascades["cost_cutoff"] = cost_cutoff
             min_cost = cost
-    willump_train_function, _, _, _ = train_predict_score_functions
-    mi_train_x = train_x[:, more_important_inputs]
-    li_train_x = train_x[:, less_important_inputs]
-    training_cascades["small_model"] = willump_train_function(mi_train_x, train_y)
-    if scipy.sparse.issparse(train_x):
-        full_model_train_x = scipy.sparse.hstack((mi_train_x, li_train_x))
+    mi_train_x = orig_x[:, more_important_inputs]
+    li_train_x = orig_x[:, less_important_inputs]
+    training_cascades["small_model"] = willump_train_function(mi_train_x, orig_y)
+    if scipy.sparse.issparse(orig_x):
+        full_model_train_x = scipy.sparse.hstack((mi_train_x, li_train_x), format="csr")
     else:
         full_model_train_x = np.concatenate((mi_train_x, li_train_x), axis=1)
-    training_cascades["big_model"] = willump_train_function(full_model_train_x, train_y)
+    training_cascades["big_model"] = willump_train_function(full_model_train_x, orig_y)
     return None
 
 
@@ -228,7 +241,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
         cascade_threshold = eval_cascades["cascade_threshold"]
     cost_cutoff = eval_cascades["cost_cutoff"]
     more_important_inputs, less_important_inputs, _, _, _, _ = split_model_inputs(model_node, feature_importances,
-                                                                               indices_to_costs_map, cost_cutoff)
+                                                                                  indices_to_costs_map, cost_cutoff)
     model_input_node = model_node.get_in_nodes()[0]
     # Create Willump graphs and code blocks that produce the more important inputs.
     base_discovery_dict = {}

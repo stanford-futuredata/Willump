@@ -91,7 +91,7 @@ def main():
     orig_preds = predict_from_input(valid, *vectorizers)
     predict_from_input(mini_valid, *vectorizers)
     t0 = time.time()
-    preds = np.hstack(predict_from_input(valid, *vectorizers))
+    preds = predict_from_input(valid, *vectorizers)
     time_elapsed = time.time() - t0
 
     orig_model_top_k_idx = np.argsort(orig_preds)[-1 * top_K:]
