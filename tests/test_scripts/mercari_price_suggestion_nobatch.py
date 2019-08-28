@@ -62,7 +62,7 @@ def predict_from_input(model_input, name_vectorizer, text_vectorizer, dict_vecto
     text_vec = text_vectorizer.transform(text_input)
     valid_records = to_records(model_input[["shipping", "item_condition_id"]])
     dict_vec = dict_vectorizer.transform(valid_records)
-    combined_vec = scipy.sparse.hstack([text_vec, name_vec, dict_vec], format="csr")
+    combined_vec = scipy.sparse.hstack([name_vec, dict_vec, text_vec], format="csr")
     preds = willump_predict_function(model, combined_vec)
     return preds
 

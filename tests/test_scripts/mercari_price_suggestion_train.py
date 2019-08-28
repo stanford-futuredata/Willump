@@ -86,7 +86,7 @@ def process_input_and_train(model_input, name_vectorizer, text_vectorizer, dict_
     text_vec = text_vectorizer.transform(text_input)
     valid_records = to_records(model_input[["shipping", "item_condition_id"]])
     dict_vec = dict_vectorizer.transform(valid_records)
-    combined_vec = scipy.sparse.hstack([text_vec, name_vec, dict_vec], format="csr")
+    combined_vec = scipy.sparse.hstack([name_vec, dict_vec, text_vec], format="csr")
     model = willump_train_function(combined_vec, y_train)
     return model
 
