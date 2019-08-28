@@ -503,9 +503,17 @@ def calculate_feature_set_performance_top_k(train_x, train_y, valid_x, orig_mode
         sample_orig_probs = orig_model_probs[sample_indices]
         assert (len(sample_small_probs) == len(sample_orig_probs) == valid_size)
         orig_model_top_k_idx = np.argsort(sample_orig_probs)[-1 * top_k:]
-        for ratio in candidate_ratios:
-            small_model_top_ratio_k_idx = np.argsort(sample_small_probs)[-1 * top_k * ratio:]
-            small_model_precision = len(np.intersect1d(orig_model_top_k_idx, small_model_top_ratio_k_idx)) / top_k
+        small_model_probs_idx_sorted = np.argsort(sample_small_probs)
+        overlap_count = 0
+        for i in range(len(candidate_ratios)):
+            ratio = candidate_ratios[i]
+            if i == 0:
+                small_model_top_ratio_k_idx = small_model_probs_idx_sorted[-1 * top_k * ratio:]
+            else:
+                prev_ratio = candidate_ratios[i-1]
+                small_model_top_ratio_k_idx = small_model_probs_idx_sorted[-1 * top_k * ratio: -1 * top_k * prev_ratio]
+            overlap_count += len(np.intersect1d(orig_model_top_k_idx, small_model_top_ratio_k_idx))
+            small_model_precision = overlap_count / top_k
             if small_model_precision >= min_precision:
                 ratios_map[ratio] += 1
     # This implies that if the precisions are normally distributed, given n=100 samples, the probability that
