@@ -438,7 +438,7 @@ def calculate_feature_importance(valid_x, valid_y, orig_model, train_predict_sco
         np.random.shuffle(shuffle_order)
         if isinstance(indices, tuple):
             start, end = indices
-            for i in range(0, valid_x.shape[0], 1000):
+            for i in range(0, valid_x.shape[0], 20000):
                 valid_x_copy[i:i + 1000, start:end] = valid_x[shuffle_order[i:i + 1000], start:end]
         else:
             indices = tuple(indices.values())
