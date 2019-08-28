@@ -75,8 +75,8 @@ def application_train_test(num_rows=None, nan_as_category=False):
 
 @willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K)
 def join_and_lgbm(df, bureau, prev, pos, ins, cc, clf):
-    df = df.merge(bureau, how='left', on='SK_ID_CURR')
     df = df.merge(prev, how='left', on='SK_ID_CURR')
+    df = df.merge(bureau, how='left', on='SK_ID_CURR')
     df = df.merge(pos, how='left', on='SK_ID_CURR')
     df = df.merge(ins, how='left', on='SK_ID_CURR')
     df = df.merge(cc, how='left', on='SK_ID_CURR')

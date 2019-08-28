@@ -201,7 +201,7 @@ def join_and_lgbm(df):
     ins_df = get_row_to_merge_features_ins(join_entry_ins)
     join_entry_cc = df['SK_ID_CURR'].values
     cc_df = get_row_to_merge_features_cc(join_entry_cc)
-    df = pd.concat([df, bureau_df, prev_df, pos_df, ins_df, cc_df], axis=1)
+    df = pd.concat([df, prev_df, bureau_df, pos_df, ins_df, cc_df], axis=1)
     feats = [f for f in df.columns if
              f not in ['TARGET', 'SK_ID_CURR', 'SK_ID_BUREAU', 'SK_ID_PREV', 'index']]
     valid_x = df[feats]

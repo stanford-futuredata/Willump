@@ -250,8 +250,8 @@ training_cascades = {}
                  willump_predict_proba_function=willump_predict_proba_function,
                  top_k=args.top_k)
 def join_and_lgbm(df, bureau, prev, pos, ins, cc, train_y):
-    df = df.merge(bureau, how='left', on='SK_ID_CURR')
     df = df.merge(prev, how='left', on='SK_ID_CURR')
+    df = df.merge(bureau, how='left', on='SK_ID_CURR')
     df = df.merge(pos, how='left', on='SK_ID_CURR')
     df = df.merge(ins, how='left', on='SK_ID_CURR')
     df = df.merge(cc, how='left', on='SK_ID_CURR')
