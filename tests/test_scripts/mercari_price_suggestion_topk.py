@@ -59,8 +59,8 @@ def to_records(df: pd.DataFrame) -> List[Dict]:
     return df.to_dict(orient='records')
 
 
-# model = load_model(base_folder + "mercari_big_model.h5")
-model = load_model(base_folder + "mercari_model.h5")
+model = load_model(base_folder + "mercari_big_model.h5")
+# model = load_model(base_folder + "mercari_model.h5")
 
 
 @willump_execute(disable=args.disable, eval_cascades=cascades, top_k=top_K)
@@ -88,10 +88,10 @@ def main():
     mercari_price_suggestion_utils.y_scaler = y_scaler
     vectorizers = pickle.load(open(base_folder + "mercari_vect_lr.pk", "rb"))
     mini_valid = valid.iloc[0:3].copy()
-    orig_preds = predict_from_input(valid, *vectorizers)
+    orig_preds = predict_from_input(valid.copy(), *vectorizers)
     predict_from_input(mini_valid, *vectorizers)
     t0 = time.time()
-    preds = predict_from_input(valid, *vectorizers)
+    preds = predict_from_input(valid.copy(), *vectorizers)
     time_elapsed = time.time() - t0
 
     orig_model_top_k_idx = np.argsort(orig_preds)[-1 * top_K:]

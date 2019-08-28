@@ -114,13 +114,13 @@ def main():
     sess = tf.Session(config=config)
     ks.backend.set_session(sess)
     with timer('First (Python) Training'):
-        model = process_input_and_train(train, *vectorizers, y_train)
+        model = process_input_and_train(train.copy(), *vectorizers, y_train)
     model.save(base_folder + "mercari_model.h5")
     sess.close()
     sess = tf.Session(config=config)
     ks.backend.set_session(sess)
     with timer('Second (Willump) Training'):
-        process_input_and_train(train, *vectorizers, y_train)
+        process_input_and_train(train.copy(), *vectorizers, y_train)
     training_cascades["big_model"].save(base_folder + "mercari_big_model.h5")
     training_cascades["small_model"].save(base_folder + "mercari_small_model.h5")
     pickle.dump(training_cascades, open(base_folder + "mercari_cascades.pk", "wb"))
