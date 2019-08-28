@@ -484,6 +484,7 @@ def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions:
                                             mi_cost: float, total_cost: float, top_k_distribution: List[int],
                                             valid_size_distribution: List[int]):
     global orig_model
+    min_precision = 0.95
     willump_train_function, willump_predict_function, willump_predict_proba_function, willump_score_function = \
         train_predict_score_functions
     train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.5, random_state=42)
@@ -509,9 +510,11 @@ def calculate_feature_set_performance_top_k(x, y, train_predict_score_functions:
         for ratio in candidate_ratios:
             small_model_top_ratio_k_idx = np.argsort(sample_small_probs)[-1 * top_k * ratio:]
             small_model_precision = len(np.intersect1d(orig_model_top_k_idx, small_model_top_ratio_k_idx)) / top_k
-            if small_model_precision >= 0.95:
+            if small_model_precision >= min_precision:
                 ratios_map[ratio] += 1
-    good_ratios = [ratio for ratio in candidate_ratios if ratios_map[ratio] >= 0.95 * num_samples]
+    # This implies that if the precisions are normally distributed, given n=100 samples, the probability that
+    # the precision is above min_precision is 95%.
+    good_ratios = [ratio for ratio in candidate_ratios if ratios_map[ratio] >= 0.99 * num_samples]
     good_ratio = min(good_ratios)
     cost = mi_cost * np.mean(valid_size_distribution) + (total_cost - mi_cost) * good_ratio *\
            np.mean(top_k_distribution)
