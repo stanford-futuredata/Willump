@@ -71,7 +71,7 @@ def main():
     y_scaler = StandardScaler()
     train = pd.read_table(base_folder + 'train_short.tsv')
     train = train[train['price'] > 0].reset_index(drop=True)
-    cv = KFold(n_splits=3, shuffle=True, random_state=42)
+    cv = KFold(n_splits=5, shuffle=True, random_state=42)
     train_ids, valid_ids = next(cv.split(train))
     train, valid = train.iloc[train_ids], train.iloc[valid_ids]
     y_scaler.fit_transform(np.log1p(train['price'].values.reshape(-1, 1)))
