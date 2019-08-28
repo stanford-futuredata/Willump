@@ -347,7 +347,7 @@ def create_indices_to_costs_map(training_node: WillumpModelNode) -> Mapping[tupl
 
 def split_model_inputs(model_node: WillumpModelNode, feature_importances, indices_to_costs_map,
                        cost_cutoff) -> \
-        Tuple[List[WillumpGraphNode], List[WillumpGraphNode], List[int], int, int]:
+        Tuple[List[WillumpGraphNode], List[WillumpGraphNode], List[int], List[int], int, int]:
     """
     Use a model's feature importances to divide its inputs into those more and those less important.  Return
     lists of each.
@@ -408,11 +408,15 @@ def split_model_inputs(model_node: WillumpModelNode, feature_importances, indice
     more_important_inputs = [nodes[i] for i in picks_indices]
     current_cost: int = sum([costs[i] for i in picks_indices])
     mi_feature_indices: List[int] = []
+    li_feature_indices: List[int] = []
     for node in more_important_inputs:
         for i in nodes_to_indices[node]:
             mi_feature_indices.append(i)
     less_important_inputs = [entry for entry in nodes if entry not in more_important_inputs]
-    return more_important_inputs, less_important_inputs, mi_feature_indices, current_cost, scaled_total_cost
+    for node in less_important_inputs:
+        for i in nodes_to_indices[node]:
+            li_feature_indices.append(i)
+    return more_important_inputs, less_important_inputs, mi_feature_indices, li_feature_indices, current_cost, scaled_total_cost
 
 
 def calculate_feature_importance(x, y, train_predict_score_functions: tuple, model_inputs) -> \

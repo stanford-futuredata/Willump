@@ -12,6 +12,7 @@ import weld.encoders
 import weld.weldobject
 
 import willump.evaluation.willump_weld_generator
+from willump.evaluation.willump_cascades import training_model_cascade_pass
 from willump.evaluation.willump_driver_generator import generate_cpp_driver
 from willump.evaluation.willump_runtime_code import *
 from willump.graph.willump_graph import WillumpGraph
@@ -221,24 +222,29 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
                                                         async_funcs, cached_funcs, costly_statements)
                     graph_builder.visit(python_ast)
                     python_graph: WillumpGraph = graph_builder.get_willump_graph()
+                    if training_cascades is not None:
+                        training_model_cascade_pass(
+                            graph=python_graph,
+                            training_cascades=training_cascades,
+                            train_predict_score_functions=
+                            (willump_train_function,
+                             willump_predict_function,
+                             willump_predict_proba_function,
+                             willump_score_function),
+                            top_k=top_k)
+                        return None
                     aux_data: List[Tuple[int, WeldType]] = graph_builder.get_aux_data()
                     willump_cache_dict = {}
                     # Transform the Willump graph into blocks of Weld and Python code.  Compile the Weld blocks.
                     python_weld_program: List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]] = \
                         willump.evaluation.willump_weld_generator.graph_to_weld(graph=python_graph,
                                                                                 typing_map=willump_typing_map,
-                                                                                training_cascades=training_cascades,
                                                                                 eval_cascades=eval_cascades,
                                                                                 cascade_threshold=cascade_threshold,
                                                                                 willump_cache_dict=willump_cache_dict,
                                                                                 max_cache_size=max_cache_size,
                                                                                 batch=batch, num_workers=num_workers,
-                                                                                top_k=top_k,
-                                                                                train_predict_score_functions=
-                                                                                (willump_train_function,
-                                                                                 willump_predict_function,
-                                                                                 willump_predict_proba_function,
-                                                                                 willump_score_function))
+                                                                                top_k=top_k)
                     python_statement_list, modules_to_import = py_weld_program_to_statements(python_weld_program,
                                                                                              aux_data,
                                                                                              willump_typing_map,
@@ -289,7 +295,7 @@ def execute_from_basics(graph: WillumpGraph, type_map, inputs: tuple, input_name
     Only for unit tests.  Used to test graph execution separately from inference.
     """
     w_statements = willump.evaluation.willump_weld_generator.graph_to_weld(graph=graph, typing_map=type_map,
-                                                                           training_cascades=None, eval_cascades=None,
+                                                                           eval_cascades=None,
                                                                            cascade_threshold=1.0, willump_cache_dict={},
                                                                            max_cache_size=None)
     for entry in w_statements:

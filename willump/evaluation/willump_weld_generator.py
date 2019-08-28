@@ -95,10 +95,10 @@ def process_weld_block(weld_block_input_set, weld_block_aux_input_set, weld_bloc
     return preprocess_python + weld_string_nodes + postprocess_python
 
 
-def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType], training_cascades: Optional[dict],
+def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType],
                   eval_cascades: Optional[dict], cascade_threshold: float,
                   willump_cache_dict: dict, max_cache_size, top_k: Optional[int]=None,
-                  batch: bool = True, num_workers=0, train_predict_score_functions=None) -> \
+                  batch: bool = True, num_workers=0) -> \
         List[typing.Union[ast.AST, Tuple[List[str], List[str], List[List[str]]]]]:
     """
     Convert a Willump graph into a sequence of Willump statements.
@@ -112,12 +112,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType]
     sorted_nodes = wg_passes.topological_sort_graph(graph)
     sorted_nodes = wg_passes.push_back_python_nodes_pass(sorted_nodes)
     wg_passes.model_input_identification_pass(sorted_nodes)
-    if training_cascades is not None:
-        assert (eval_cascades is None)
-        sorted_nodes = w_cascades.training_model_cascade_pass(sorted_nodes, typing_map, training_cascades,
-                                                              train_predict_score_functions, top_k)
     if eval_cascades is not None:
-        assert (training_cascades is None)
         sorted_nodes = w_cascades.eval_model_cascade_pass(sorted_nodes, typing_map, eval_cascades,
                                                           cascade_threshold, batch, top_k)
     sorted_nodes = wg_passes.cache_python_block_pass(sorted_nodes, willump_cache_dict, max_cache_size)

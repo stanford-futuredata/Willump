@@ -75,7 +75,6 @@ print("First (Python) Training Time %fs Num Rows %d Throughput %f rows/sec" %
 t0 = time.time()
 vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, brand_vectorizer, y)
 time_elapsed = time.time() - t0
-print(trained_model)
 print("Second (Willump Cascade) Training Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
 
