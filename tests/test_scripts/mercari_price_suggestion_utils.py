@@ -19,7 +19,7 @@ def willump_train_function(X, y):
 
 def willump_predict_function(model, X):
     if X.shape[0] == 0:
-        return np.zeros(0, dtype=np.float64)
+        return np.zeros(0, dtype=np.float32)
     else:
         y_pred = model.predict(X)
         y_pred = np.expm1(y_scaler.inverse_transform(y_pred.reshape(-1, 1))[:, 0])

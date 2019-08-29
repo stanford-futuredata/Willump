@@ -304,8 +304,11 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
                     len(node_output_types) == 1 and ((isinstance(node_output_types[0], WeldPandas)
                                                       and len(input_node.get_in_nodes()) == 1)
                                                      or (isinstance(node_output_types[0], WeldVec) and
-                                                         node_output_types[0].width is not None)):
+                                                         node_output_types[0].width is not None)
+                                                     or isinstance(node_output_types[0], WeldCSR)):
                 small_model_output_name = strip_linenos_from_var(small_model_output_node.get_output_names()[0])
+                if isinstance(node_output_types[0], WeldCSR):  # TODO: Hack
+                    node_input_name = strip_linenos_from_var(input_node.get_in_names()[1])
                 shorten_python_code = "%s = cascade_df_shorten(%s, %s)" % (node_input_name,
                                                                            node_input_name,
                                                                            small_model_output_name)
@@ -510,7 +513,7 @@ def calculate_feature_set_performance_top_k(train_x, train_y, valid_x, orig_mode
             if i == 0:
                 small_model_top_ratio_k_idx = small_model_probs_idx_sorted[-1 * top_k * ratio:]
             else:
-                prev_ratio = candidate_ratios[i-1]
+                prev_ratio = candidate_ratios[i - 1]
                 small_model_top_ratio_k_idx = small_model_probs_idx_sorted[-1 * top_k * ratio: -1 * top_k * prev_ratio]
             overlap_count += len(np.intersect1d(orig_model_top_k_idx, small_model_top_ratio_k_idx))
             small_model_precision = overlap_count / top_k
@@ -520,6 +523,6 @@ def calculate_feature_set_performance_top_k(train_x, train_y, valid_x, orig_mode
     # the precision is above min_precision is 95%.
     good_ratios = [ratio for ratio in candidate_ratios if ratios_map[ratio] >= 0.99 * num_samples]
     good_ratio = min(good_ratios)
-    cost = mi_cost * np.mean(valid_size_distribution) + (total_cost - mi_cost) * good_ratio *\
+    cost = mi_cost * np.mean(valid_size_distribution) + (total_cost - mi_cost) * good_ratio * \
            np.mean(top_k_distribution)
     return good_ratio, cost

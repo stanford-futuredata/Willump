@@ -34,7 +34,10 @@ def cascade_dense_stacker(more_important_vecs, less_important_vecs, small_model_
 
 def cascade_df_shorten(df, small_model_output):
     indices = [i for i in range(len(small_model_output)) if small_model_output[i] == 2]
-    return df[indices]
+    if isinstance(df, list):
+        return [df[i] for i in indices]
+    else:
+        return df[indices]
 
 
 def csr_marshall(csr_matrix):

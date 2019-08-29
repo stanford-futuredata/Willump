@@ -87,7 +87,7 @@ def main():
     y_scaler.fit_transform(np.log1p(train['price'].values.reshape(-1, 1)))
     mercari_price_suggestion_utils.y_scaler = y_scaler
     vectorizers = pickle.load(open(base_folder + "mercari_vect_lr.pk", "rb"))
-    mini_valid = valid.iloc[0:3].copy()
+    mini_valid = valid.iloc[0:300].copy()
     orig_preds = predict_from_input(valid.copy(), *vectorizers)
     predict_from_input(mini_valid, *vectorizers)
     t0 = time.time()
