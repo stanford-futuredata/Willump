@@ -289,8 +289,7 @@ def main():
     train_df, _ = train_test_split(df, test_size=0.2, random_state=42)
     train_y = train_df['TARGET']
     del df
-    with timer("First (Python) Training:"):
-        clf = join_and_lgbm(train_df, bureau, prev, pos, ins, cc, train_y)
+    clf = join_and_lgbm(train_df, bureau, prev, pos, ins, cc, train_y)
     with timer("Second (Willump) Training:"):
         join_and_lgbm(train_df, bureau, prev, pos, ins, cc, train_y)
 

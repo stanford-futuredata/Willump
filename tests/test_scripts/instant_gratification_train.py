@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import NuSVC
 from tqdm import tqdm
+import time
 
 from instant_gratification_utils import *
 from willump.evaluation.willump_executor import willump_execute
@@ -38,6 +39,7 @@ def train_stacked_model(X, y, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc):
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     data = pd.read_csv(base_path + "train.csv")
     train_data, _ = train_test_split(data, test_size=0.1, random_state=42)
     train_data = train_data[train_data['wheezy-copper-turtle-magic'] < NUM_PARTITIONS].reset_index(drop=True)
@@ -82,9 +84,12 @@ if __name__ == "__main__":
     print(roc_auc_score(train_stack_y, model_prediction(train_stack_data, clf_svnu)))
 
     stacked_model = train_stacked_model(train_stack_data, train_stack_y, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc)
-    print("First (Python) Train")
+
+    t0 = time.time()
     train_stacked_model(train_stack_data, train_stack_y, clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc)
-    print("Second (Willump) Train")
+    print("Willump Train Time: %fs" % (time.time() - t0))
+
+    print("Total Train Time: %fs" % (time.time() - start_time))
 
     pickle.dump((pca_scaler, standard_scaler), open(base_path + "scaler.pk", "wb"))
     pickle.dump((clf_svnu, clf_knn, clf_lr, clf_mlp, clf_svc), open(base_path + "clf.pk", "wb"))

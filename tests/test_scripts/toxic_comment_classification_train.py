@@ -3,6 +3,7 @@
 import argparse
 import gc
 import pickle
+import time
 
 import pandas as pd
 import scipy.sparse
@@ -35,6 +36,8 @@ def vectorizer_transform(input_text, word_vect, char_vect, train_target):
     return clf
 
 
+start_time = time.time()
+
 try:
     word_vectorizer, char_vectorizer = pickle.load(open(base_path + "vectorizer.pk", "rb"))
 except FileNotFoundError:
@@ -58,7 +61,6 @@ except FileNotFoundError:
     char_vectorizer.fit(train_text)
     pickle.dump((word_vectorizer, char_vectorizer), open(base_path + "vectorizer.pk", "wb"))
 
-
 class_name = "toxic"
 train_target = train[class_name]
 del train
@@ -67,9 +69,11 @@ train_text, _, train_target, _ = train_test_split(train_text, train_target, test
 
 classifier = vectorizer_transform(train_text, word_vectorizer, char_vectorizer, train_target)
 gc.collect()
-print("First (Python) Train Done")
+t0 = time.time()
 vectorizer_transform(train_text, word_vectorizer, char_vectorizer, train_target)
 gc.collect()
-print("Second (Willump) Train Done")
+print("Willump Train Time: %fs" % (time.time() - t0))
+
+print("Total Train Time: %fs" % (time.time() - start_time))
 pickle.dump(classifier, open(base_path + "model.pk", "wb"))
 pickle.dump(training_cascades, open(base_path + "training_cascades.pk", "wb"))

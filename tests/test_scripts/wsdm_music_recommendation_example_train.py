@@ -143,7 +143,6 @@ def add_features_and_train_model(folder, combi):
 
     num_rows = len(combi)
 
-    start = time.time()
     model = do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
                      join_col_cluster_one, cluster_two, join_col_cluster_two, cluster_three,
                      join_col_cluster_three, uc_features, uc_join_col, sc_features, sc_join_col, ac_features,
@@ -153,10 +152,6 @@ def add_features_and_train_model(folder, combi):
                      composer_col,
                      lyrs_features, lyrs_col, sns_features, sns_col, stabs_features, stabs_col, stypes_features,
                      stypes_col, regs_features, regs_col, y)
-    elapsed_time = time.time() - start
-
-    print('First (Python) training in %f seconds rows %d throughput %f: ' % (
-        elapsed_time, num_rows, num_rows / elapsed_time))
 
     start = time.time()
     do_merge(combi, features_uf, join_col_uf, features_sf, join_col_sf, cluster_one,
@@ -170,7 +165,7 @@ def add_features_and_train_model(folder, combi):
              stypes_col, regs_features, regs_col, y)
     elapsed_time = time.time() - start
 
-    print('Second (Willump) training in %f seconds rows %d throughput %f: ' % (
+    print('Willump training in %f seconds rows %d throughput %f: ' % (
         elapsed_time, num_rows, num_rows / elapsed_time))
 
     return model
@@ -188,4 +183,6 @@ def create_featureset(folder):
 
 
 if __name__ == '__main__':
+    start_time = time.time()
     create_featureset("tests/test_resources/wsdm_cup_features/")
+    print("Total Train Time: %fs" % (time.time() - start_time))

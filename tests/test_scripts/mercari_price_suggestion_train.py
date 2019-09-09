@@ -113,8 +113,7 @@ def main():
 
     sess = tf.Session(config=config)
     ks.backend.set_session(sess)
-    with timer('First (Python) Training'):
-        model = process_input_and_train(train.copy(), *vectorizers, y_train)
+    model = process_input_and_train(train.copy(), *vectorizers, y_train)
     model.save(base_folder + "mercari_model.h5")
     sess.close()
     sess = tf.Session(config=config)
@@ -128,4 +127,6 @@ def main():
 
 
 if __name__ == '__main__':
+    start_time = time.time()
     main()
+    print("Total Train Time: %fs" % (time.time() - start_time))

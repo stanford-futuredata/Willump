@@ -37,6 +37,7 @@ def vectorizer_transform(title_vect, input_df, color_vect, brand_vect, y_df):
     model = willump_train_function(combined_result, y_df)
     return model
 
+start_time = time.time()
 
 df = pd.read_csv("tests/test_resources/lazada_challenge_features/lazada_data_train.csv", header=None,
                  names=['country', 'sku_id', 'title', 'category_lvl_1', 'category_lvl_2', 'category_lvl_3',
@@ -67,18 +68,17 @@ brand_vectorizer.fit(brands)
 print("Brand Vocabulary has length %d" % len(brand_vectorizer.vocabulary_))
 
 set_size = len(df)
-t0 = time.time()
 trained_model = vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, brand_vectorizer, y)
-time_elapsed = time.time() - t0
-print("First (Python) Training Time %fs Num Rows %d Throughput %f rows/sec" %
-      (time_elapsed, set_size, set_size / time_elapsed))
+
 t0 = time.time()
 vectorizer_transform(title_vectorizer, df["title"], color_vectorizer, brand_vectorizer, y)
 time_elapsed = time.time() - t0
-print("Second (Willump Cascade) Training Time %fs Num Rows %d Throughput %f rows/sec" %
+print("Willump Training Time %fs Num Rows %d Throughput %f rows/sec" %
       (time_elapsed, set_size, set_size / time_elapsed))
 
 pickle.dump((title_vectorizer, color_vectorizer, brand_vectorizer),
             open("tests/test_resources/lazada_challenge_features/lazada_vectorizers.pk", "wb"))
 pickle.dump(trained_model, open("tests/test_resources/lazada_challenge_features/lazada_model.pk", "wb"))
 pickle.dump(training_cascades, open("tests/test_resources/lazada_challenge_features/lazada_training_cascades.pk", "wb"))
+
+print("Total Train Time: %fs" % (time.time() - start_time))
