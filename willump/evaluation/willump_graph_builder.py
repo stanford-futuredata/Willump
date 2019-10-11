@@ -457,7 +457,7 @@ class WillumpGraphBuilder(ast.NodeVisitor):
         self.willump_graph = WillumpGraph(output_node)
 
     def _create_py_node(self, entry: ast.AST, cost: float = 1, is_costly_node=False,
-                        is_async_func=False, is_cached_node=False, does_not_modify_data=False) \
+                        is_async_func=False, is_cached_node=False) \
             -> Tuple[List[str], WillumpGraphNode]:
         entry_analyzer = ExpressionVariableAnalyzer(self._type_map)
         entry_analyzer.visit(entry)
@@ -475,7 +475,6 @@ class WillumpGraphBuilder(ast.NodeVisitor):
                                                                    in_nodes=input_node_list,
                                                                    is_async_node=is_async_func,
                                                                    is_cached_node=is_cached_node,
-                                                                   does_not_modify_data=does_not_modify_data,
                                                                    cost=cost)
         willump_python_node.set_costly_node(is_costly_node)
         return output_list, willump_python_node

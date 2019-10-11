@@ -12,13 +12,12 @@ class WillumpPythonNode(WillumpGraphNode):
     """
     is_async_node: bool
     is_cached_node: bool
-    does_not_modify_data: bool
 
     def __init__(self, python_ast: ast.AST, input_names: List[str], output_names: List[str],
                  output_types: List[WeldType],
                  in_nodes: List[WillumpGraphNode],
                  is_async_node: bool = False, is_cached_node: bool = False,
-                 does_not_modify_data: bool = False, cost: float = 1) -> None:
+                 cost: float = 1) -> None:
         self._output_types = output_types
         self._output_names = output_names
         self._in_nodes = in_nodes
@@ -26,7 +25,6 @@ class WillumpPythonNode(WillumpGraphNode):
         self._python_ast = python_ast
         self.is_async_node = is_async_node
         self.is_cached_node = is_cached_node
-        self.does_not_modify_data = does_not_modify_data
         self.cost = cost
 
     def get_cost(self) -> float:

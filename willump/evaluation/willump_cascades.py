@@ -247,7 +247,8 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     base_discovery_dict = {}
     more_important_inputs_head = graph_from_input_sources(model_input_node, more_important_inputs, typing_map,
                                                           base_discovery_dict, "more")
-    more_important_inputs_block = get_model_node_dependencies(more_important_inputs_head, base_discovery_dict)
+    more_important_inputs_block = get_model_node_dependencies(more_important_inputs_head, base_discovery_dict,
+                                                              typing_map)
     # The small model predicts all examples from the more important inputs.
     new_small_model_node, threshold_node = \
         get_small_model_nodes(model_node, more_important_inputs_head)
@@ -258,6 +259,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                                           base_discovery_dict, "less",
                                                           small_model_output_node=threshold_node)
     less_important_inputs_block = get_model_node_dependencies(less_important_inputs_head, base_discovery_dict,
+                                                              typing_map,
                                                               small_model_output_node=threshold_node)
     # The big model predicts "hard" (for the small model) examples from all inputs.
     combiner_node = get_combiner_node_eval(more_important_inputs_head, less_important_inputs_head, model_input_node,
@@ -267,7 +269,7 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
                                                                   small_model_preds_name)
     base_discovery_dict = {}
     # Remove the original code for creating model inputs to replace with the new code.
-    training_dependencies = get_model_node_dependencies(model_input_node, base_discovery_dict)
+    training_dependencies = get_model_node_dependencies(model_input_node, base_discovery_dict, typing_map)
     for node in training_dependencies:
         sorted_nodes.remove(node)
     # Add all the new code for creating model inputs and training from them.

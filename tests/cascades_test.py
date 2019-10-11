@@ -37,7 +37,7 @@ def willump_score_function(true_y, pred_y):
     return roc_auc_score(true_y, pred_y)
 
 
-cascades = {}
+cascades_basic = {}
 
 
 def feature_one_basic(X):
@@ -55,7 +55,7 @@ def feature_three_basic(X):
     return X[:, 2].reshape(-1, 1)
 
 
-@willump_execute(training_cascades=cascades, willump_train_function=willump_train_function,
+@willump_execute(training_cascades=cascades_basic, willump_train_function=willump_train_function,
                  willump_predict_function=willump_predict_function,
                  willump_predict_proba_function=willump_predict_proba_function,
                  willump_score_function=willump_score_function)
@@ -68,7 +68,7 @@ def basic_cascades_train(X, y):
     return model
 
 
-@willump_execute(eval_cascades=cascades)
+@willump_execute(eval_cascades=cascades_basic)
 def basic_cascades_eval(model, X):
     f1 = feature_one_basic(X)
     f2 = feature_two_basic(X)
@@ -78,25 +78,84 @@ def basic_cascades_eval(model, X):
     return preds
 
 
+cascades_advanced = {}
+
+
+def feature_one_advanced(does_nothing, X):
+    time.sleep(0.1)
+    return X[:, 0].reshape(-1, 1)
+
+
+def feature_two_advanced(does_nothing, X):
+    time.sleep(0.1)
+    return X[:, 1].reshape(-1, 1)
+
+
+def feature_three_advanced(does_nothing, X, does_nothing_two):
+    time.sleep(0.25)
+    return X[:, 2].reshape(-1, 1)
+
+
+@willump_execute(training_cascades=cascades_advanced, willump_train_function=willump_train_function,
+                 willump_predict_function=willump_predict_function,
+                 willump_predict_proba_function=willump_predict_proba_function,
+                 willump_score_function=willump_score_function)
+def advanced_cascades_train(X, y):
+    f1 = feature_one_advanced(y, X)
+    f2 = feature_two_advanced(y, X)
+    f3 = feature_three_advanced(y, X, y)
+    fc = np.hstack([f1, f2, f3])
+    model = willump_train_function(fc, y)
+    return model
+
+
+@willump_execute(eval_cascades=cascades_advanced)
+def advanced_cascades_eval(model, X):
+    f1 = feature_one_advanced(model, X)
+    f2 = feature_two_advanced(model, X)
+    f3 = feature_three_advanced(model, X, model)
+    fc = np.hstack([f1, f2, f3])
+    preds = willump_predict_function(model, fc)
+    return preds
+
+
+def get_x_y():
+    X = np.random.rand(1000, 3)
+    X[:950, :2] /= 2
+    X[950:, :2] = 0
+    y = willump_predict_function(range(2), X)
+    return X, y
+
+
 class WillumpCascadesTest(unittest.TestCase):
     def test_cascade_one_train(self):
         print("\ntest_cascade_train")
-        X = np.random.rand(1000, 3)
-        X[:950, :2] /= 2
-        X[950:, :2] = 0
-        y = willump_predict_function(range(2), X)
+        X, y = get_x_y()
         basic_cascades_train(X, y)
         basic_cascades_train(X, y)
-        assert (cascades["cascade_threshold"] == 0.6)
-        assert (cascades["cost_cutoff"] == 0.5)
+        assert (cascades_basic["cascade_threshold"] == 0.6)
+        assert (cascades_basic["cost_cutoff"] == 0.5)
 
     def test_cascade_two_eval(self):
         print("\ntest_cascade_eval")
-        X = np.random.rand(1000, 3)
-        X[:950, :2] /= 2
-        X[950:, :2] = 0
-        y = willump_predict_function(range(2), X)
-        preds_py = basic_cascades_eval(cascades["big_model"], X)
+        X, y = get_x_y()
+        preds_py = basic_cascades_eval(cascades_basic["big_model"], X)
         np.testing.assert_equal(preds_py, y)
-        preds_willump = basic_cascades_eval(cascades["big_model"], X)
+        preds_willump = basic_cascades_eval(cascades_basic["big_model"], X)
+        np.testing.assert_equal(preds_willump, y)
+
+    def test_advanced_cascade_one_train(self):
+        print("\ntest_advanced_cascade_one_train")
+        X, y = get_x_y()
+        advanced_cascades_train(X, y)
+        advanced_cascades_train(X, y)
+        assert (cascades_advanced["cascade_threshold"] == 0.6)
+        assert (cascades_advanced["cost_cutoff"] == 0.5)
+
+    def test_advanced_cascade_two_eval(self):
+        print("\ntest_advanced_cascade_two_eval")
+        X, y = get_x_y()
+        preds_py = advanced_cascades_eval(cascades_advanced["big_model"], X)
+        np.testing.assert_equal(preds_py, y)
+        preds_willump = advanced_cascades_eval(cascades_advanced["big_model"], X)
         np.testing.assert_equal(preds_willump, y)
