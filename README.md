@@ -2,39 +2,42 @@
 
 **Willump is unstable and under active development!  Please report any bugs or unusual behavior to [willump-group@cs.stanford.edu](mailto:willump-group@cs.stanford.edu).**
 
-Willump is an optimizer for machine learning inference.  It speeds up ML inference pipelines written
-in Python using Numpy and Pandas.  To speed up a function using Willump, simply
-wrap it in the Willump decorator: 
+Willump is an optimizer for machine learning inference.  It speeds up ML inference pipelines
+written as Python functions whose performance is bottlenecked by feature computation.
+For a full description of Willump, see [our paper](https://arxiv.org/pdf/1906.01974.pdf).
 
-    from willump.evaluation.willump_executor import willump_execute
+## Installation
+
+Willump requires Python version 3.6 or later.
+These instructions were tested on a clean installation of Ubuntu 18.04 with Python 3.6.8 installed.
+
+First, install dependency packages:
+
+    sudo apt update
+    sudo apt install build-essential curl python3-pip
+    pip3 install scipy sklearn pandas astor setuptools
     
-    
-    @willump_execute()
-    def make_me_faster(...):
-    
-To install Willump, first install the llvm-st branch of our Weld fork, weld-willump.
+Then install the llvm-st branch of our Weld fork, weld-willump.
 Its repository and installation instructions are available 
 [here](https://github.com/stanford-futuredata/weld-willump/tree/llvm-st).
 
-Next, install Python, Mypy, NumPy, scikit-learn, and Pandas.  Willump requires Python
-version 3.6 or later.
+Copy the weld-willump libraries to /usr/lib so clang can find them:
 
-Next, define the WILLUMP_HOME environment variable to point
-to the Willump root directory (this one) and include the Willump root directory
-on your PYTHONPATH.  Willump should now work!
+    sudo cp $WELD_HOME/target/release/libweld.so /usr/lib/libweld.so
+    
+Install the weld-willump Python libraries:
+
+    cd $WELD_HOME/python/pyweld
+    sudo -E python3 setup.py install
+
+Finally, clone Willump and set the WILLUMP_HOME and PYTHONPATH environment variables
+to point at and include its root.
+
+    git clone https://github.com/stanford-futuredata/Willump.git
+    cd Willump
+    export WILLUMP_HOME=`pwd`
+    export PYTHONPATH=$PYTHONPATH:`pwd`
 
 To confirm Willump works, run the Willump unit tests:
 
     python3 -m unittest discover -s tests -p *.py
-
-To run our Willump benchmarks, first train the benchmark models:
-
-    python3 tests/test_scripts/wsdm_music_recommendation_example_train.py
-    python3 tests/test_scripts/lazada_product_challenge_example_train.py
-    
-Then run the benchmarks themselves using the trained models:
-
-    python3 tests/test_scripts/wsdm_music_recommendation_example_batch.py
-    python3 tests/test_scripts/lazada_product_challenge_example_batch.py
-    
-Both benchmarks should run dramatically faster than they would without Willump.
