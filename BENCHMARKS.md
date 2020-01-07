@@ -2,8 +2,8 @@
 
 This document describes how to reproduce the results in Figures 6, 7, and 8 of
 the [Willump paper](https://arxiv.org/pdf/1906.01974.pdf).  It assumes Willump has already
-been installed following the directions in the
-[README](https://github.com/stanford-futuredata/Willump/blob/master/README.md).
+been installed following the directions
+[here](https://github.com/stanford-futuredata/Willump/blob/master/README.md).
 
 This repository contains scripts to reproduce six of Willump's seven benchmarks.  To reproduce
 the seventh, Purchase, see the separate [willump-dfs repository](https://github.com/stanford-futuredata/willump-dfs), 
@@ -60,8 +60,8 @@ To measure the effects of Willump's cascades optimization on runtime for classif
     python3 tests/benchmark_scripts/music_remote_batch.py -c -r REDIS_SERVER_ADDRESS
     python3 tests/benchmark_scripts/instant_batch.py -c
 
-Each benchmark reports its throughput.  Relative throughputs should be similar to those shown
-in Figure 6.
+Each benchmark reports its throughput.
+For each benchmark, throughput trends should resemble those in Figure 6.
 
 ### Figure 7
 
@@ -94,7 +94,8 @@ To measure the effects of Willump's cascades optimization on runtime for classif
     python3 tests/benchmark_scripts/music_remote_point_setup.py -c -r REDIS_SERVER_ADDRESS && python3 tests/benchmark_scripts/music_remote_point_eval.py -c -r REDIS_SERVER_ADDRESS
     python3 tests/benchmark_scripts/instant_point.py -c
 
-Each benchmark reports its median and tail latencies.  Relative latencies should be similar to those shown in Figure 7.
+Each benchmark reports its median and tail latencies.
+For each benchmark, latency trends should resemble those in Figure 7.
 
 ### Figure 8
 
@@ -126,7 +127,7 @@ To measure the effects of Willump's compilation optimizations on runtime for com
     python3 tests/benchmark_scripts/credit_topk.py -k 100
     python3 tests/benchmark_scripts/price_topk.py -k 100
     
-To measure the effects of Willump's top-k approximation optimization on runtime for classification benchmarks, run:
+To measure the effects of Willump's top-k approximation optimization on runtime, run:
 
     python3 tests/benchmark_scripts/toxic_topk.py -k 100 -c
     python3 tests/benchmark_scripts/product_topk.py -k 100 -c
@@ -136,5 +137,5 @@ To measure the effects of Willump's top-k approximation optimization on runtime 
     python3 tests/benchmark_scripts/price_topk.py -k 100 -c
     python3 tests/benchmark_scripts/instant_topk.py -k 100 -c
 
-Each benchmark reports its throughput.  Relative throughputs should be similar to those shown
-in Figure 8.
+Each benchmark reports its throughput.
+For each benchmark, throughput trends should resemble those in Figure 8.
