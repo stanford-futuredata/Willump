@@ -106,7 +106,7 @@ def main():
     price_utils.y_scaler = y_scaler
     with timer('create vectorizers'):
         vectorizers = create_vectorizers(train)
-
+        pickle.dump(vectorizers, open(base_folder + "mercari_vect_lr.pk", "wb"))
     sess = tf.Session(config=config)
     ks.backend.set_session(sess)
     model = process_input_and_train(train.copy(), *vectorizers, y_train)
