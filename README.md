@@ -15,7 +15,7 @@ First, install dependency packages:
 
     sudo apt update
     sudo apt install build-essential curl python3-pip
-    pip3 install scipy sklearn pandas astor setuptools
+    pip3 install numpy scipy sklearn pandas astor setuptools tqdm pandas lightgbm
     
 Then install the llvm-st branch of our Weld fork, weld-willump.
 Its repository and installation instructions are available 

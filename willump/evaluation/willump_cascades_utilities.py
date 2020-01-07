@@ -310,8 +310,7 @@ def get_model_node_dependencies(training_input_node: WillumpGraphNode, base_disc
                 for i, node_input_name in enumerate(input_node.get_in_names()):
                     input_type = typing_map[node_input_name]
                     # Only shorten data.
-                    if (isinstance(input_type, WeldPandas) or (isinstance(input_type, WeldVec) and
-                                                               input_type.width is not None)
+                    if (isinstance(input_type, WeldPandas) or (isinstance(input_type, WeldVec))
                             or isinstance(input_type, WeldCSR)):
                         node_input_name = strip_linenos_from_var(node_input_name)
                         shorten_python_code = "%s = cascade_df_shorten(%s, %s)" % (node_input_name,
