@@ -15,7 +15,7 @@ First, install dependency packages:
 
     sudo apt update
     sudo apt install build-essential curl python3-pip
-    pip3 install numpy scipy sklearn pandas astor setuptools tqdm pandas lightgbm==2.2.2 tensorflow==1.12.0 keras==2.2.4
+    pip3 install numpy scipy sklearn pandas astor setuptools tqdm pandas redis lightgbm==2.2.2 tensorflow==1.12.0 keras==2.2.4
     
 Then install the llvm-st branch of our Weld fork, weld-willump.
 Its repository and installation instructions are available 
@@ -41,3 +41,6 @@ to point at and include its root.
 To confirm Willump works, run the Willump unit tests:
 
     python3 -m unittest discover -s tests -p *.py
+
+For information on reproducing the experiments run in the Willump paper, see our
+[benchmarks guide](https://github.com/stanford-futuredata/Willump/blob/master/BENCHMARKS.md)
