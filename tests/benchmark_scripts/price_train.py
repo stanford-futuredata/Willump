@@ -104,12 +104,8 @@ def main():
     print("Training set rows %d" % len(train))
     y_train = y_scaler.fit_transform(np.log1p(train['price'].values.reshape(-1, 1)))
     price_utils.y_scaler = y_scaler
-    try:
-        vectorizers = pickle.load(open(base_folder + "mercari_vect_lr.pk", "rb"))
-    except FileNotFoundError:
-        with timer('create vectorizers'):
-            vectorizers = create_vectorizers(train)
-            pickle.dump(vectorizers, open(base_folder + "mercari_vect_lr.pk", "wb"))
+    with timer('create vectorizers'):
+        vectorizers = create_vectorizers(train)
 
     sess = tf.Session(config=config)
     ks.backend.set_session(sess)
