@@ -42,5 +42,5 @@ To confirm Willump works, run the Willump unit tests:
 
     python3 -m unittest discover -s tests -p *.py
 
-For information on reproducing the experiments run in the Willump paper, see our
-[benchmarks guide](https://github.com/stanford-futuredata/Willump/blob/master/BENCHMARKS.md)
+For information on reproducing the experiments run in the Willump paper, please see our
+[benchmarks guide](https://github.com/stanford-futuredata/Willump/blob/master/BENCHMARKS.md).
