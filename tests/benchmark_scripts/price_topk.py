@@ -55,8 +55,8 @@ def on_field(f: Union[str, List[str]], *vec) -> Pipeline:
     return make_pipeline(FunctionTransformer(itemgetter(f), validate=False), *vec)
 
 
-def to_records(df: pd.DataFrame) -> List[Dict]:
-    return df.to_dict(orient='records')
+def to_records(df: pd.DataFrame, dict_vectorizer) -> List[Dict]:
+    return dict_vectorizer.transform(df.to_dict(orient='records'))
 
 
 model = load_model(base_folder + "mercari_big_model.h5")
@@ -70,8 +70,8 @@ def predict_from_input(model_input, name_vectorizer, text_vectorizer, dict_vecto
     name_vec = name_vectorizer.transform(name_input)
     text_input = model_input["text"].values
     text_vec = text_vectorizer.transform(text_input)
-    valid_records = to_records(model_input[["shipping", "item_condition_id"]])
-    dict_vec = dict_vectorizer.transform(valid_records)
+    record_input = model_input[["shipping", "item_condition_id"]]
+    dict_vec = to_records(record_input, dict_vectorizer)
     combined_vec = scipy.sparse.hstack([name_vec, dict_vec, text_vec], format="csr")
     preds = willump_predict_function(model, combined_vec)
     return preds
