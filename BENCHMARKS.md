@@ -115,7 +115,7 @@ To measure each benchmark's unoptimized runtime, run each with Willump disabled:
     python3 tests/benchmark_scripts/product_topk.py -k 100 -d
     python3 tests/benchmark_scripts/music_topk.py -k 100 -d
     python3 tests/benchmark_scripts/music_remote_topk.py -k 100 -d -r REDIS_SERVER_ADDRESS
-    python3 tests/benchmark_scripts/credit_topk.py -k 100 -d
+    python3 tests/benchmark_scripts/credit_remote_topk.py -k 100 -d -r REDIS_SERVER_ADDRESS
     python3 tests/benchmark_scripts/price_topk.py -k 100 -d
     python3 tests/benchmark_scripts/instant_topk.py -k 100 -d
     
@@ -124,7 +124,6 @@ To measure the effects of Willump's compilation optimizations on runtime for com
     python3 tests/benchmark_scripts/toxic_topk.py -k 100
     python3 tests/benchmark_scripts/product_topk.py -k 100
     python3 tests/benchmark_scripts/music_topk.py -k 100
-    python3 tests/benchmark_scripts/credit_topk.py -k 100
     python3 tests/benchmark_scripts/price_topk.py -k 100
     
 To measure the effects of Willump's top-k approximation optimization on runtime, run:
@@ -133,7 +132,7 @@ To measure the effects of Willump's top-k approximation optimization on runtime,
     python3 tests/benchmark_scripts/product_topk.py -k 100 -c
     python3 tests/benchmark_scripts/music_topk.py -k 100 -c
     python3 tests/benchmark_scripts/music_remote_topk.py -k 100 -c -r REDIS_SERVER_ADDRESS
-    python3 tests/benchmark_scripts/credit_topk.py -k 100 -c
+    python3 tests/benchmark_scripts/credit_remote_topk.py -k 100 -c -r REDIS_SERVER_ADDRESS
     python3 tests/benchmark_scripts/price_topk.py -k 100 -c
     python3 tests/benchmark_scripts/instant_topk.py -k 100 -c
 
