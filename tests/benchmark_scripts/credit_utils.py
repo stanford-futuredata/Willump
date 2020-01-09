@@ -1,4 +1,5 @@
 import numpy
+import pandas as pd
 from lightgbm import LGBMClassifier
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import roc_auc_score
@@ -6,6 +7,8 @@ from sklearn.metrics import roc_auc_score
 
 def willump_train_function(X, y):
     # LightGBM parameters found by Bayesian optimization
+    if isinstance(X, pd.DataFrame):
+        X = X.fillna(0)
     model = LGBMClassifier(
         n_jobs=1,
         n_estimators=10000,
@@ -26,6 +29,8 @@ def willump_train_function(X, y):
 
 
 def willump_predict_function(model, X):
+    if isinstance(X, pd.DataFrame):
+        X = X.fillna(0)
     if len(X) == 0:
         return numpy.zeros(0, dtype=numpy.float64)
     else:
@@ -33,6 +38,8 @@ def willump_predict_function(model, X):
 
 
 def willump_predict_proba_function(model, X):
+    if isinstance(X, pd.DataFrame):
+        X = X.fillna(0)
     return willump_predict_function(model, X)
 
 

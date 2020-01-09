@@ -258,6 +258,7 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, train_y):
     feats = [f for f in df.columns if
              f not in ['TARGET', 'SK_ID_CURR', 'SK_ID_BUREAU', 'SK_ID_PREV', 'index']]
     train_x = df[feats]
+    train_x = train_x.fillna(0)
     clf = willump_train_function(train_x, train_y)
     return clf
 

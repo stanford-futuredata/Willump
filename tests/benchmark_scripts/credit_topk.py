@@ -83,6 +83,7 @@ def join_and_lgbm(df, bureau, prev, pos, ins, cc, clf):
     feats = [f for f in df.columns if
              f not in ['TARGET', 'SK_ID_CURR', 'SK_ID_BUREAU', 'SK_ID_PREV', 'index']]
     valid_x = df[feats]
+    valid_x = valid_x.fillna(0)
     oof_preds_proba = willump_predict_proba_function(clf, valid_x)
     return oof_preds_proba
 
