@@ -13,9 +13,10 @@ Datasets for three of the six benchmarks (Toxic, Product, and Music) are already
 repository.  The three remaining datasets can be downloaded from Kaggle and placed in their
 respective folders in tests/test_resources.
 The dataset for Credit is [here](https://www.kaggle.com/c/home-credit-default-risk/data)
-and files go in the mercari_price_suggestion folder,
-the dataset for Price is [here](https://www.kaggle.com/c/mercari-price-suggestion-challenge/data)
 and files go in the home_credit_default_risk folder,
+the dataset for Price is [here](https://willump-datasets.s3.us-east-2.amazonaws.com/train.zip)
+(modified from the Kaggle original to remove non-Ascii characters that Weld does not handle)
+and files go in the mercari_price_suggestion folder,
 and the dataset for Instant is [here](https://www.kaggle.com/c/instant-gratification/data)
 and files go in the instant_gratification folder.
 
