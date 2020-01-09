@@ -98,7 +98,7 @@ def main():
     num_rows = len(valid_df)
     del df
     orig_preds = join_and_lgbm(valid_df, bureau, prev, pos, ins, cc, clf)
-    mini_df = valid_df.iloc[0:3]
+    mini_df = valid_df.iloc[0:300]
     join_and_lgbm(mini_df, bureau, prev, pos, ins, cc, clf)
     t0 = time.time()
     preds = join_and_lgbm(valid_df, bureau, prev, pos, ins, cc, clf)
