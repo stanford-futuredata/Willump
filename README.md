@@ -4,18 +4,18 @@
 
 Willump is an optimizer for machine learning inference.  It speeds up ML inference pipelines
 written as Python functions whose performance is bottlenecked by feature computation.
-For a full description of Willump, see [our paper](https://arxiv.org/pdf/1906.01974.pdf).
+For a full description of Willump, please see [our paper](https://arxiv.org/pdf/1906.01974.pdf).
 
 ## Installation
 
 Willump requires Python version 3.6 or later.
-These instructions were tested on a clean installation of Ubuntu 18.04 with Python 3.6.8 installed.
+These instructions were tested on a clean installation of Ubuntu 18.04 with Python 3.6.8.
 
 First, install dependency packages:
 
     sudo apt update
     sudo apt install build-essential curl python3-pip
-    pip3 install numpy scipy sklearn pandas astor setuptools tqdm pandas lightgbm
+    pip3 install numpy scipy sklearn pandas astor setuptools tqdm pandas redis lightgbm==2.2.2 tensorflow==1.12.0 keras==2.2.4
     
 Then install the llvm-st branch of our Weld fork, weld-willump.
 Its repository and installation instructions are available 
@@ -30,8 +30,8 @@ Install the weld-willump Python libraries:
     cd $WELD_HOME/python/pyweld
     sudo -E python3 setup.py install
 
-Finally, clone Willump and set the WILLUMP_HOME and PYTHONPATH environment variables
-to point at and include its root.
+Finally, clone Willump, set the WILLUMP_HOME environment variable to point at the package root, and include
+the package root in your PYTHONPATH:
 
     git clone https://github.com/stanford-futuredata/Willump.git
     cd Willump
@@ -41,3 +41,6 @@ to point at and include its root.
 To confirm Willump works, run the Willump unit tests:
 
     python3 -m unittest discover -s tests -p *.py
+
+For information on reproducing the experiments run in the Willump paper, please see our
+[benchmarks guide](https://github.com/stanford-futuredata/Willump/blob/master/BENCHMARKS.md).

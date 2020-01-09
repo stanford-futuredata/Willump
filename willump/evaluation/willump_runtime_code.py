@@ -1,6 +1,7 @@
 from typing import Callable
 
 import numpy as np
+import pandas as pd
 
 from willump import *
 
@@ -36,6 +37,8 @@ def cascade_df_shorten(df, small_model_output):
     indices = [i for i in range(len(small_model_output)) if small_model_output[i] == 2]
     if isinstance(df, list):
         return [df[i] for i in indices]
+    elif isinstance(df, pd.DataFrame):
+        return df.iloc[indices]
     else:
         return df[indices]
 

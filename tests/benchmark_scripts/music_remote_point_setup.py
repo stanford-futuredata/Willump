@@ -362,7 +362,7 @@ def add_features_and_predict(folder, combi):
     entry_list = []
     for i in range(num_rows):
         entry_list.append(combi.iloc[i])
-    print("Copies created")
+    # print("Copies created")
     preds = []
     start = time.time()
     for entry in tqdm(entry_list):
@@ -370,8 +370,8 @@ def add_features_and_predict(folder, combi):
         preds.append(pred)
     elapsed_time = time.time() - start
 
-    print('Latent feature join in %f seconds rows %d throughput %f: ' % (
-        elapsed_time, num_rows, num_rows / elapsed_time))
+    # print('Latent feature join in %f seconds rows %d throughput %f: ' % (
+    #     elapsed_time, num_rows, num_rows / elapsed_time))
 
     return preds
 
@@ -386,9 +386,9 @@ def create_featureset(folder):
     combi_train, _, y_train, _ = train_test_split(combi, y, test_size=0.2, random_state=42)
     # Add features and predict.
     y_pred = np.hstack(add_features_and_predict(folder, combi_train))
-    print("Train AUC: %f" % willump_score_function(y_train, y_pred))
-    print("Train: Number of \"remote\" queries made: %d  Requests per row:  %f" %
-          (num_queries, num_queries / len(y_pred)))
+    # print("Train AUC: %f" % willump_score_function(y_train, y_pred))
+    # print("Train: Number of \"remote\" queries made: %d  Requests per row:  %f" %
+    #       (num_queries, num_queries / len(y_pred)))
     num_queries = 0
 
     trained_cache = globals()["__willump_cache"]
