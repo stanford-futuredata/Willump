@@ -33,3 +33,6 @@ class WillumpOutputNode(WillumpGraphNode):
 
     def __repr__(self):
         return "Output node\n"
+
+    def graphviz_repr(self):
+        return "Output"

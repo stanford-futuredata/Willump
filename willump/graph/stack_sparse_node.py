@@ -85,3 +85,6 @@ class StackSparseNode(WillumpGraphNode):
     def __repr__(self):
         return "Stack sparse node for input {0} output {1}\n" \
             .format(self._input_names, self._output_name)
+
+    def graphviz_repr(self):
+        return "Array Concatenation"

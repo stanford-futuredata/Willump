@@ -47,3 +47,6 @@ class WillumpGraphNode(object):
     def get_costly_node(self) -> bool:
         return self._is_costly_node
 
+    def graphviz_repr(self) -> str:
+        return self.__repr__()
+

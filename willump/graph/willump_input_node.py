@@ -1,4 +1,5 @@
 from willump.graph.willump_graph_node import WillumpGraphNode
+from willump.willump_utilities import strip_linenos_from_var
 
 from typing import List
 
@@ -36,3 +37,6 @@ class WillumpInputNode(WillumpGraphNode):
 
     def __repr__(self):
         return "Input node for input {0}\n".format(self._arg_name)
+
+    def graphviz_repr(self):
+        return "Input: {0}".format(strip_linenos_from_var(self._arg_name))

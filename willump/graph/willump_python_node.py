@@ -1,9 +1,10 @@
-from willump.graph.willump_graph_node import WillumpGraphNode
-
-from typing import List
 import ast
+from typing import List
 
+import astor
 from weld.types import *
+
+from willump.graph.willump_graph_node import WillumpGraphNode
 
 
 class WillumpPythonNode(WillumpGraphNode):
@@ -49,7 +50,9 @@ class WillumpPythonNode(WillumpGraphNode):
         return self._python_ast
 
     def __repr__(self):
-        import astor
         return "Willump Python node with inputs %s\n outputs %s\n and code %s\n" % \
                (str(list(map(lambda x: x.get_output_names(), self._in_nodes))), self._output_names,
                 astor.to_source(self.get_python()))
+
+    def graphviz_repr(self) -> str:
+        return astor.to_source(self.get_python())

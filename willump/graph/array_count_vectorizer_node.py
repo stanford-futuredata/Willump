@@ -201,3 +201,6 @@ class ArrayCountVectorizerNode(WillumpGraphNode):
     def __repr__(self):
         return "Array count-vectorizer node for input {0} output {1}\n"\
             .format(self._input_array_string_name, self._output_name)
+
+    def graphviz_repr(self) -> str:
+        return "Char-Level CountVectorizer"

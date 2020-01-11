@@ -16,6 +16,7 @@ from willump.evaluation.willump_cascades import training_model_cascade_pass
 from willump.evaluation.willump_driver_generator import generate_cpp_driver
 from willump.evaluation.willump_runtime_code import *
 from willump.graph.willump_graph import WillumpGraph
+from willump.visualization.visualization import visualize_graph
 from willump.willump_utilities import *
 
 _encoder = weld.encoders.NumpyArrayEncoder()
@@ -222,6 +223,7 @@ def willump_execute(disable=False, batch=True, num_workers=0, async_funcs=(), tr
                                                         async_funcs, cached_funcs, costly_statements)
                     graph_builder.visit(python_ast)
                     python_graph: WillumpGraph = graph_builder.get_willump_graph()
+                    visualize_graph(python_graph)
                     if training_cascades is not None:
                         training_model_cascade_pass(
                             graph=python_graph,

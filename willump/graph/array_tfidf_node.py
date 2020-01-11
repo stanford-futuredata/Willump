@@ -332,5 +332,12 @@ class ArrayTfIdfNode(WillumpGraphNode):
         return [WeldCSR(WeldDouble())]
 
     def __repr__(self):
-        return "Array count-vectorizer node for input {0} output {1}\n" \
+        return "Array TF-IDF node for input {0} output {1}\n" \
             .format(self._input_array_string_name, self._output_name)
+
+    def graphviz_repr(self) -> str:
+        if self._analyzer == "word":
+            return "Word-Level TF-IDF Vectorization"
+        else:
+            return "Char-Level TF-IDF Vectorization"
+
