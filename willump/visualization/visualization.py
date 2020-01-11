@@ -9,6 +9,8 @@ def filter_node(node: WillumpGraphNode) -> bool:
         return False
     if "re.sub" in node.__repr__():
         return False
+    if "return" in node.graphviz_repr():
+        return False
     return True
 
 
@@ -19,24 +21,22 @@ def graph_to_dot_string(graph: WillumpGraph, mi_inputs: List[WillumpGraphNode],
     if model_node_input is not None:
         nodes_to_importances: MutableMapping[WillumpGraphNode, float] = {}
         nodes_to_costs: MutableMapping[WillumpGraphNode, int] = {}
-        orig_total_cost = sum(indices_to_costs_map.values())
-        scaled_total_cost = 1000
-        scale_factor = scaled_total_cost / orig_total_cost
+        cost_scale_factor = 100 / sum(indices_to_costs_map.values())
+        importance_scale_factor = 100 / sum(indices_to_importances_map.values())
         for node, indices in model_node_input.items():
-            if isinstance(indices, tuple):
-                node_importance = indices_to_importances_map[indices]
-            else:
+            if not isinstance(indices, tuple):
                 indices = tuple(indices.values())
-                node_importance = indices_to_importances_map[indices]
-            nodes_to_importances[node] = node_importance
-            node_cost: int = round(indices_to_costs_map[indices] * scale_factor)
-            nodes_to_costs[node] = node_cost
+            nodes_to_importances[node] = indices_to_importances_map[indices] * importance_scale_factor
+            nodes_to_costs[node] = indices_to_costs_map[indices] * cost_scale_factor
     else:
         nodes_to_importances = {}
         nodes_to_costs = {}
 
     labels_string: str = ""
     graph_string: str = ""
+    if len(mi_inputs) > 0:
+        labels_string += "0 [label=\"Approximate Model: Confidence Threshold\"]"
+        graph_string += "0 -> {0} [label=\"Above\"];\n".format(abs(graph.get_output_node().__hash__()))
     node_queue: List[WillumpGraphNode] = [graph.get_output_node()]
     nodes_seen: Set[WillumpGraphNode] = set()
     while len(node_queue) > 0:
@@ -53,7 +53,7 @@ def graph_to_dot_string(graph: WillumpGraph, mi_inputs: List[WillumpGraphNode],
                 width = 3
             if current_node in nodes_to_importances:
                 width = 3
-                metadata += "\\nCost=%.1f%% Importance=%.3f" % (nodes_to_costs[current_node] / 10, nodes_to_importances[current_node])
+                metadata += "\\nCost=%.1f%% Importance=%.1f%%" % (nodes_to_costs[current_node], nodes_to_importances[current_node])
             node_label = "{0} [label=\"{1}{4}\", color={2}, penwidth={3}];\n".format(abs(current_node.__hash__()),
                                                                     current_node.graphviz_repr().replace("\n", ""),
                                                                     color, width, metadata)
@@ -70,7 +70,12 @@ def graph_to_dot_string(graph: WillumpGraph, mi_inputs: List[WillumpGraphNode],
                     changes = True
         for node in next_nodes:
             if filter_node(current_node) and filter_node(node):
-                edge_string = "{1} -> {0};\n".format(abs(current_node.__hash__()), abs(node.__hash__()))
+                if node in mi_inputs:
+                    edge_string = "{0} -> 0;\n".format(abs(node.__hash__()))
+                    if node is mi_inputs[0]:
+                        edge_string += "0 -> {0}[label=\"Below\"];\n".format(abs(current_node.__hash__()))
+                else:
+                    edge_string = "{1} -> {0};\n".format(abs(current_node.__hash__()), abs(node.__hash__()))
                 graph_string += edge_string
             if node not in nodes_seen:
                 nodes_seen.add(node)
