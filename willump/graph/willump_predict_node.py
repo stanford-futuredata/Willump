@@ -37,3 +37,6 @@ class WillumpPredictNode(WillumpPythonNode, WillumpModelNode):
         return "Willump Prediction Python node with inputs %s\n outputs %s\n and code %s\n" % \
                (self.get_in_names(), self.get_output_names(),
                 ast.dump(self._python_ast))
+
+    def graphviz_repr(self):
+        return "Model:  Make Predictions"

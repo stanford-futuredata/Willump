@@ -113,7 +113,7 @@ def graph_to_weld(graph: WillumpGraph, typing_map: MutableMapping[str, WeldType]
     sorted_nodes = wg_passes.push_back_python_nodes_pass(sorted_nodes)
     wg_passes.model_input_identification_pass(sorted_nodes)
     if eval_cascades is not None:
-        sorted_nodes = w_cascades.eval_model_cascade_pass(sorted_nodes, typing_map, eval_cascades,
+        sorted_nodes = w_cascades.eval_model_cascade_pass(graph, sorted_nodes, typing_map, eval_cascades,
                                                           cascade_threshold, batch, top_k)
     sorted_nodes = wg_passes.cache_python_block_pass(sorted_nodes, willump_cache_dict, max_cache_size)
     sorted_nodes = wg_passes.async_python_functions_parallel_pass(sorted_nodes)

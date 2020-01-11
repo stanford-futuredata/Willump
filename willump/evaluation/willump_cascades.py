@@ -14,6 +14,8 @@ from willump.graph.willump_predict_node import WillumpPredictNode
 from willump.graph.willump_predict_proba_node import WillumpPredictProbaNode
 from willump.graph.willump_training_node import WillumpTrainingNode
 from willump.willump_utilities import *
+from willump.visualization.visualization import visualize_graph
+from willump.graph.willump_output_node import WillumpOutputNode
 
 import scipy.sparse
 
@@ -107,7 +109,8 @@ def training_model_cascade_pass(graph: WillumpGraph,
     return None
 
 
-def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
+def eval_model_cascade_pass(graph: WillumpGraph,
+                            sorted_nodes: List[WillumpGraphNode],
                             typing_map: MutableMapping[str, WeldType],
                             eval_cascades: dict,
                             cascade_threshold: float,
@@ -240,8 +243,13 @@ def eval_model_cascade_pass(sorted_nodes: List[WillumpGraphNode],
     if cascade_threshold is None:
         cascade_threshold = eval_cascades["cascade_threshold"]
     cost_cutoff = eval_cascades["cost_cutoff"]
+    visualize_graph(graph, indices_to_costs_map=indices_to_costs_map, indices_to_importances_map=feature_importances,
+                    model_node_inputs=model_node.get_model_inputs())
     more_important_inputs, less_important_inputs, _, _, _, _ = split_model_inputs(model_node, feature_importances,
                                                                                   indices_to_costs_map, cost_cutoff)
+    visualize_graph(graph, mi_inputs=more_important_inputs, li_inputs=less_important_inputs,
+                    indices_to_costs_map=indices_to_costs_map, indices_to_importances_map=feature_importances,
+                    model_node_inputs=model_node.get_model_inputs())
     model_input_node = model_node.get_in_nodes()[0]
     # Create Willump graphs and code blocks that produce the more important inputs.
     base_discovery_dict = {}
