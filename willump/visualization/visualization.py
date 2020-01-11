@@ -11,6 +11,10 @@ def filter_node(node: WillumpGraphNode) -> bool:
         return False
     if "return" in node.graphviz_repr():
         return False
+    if "Array Concatenation" in node.graphviz_repr():
+        return False
+    if "return" in node.graphviz_repr():
+        return False
     return True
 
 
