@@ -1,7 +1,11 @@
+import platform
+import subprocess
+from typing import List, Set, Tuple, MutableMapping, Mapping
+
+import graphviz
+
 from willump.graph.willump_graph import WillumpGraph
 from willump.graph.willump_graph_node import WillumpGraphNode
-from willump.graph.willump_python_node import WillumpPythonNode
-from typing import List, Set, Tuple, MutableMapping, Mapping
 
 
 def filter_node(node: WillumpGraphNode) -> bool:
@@ -21,7 +25,6 @@ def filter_node(node: WillumpGraphNode) -> bool:
 def graph_to_dot_string(graph: WillumpGraph, mi_inputs: List[WillumpGraphNode],
                         li_inputs: List[WillumpGraphNode], indices_to_costs_map, indices_to_importances_map,
                         model_node_input) -> Tuple[str, str]:
-
     if model_node_input is not None:
         nodes_to_importances: MutableMapping[WillumpGraphNode, float] = {}
         nodes_to_costs: MutableMapping[WillumpGraphNode, int] = {}
@@ -57,10 +60,12 @@ def graph_to_dot_string(graph: WillumpGraph, mi_inputs: List[WillumpGraphNode],
                 width = 3
             if current_node in nodes_to_importances:
                 width = 3
-                metadata += "\\nCost=%.1f%% Importance=%.1f%%" % (nodes_to_costs[current_node], nodes_to_importances[current_node])
+                metadata += "\\nCost=%.1f%% Importance=%.1f%%" % (
+                nodes_to_costs[current_node], nodes_to_importances[current_node])
             node_label = "{0} [label=\"{1}{4}\", color={2}, penwidth={3}];\n".format(abs(current_node.__hash__()),
-                                                                    current_node.graphviz_repr().replace("\n", ""),
-                                                                    color, width, metadata)
+                                                                                     current_node.graphviz_repr().replace(
+                                                                                         "\n", ""),
+                                                                                     color, width, metadata)
             labels_string += node_label
         next_nodes = current_node.get_in_nodes().copy()
         changes = True
@@ -96,3 +101,9 @@ def visualize_graph(graph: WillumpGraph, mi_inputs: List[WillumpGraphNode] = (),
                                                       model_node_inputs)
     dot_string = "digraph G {{\n {0} {1}}}".format(labels_string, graph_string)
     print(dot_string)
+    source = graphviz.Source(dot_string)
+    if "microsoft" in platform.uname()[3].lower():  # Detect WSL
+        source.render(format="png", filename="output")
+        subprocess.run(["cmd.exe", "/C", "call", "output.png"])
+    else:
+        source.render(format="png", filename="output", view=True)

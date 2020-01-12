@@ -19,22 +19,38 @@ parser.add_argument("-d", "--disable", help="Disable Willump", action="store_tru
 parser.add_argument("-w", "--workers", type=int, help="Number of Workers")
 args = parser.parse_args()
 if args.cascades:
-    cascades = pickle.load(open(base_path + "training_cascades.pk", "rb"))
+    trained_cascades = pickle.load(open(base_path + "training_cascades.pk", "rb"))
 else:
-    cascades = None
+    trained_cascades = None
 if args.workers is None:
     workers = 0
 else:
     workers = args.workers
 
 
-@willump_execute(disable=args.disable, num_workers=workers, eval_cascades=cascades)
+
+
+
+
+
+
+
+@willump_execute(eval_cascades=trained_cascades)
 def vectorizer_transform(input_text, word_vect, char_vect):
     word_features = word_vect.transform(input_text)
     char_features = char_vect.transform(input_text)
     combined_features = scipy.sparse.hstack([word_features, char_features], format="csr")
     preds = willump_predict_function(classifier, combined_features)
     return preds
+
+
+
+
+
+
+
+
+
 
 
 def vectorizer_transform_noopt(input_text, word_vect, char_vect):
