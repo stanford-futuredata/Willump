@@ -20,6 +20,8 @@ and files go in the mercari_price_suggestion folder,
 and the dataset for Instant is [here](https://www.kaggle.com/c/instant-gratification/data)
 and files go in the instant_gratification folder.
 
+Note that Toxic, Product, Music, and Instant use smaller datasets and less complex models and so each run in last than half an hour.  Credit, Price, and Purchase use larger datasets and more complex models and so take multiple hours each to run.
+
 Note that some benchmarks load data into and then query data from a remote Redis server.
 
 We will now describe how to reproduce each of the benchmarks.
