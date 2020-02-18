@@ -22,7 +22,11 @@ and files go in the instant_gratification folder.
 
 Note that Toxic, Product, Music, and Instant use smaller datasets and less complex models and so each run in last than half an hour.  Credit, Price, and Purchase use larger datasets and more complex models and so take multiple hours each to run.
 
-Note that some benchmarks load data into and then query data from a remote Redis server.
+To quickly reproduce results from the three simplest and fastest benchmarks--Toxic, Product, and Music--run:
+
+    ./simple_benchmarks.sh
+
+If you wish to reproduce all benchmarks, note that some benchmarks load data into and then query data from a remote Redis server.
 
 We will now describe how to reproduce each of the benchmarks.
 
