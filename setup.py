@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from distutils.core import setup
+from setuptools import setup
 
 setup(name='Willump',
       version='0.1',
@@ -9,4 +9,5 @@ setup(name='Willump',
       author_email='kraftp@cs.stanford.edu',
       url='https://github.com/stanford-futuredata/Willump',
       packages=['willump', 'willump.evaluation', 'willump.graph'],
+      test_suite='tests',
      )
