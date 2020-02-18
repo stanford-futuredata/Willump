@@ -1,0 +1,12 @@
+numpy
+scipy
+sklearn
+pandas
+astor
+setuptools
+tqdm
+pandas
+redis
+lightgbm==2.2.2
+tensorflow==1.12.0
+keras==2.2.4
