@@ -52,7 +52,7 @@ python3 tests/benchmark_scripts/music_point.py | awk NF
 echo "Music Point Cascaded:"
 python3 tests/benchmark_scripts/music_point.py -c | awk NF
 
-echo "Training TopK Models and Approximations"
+echo "Training Top-K Models and Approximations"
 
 python3 tests/benchmark_scripts/toxic_train.py -k 100 | awk NF
 python3 tests/benchmark_scripts/product_train.py -k 100 | awk NF
