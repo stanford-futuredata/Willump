@@ -36,8 +36,8 @@ ADD $WILLUMP_HOME/tests /python-deps/Willump/tests
 ADD $WILLUMP_HOME/willump /python-deps/Willump/willump
 ADD $WILLUMP_HOME/cppextensions /python-deps/Willump/cppextensions
 
-WORKDIR "/python-deps/Willump"
-RUN pip install -r requirements.txt
-RUN python setup.py install --user
-
 ENV WILLUMP_HOME=/python-deps/Willump
+
+RUN pip install -r "/python-deps/Willump/requirements.txt"
+WORKDIR "/python-deps/Willump"
+RUN python setup.py install --user
