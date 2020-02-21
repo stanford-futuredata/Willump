@@ -37,7 +37,7 @@ ADD $WILLUMP_HOME/willump /python-deps/Willump/willump
 ADD $WILLUMP_HOME/cppextensions /python-deps/Willump/cppextensions
 ADD $WILLUMP_HOME/requirements.txt /python-deps/Willump
 ADD $WILLUMP_HOME/setup.py /python-deps/Willump
-ADD $WILLUMP_HOME/simple_benchmarks.sh
+ADD $WILLUMP_HOME/simple_benchmarks.sh /python-deps/Willump
 
 ENV WILLUMP_HOME=/python-deps/Willump
 
