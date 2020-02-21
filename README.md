@@ -45,3 +45,17 @@ To confirm Willump works, run the Willump unit tests:
 
 For information on reproducing the experiments run in the Willump paper, please see our
 [benchmarks guide](https://github.com/stanford-futuredata/Willump/blob/master/BENCHMARKS.md).
+
+## Docker
+
+You can also experiment with Willump using Docker with the Dockerfile we provide.  To clone our repository
+and build our container, run:
+
+    git clone https://github.com/stanford-futuredata/Willump.git
+    cd Willump
+    export WILLUMP_HOME=`pwd`
+    docker build -t willump .
+
+Then, to verify the container built successfully, run our unit tests:
+
+    docker run -t willump python setup.py test

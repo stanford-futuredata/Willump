@@ -170,7 +170,7 @@ def create_featureset(folder):
 
     # add latent features
     y_pred = np.hstack(add_features_and_predict(folder, combi))
-    print("Train AUC: %f" % willump_score_function(y, y_pred))
+    print("Validation AUC: %f" % willump_score_function(y, y_pred))
 
 
 if __name__ == '__main__':
