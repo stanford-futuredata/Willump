@@ -1,6 +1,6 @@
 # Willump
 
-**Willump is unstable and under active development!  Please report any bugs or unusual behavior to [willump-group@cs.stanford.edu](mailto:willump-group@cs.stanford.edu).**
+**Willump is unstable and under active development!  Please report any bugs or unusual behavior.**
 
 Willump is an optimizer for machine learning inference.  It speeds up ML inference pipelines
 written as Python functions whose performance is bottlenecked by feature computation.
