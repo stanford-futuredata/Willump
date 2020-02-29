@@ -4,7 +4,8 @@
 
 Willump is an optimizer for machine learning inference.  It speeds up ML inference pipelines
 written as Python functions whose performance is bottlenecked by feature computation.
-For a full description of Willump, please see [our paper](https://arxiv.org/pdf/1906.01974.pdf).
+For a full description of Willump, please see [our paper](http://petereliaskraft.net/res/willump.pdf),
+published at [MLSys 2020](https://mlsys.org).
 
 ## Installation
 
