@@ -1,6 +1,8 @@
 # Willump
 
-**Willump is unstable and under active development!  Please report any bugs or unusual behavior.**
+**Update:  We've released a new and simpler rewrite of Willump available [here](https://github.com/stanford-futuredata/Willump-Simple).  We'd recommend anyone interested in experimenting with the project to check out that version first!**
+
+Willump is unstable and under active development!  Please report any bugs or unusual behavior.
 
 Willump is an optimizer for machine learning inference.  It speeds up ML inference pipelines
 written as Python functions whose performance is bottlenecked by feature computation.
